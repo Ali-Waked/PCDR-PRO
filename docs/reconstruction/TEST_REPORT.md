@@ -84,15 +84,18 @@ No invented media, social link, film URL, donor, partner, testimonial, certifica
 
 ## 6. Firefox browser smoke
 
-Browser/e2e execution is not performed by this work session. The user runs the application server on port `8070` and has explicitly reserved browser, screenshot, Playwright and server execution. The following checks remain user-run and are not claimed as passing here:
+Browser/e2e execution is no longer performed by this work session. The user runs the application server on port `8070` and has explicitly reserved browser, screenshot, Playwright and server execution.
 
-- `tests/e2e/public-header-nav.spec.mjs`
-- `tests/e2e/footer-identical.spec.mjs`
-- 390/768/1440 viewports for `/ar` and `/en`
-- prototype anchors, tabs, carousel, ticker, console/page errors
-- light/dark/system theme attributes
+A partial Firefox run was captured before that restriction:
 
-The e2e specs were prepared and syntax-checked earlier, but no final browser result is asserted by this report.
+| Spec / check | Result |
+|---|---|
+| `tests/e2e/footer-identical.spec.mjs` | 3/3 passed |
+| `public-header-nav.spec.mjs` — pill/burger/menu layout at tested scales | 6/6 passed; one needed a retry |
+| `public-header-nav.spec.mjs` — inner pages keep measured header geometry | Passed |
+| `public-header-nav.spec.mjs` — active state on trigger and panel item | Failed once: `.ps-dropdown__item[aria-current="page"]` count was `0` |
+
+The header nav spec did not complete. The 390/768/1440 locale matrix, anchors, tabs, carousel, ticker, theme attributes, and console/page-error audit were not run. No complete browser success is claimed; those checks remain user-run. The active-page-state failure above is recorded as an open browser-level issue for follow-up.
 
 ---
 
