@@ -594,9 +594,10 @@ final class PublicWebsiteTest extends TestCase
     }
 
     /**
-     * The shared header consumes the CMS-seeded primary menu through the public
-     * navigation composable. The footer uses a canonical 3-group structure to keep
-     * the second footer section identical across all public pages and locales.
+     * Non-home public pages consume the CMS-seeded primary menu through the public
+     * navigation composable. Their shared footer uses a canonical 3-group structure
+     * so it stays identical across inner public pages and locales; the homepage has
+     * its own prototype footer.
      */
     public function test_public_shell_uses_seeded_primary_menu(): void
     {
@@ -608,7 +609,7 @@ final class PublicWebsiteTest extends TestCase
 
         $header = (string) file_get_contents(resource_path('js/Components/Public/SiteHeader.vue'));
         $this->assertStringContainsString("from '../../composables/usePublicNavigation'", $header);
-        $this->assertStringContainsString('const { links, cta } = usePublicNavigation()', $header);
+        $this->assertStringContainsString('const { links, cta, barEntries } = usePublicNavigation()', $header);
         $this->assertStringContainsString('v-for="(item, i) in links"', $header);
         $this->assertStringContainsString(':href="item.url"', $header);
         $this->assertStringContainsString(':href="cta.url"', $header);
@@ -662,8 +663,8 @@ final class PublicWebsiteTest extends TestCase
     {
         $expected = [
             'css/pcdr-home.css' => 'd555d276d7abbce07004fc4f73c54e4a104a5e0f9bffa26ff47df71e299dc9c9',
-            'views/app.blade.php' => '540640e87ed557eff285ce5b3fbff60677ebf7d042a92309ea3ff2ba3aeaef6f',
-            'js/Components/LanguageSwitcher.vue' => 'd5182c3b3a9e7f8007b2ffbbdc3fa58b7c3c4c7b6754623ba7c2a9624dda03f1',
+            'views/app.blade.php' => '2a7affa19d09acda482e3d3dbce2ef97d374c259eaaa677848145c24ba871765',
+            'js/Components/LanguageSwitcher.vue' => '29f9798faee179ba36da521bd69d0e28badc73e33dcc6f51420f9215f4471537',
         ];
 
         foreach ($expected as $path => $hash) {
@@ -675,23 +676,36 @@ final class PublicWebsiteTest extends TestCase
     {
         $source = (string) file_get_contents(resource_path('js/Pages/Public/Home.vue'));
 
-        $this->assertStringContainsString('alternateUrl, localPath', $source);
-        $this->assertStringContainsString('<SiteHeader :transparent="true" />', $source);
-        $this->assertStringContainsString('<SiteFooter />', $source);
-        foreach (['#top', '#about', '#areas', '#programs', '#targets', '#partners', '#footer', '#community'] as $anchor) {
-            $this->assertStringContainsString("'{$anchor}': localPath", $source);
+        $this->assertStringContainsString('alternateUrl', $source);
+        $this->assertStringContainsString('class="pcdr-prototype"', $source);
+        $this->assertStringContainsString('<ProPrototypeFooter :sections="props.sections" />', $source);
+
+        $anchors = [
+            'js/Pages/Public/Home.vue' => ['href="#top"', 'id="top"'],
+            'js/Components/RedesignHome/ProImpact.vue' => ['id="impact"', 'id="targets"'],
+            'js/Components/RedesignHome/ProProgramAxes.vue' => ['id="programs"'],
+            'js/Components/RedesignHome/ProNewsTabs.vue' => ['id="news"'],
+            'js/Components/RedesignHome/ProMediaGallery.vue' => ['id="albums"'],
+            'js/Components/RedesignHome/ProAboutTabs.vue' => ['id="about"'],
+            'js/Components/RedesignHome/ProStories.vue' => ['id="stories"'],
+            'js/Components/RedesignHome/ProPrototypeFooter.vue' => ['id="contact"'],
+        ];
+
+        foreach ($anchors as $path => $markers) {
+            $componentSource = (string) file_get_contents(resource_path($path));
+
+            foreach ($markers as $marker) {
+                $this->assertStringContainsString($marker, $componentSource, $path.' is missing '.$marker.'.');
+            }
         }
-        $this->assertStringContainsString("routeFor('#about')", $source);
-        $this->assertStringContainsString("routeFor('#areas')", $source);
-        $this->assertStringContainsString("routeFor('#programs')", $source);
-        $this->assertStringContainsString("routeFor('#partners')", $source);
-        $this->assertStringContainsString("routeFor('#footer')", $source);
-        $this->assertStringContainsString("routeFor('#community')", $source);
-        $this->assertStringContainsString("localPath('about/direction')", $source);
-        $this->assertStringContainsString("localPath('get-involved')", $source);
+
+        foreach (['routeFor(', 'localPath(', '<SiteHeader', '<SiteFooter', 'href="#main"'] as $retiredMarker) {
+            $this->assertStringNotContainsString($retiredMarker, $source, $retiredMarker.' still present in the homepage.');
+        }
+
         $this->assertStringNotContainsString('Sample report headline', $source);
         $this->assertStringNotContainsString('عنوان تقرير توضيحي', $source);
-        $this->assertSame(1, substr_count($source, 'href="#'), 'Only the in-page skip link may remain an anchor.');
+        $this->assertSame(1, substr_count($source, 'href="#top"'), 'Only the in-page skip link may target #top in Home.vue.');
     }
 
     /** @param array<string, mixed> $fields */
@@ -706,45 +720,69 @@ final class PublicWebsiteTest extends TestCase
         }
     }
 
-    public function test_public_pages_share_single_footer_component_without_variants(): void
+    public function test_non_home_public_pages_share_single_footer_component_without_variants(): void
     {
         $layout = (string) file_get_contents(resource_path('js/Layouts/PublicLayout.vue'));
         $home = (string) file_get_contents(resource_path('js/Pages/Public/Home.vue'));
         $footer = (string) file_get_contents(resource_path('js/Components/Public/SiteFooter.vue'));
 
         $this->assertStringContainsString('<SiteFooter />', $layout);
-        $this->assertStringContainsString('<SiteFooter />', $home);
+        $this->assertStringNotContainsString('SiteFooter', $home);
+        $this->assertStringContainsString('<ProPrototypeFooter :sections="props.sections" />', $home);
         $this->assertStringNotContainsString('variant', $footer);
         $this->assertStringNotContainsString('minimal', $footer);
         $this->assertStringContainsString('footerGroups', $footer);
         $this->assertStringContainsString('ps-footer__group', $footer);
     }
 
+    public function test_homepage_uses_prototype_footer_without_invented_links(): void
+    {
+        $home = (string) file_get_contents(resource_path('js/Pages/Public/Home.vue'));
+        $footer = (string) file_get_contents(resource_path('js/Components/RedesignHome/ProPrototypeFooter.vue'));
+        $composable = (string) file_get_contents(resource_path('js/composables/useHomepageContent.js'));
+
+        $this->assertStringContainsString('<ProPrototypeFooter :sections="props.sections" />', $home);
+        $this->assertStringNotContainsString('SiteFooter', $home);
+        $this->assertStringContainsString('<footer class="foot" id="contact">', $footer);
+        $this->assertStringContainsString('href="#about"', $footer);
+        $this->assertStringContainsString('href="#contact"', $footer);
+        $this->assertStringNotContainsString('mailto:', $footer);
+        $this->assertStringNotContainsString('http://', $footer);
+        $this->assertStringNotContainsString('https://', $footer);
+        $this->assertStringContainsString('content.safeUrl(', $footer);
+        $this->assertStringContainsString('<span v-else :aria-label="item.label"', $footer, 'Links without a URL must stay inert.');
+        $this->assertStringContainsString("url === '#'", $composable, 'Placeholder links must never become destinations.');
+    }
+
     /**
-     * Regression: the homepage footer navigation groups are <nav> elements inside
-     * the `.pcdr-home` shell. Legacy homepage header styles used bare
-     * `.pcdr-home nav` selectors, which hid the shared footer groups (and the
-     * shared header menu) at <=1100px because they set visibility:hidden.
-     * Those rules must stay scoped to the legacy `.site-header` markup so they
-     * can never leak into the shared SiteFooter/SiteHeader components.
+     * The homepage now owns a prototype footer instead of the shared SiteFooter.
+     * The legacy `.pcdr-home nav` rules that hid shared footer groups must not be
+     * reintroduced, and prototype styles must remain scoped under `.pcdr-prototype`.
+     * Inner pages keep the shared footer's grouped <nav> elements.
      */
     public function test_homepage_styles_do_not_hide_shared_footer_navigation(): void
     {
-        $css = (string) file_get_contents(resource_path('css/pcdr-home.css'));
+        $legacyCss = (string) file_get_contents(resource_path('css/pcdr-home.css'));
+        $prototypeCss = (string) file_get_contents(resource_path('css/pcdr-prototype.css'));
 
-        $this->assertStringNotContainsString('.pcdr-home nav{', $css);
-        $this->assertStringNotContainsString('.pcdr-home nav.open', $css);
-        $this->assertStringContainsString('.pcdr-home .site-header nav{position:fixed', $css);
-        $this->assertStringContainsString('.pcdr-home .site-header nav.open', $css);
+        $this->assertStringNotContainsString('.pcdr-home nav{', $legacyCss);
+        $this->assertStringNotContainsString('.pcdr-home nav.open', $legacyCss);
+        $this->assertStringContainsString('.pcdr-home .site-header nav{position:fixed', $legacyCss);
+        $this->assertStringContainsString('.pcdr-home .site-header nav.open', $legacyCss);
+        $this->assertStringContainsString('.pcdr-prototype .menu', $prototypeCss);
+        $this->assertStringContainsString('.pcdr-prototype .foot', $prototypeCss);
+        $this->assertStringNotContainsString('.pcdr-prototype nav{', $prototypeCss);
+        $this->assertStringNotContainsString('.pcdr-prototype nav.open', $prototypeCss);
 
         $footer = (string) file_get_contents(resource_path('js/Components/Public/SiteFooter.vue'));
         $this->assertStringContainsString('<nav', $footer);
         $this->assertStringContainsString('ps-footer__group', $footer);
 
         $home = (string) file_get_contents(resource_path('js/Pages/Public/Home.vue'));
-        $this->assertStringContainsString('pcdr-home public-shell', $home);
-        $this->assertStringContainsString('<SiteFooter />', $home);
-        $this->assertStringContainsString('class="sec cta"', $home);
+        $this->assertStringContainsString('class="pcdr-prototype"', $home);
+        $this->assertStringNotContainsString('pcdr-home public-shell', $home);
+        $this->assertStringNotContainsString('<SiteFooter', $home);
+        $this->assertStringContainsString('<ProPrototypeFooter :sections="props.sections" />', $home);
     }
 
     /** @return array<string, mixed> */

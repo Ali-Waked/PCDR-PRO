@@ -101,11 +101,11 @@ watch(locale, async (val) => {
 <style scoped>
 .admin-lang { display: inline-flex; align-items: center; }
 .admin-lang__pill {
-    --ls-border: #25334B;
-    --ls-text: #25334B;
-    --ls-thumb: #3E5172;
-    --ls-active-text: #fff;
-    --ls-focus: #397F7B;
+    --ls-border: var(--pcdr-border-strong);
+    --ls-text: var(--pcdr-text);
+    --ls-thumb: var(--pcdr-primary);
+    --ls-active-text: var(--pcdr-on-primary);
+    --ls-focus: var(--pcdr-focus-ring);
     display: inline-flex;
     align-items: center;
     inline-size: fit-content;
@@ -113,14 +113,14 @@ watch(locale, async (val) => {
     padding: 3px;
     border: 1.5px solid var(--ls-border);
     border-radius: 999px;
-    background: #fff;
+    background: var(--pcdr-surface);
     box-sizing: border-box;
 }
 .admin-lang__globe {
     display: none;
     align-items: center;
     justify-content: center;
-    color: #25334B;
+    color: var(--pcdr-text);
     padding-inline: 0.45rem 0.2rem;
 }
 .admin-lang__segment {

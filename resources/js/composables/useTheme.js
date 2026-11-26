@@ -50,13 +50,19 @@ export function applyThemePreference(value, options = {}) {
     if (typeof document !== 'undefined') {
         const root = document.documentElement
 
-        // data-theme always carries the resolved theme; data-theme-preference
-        // keeps the raw choice so System can follow later OS changes.
-        root.dataset.theme = resolved
+        // System must leave data-theme unset so the CSS media query remains
+        // authoritative when the operating-system preference changes. The raw
+        // choice is retained separately for the selector and persistence.
+        if (preference === 'system') {
+            delete root.dataset.theme
+        } else {
+            root.dataset.theme = preference
+        }
+
         root.dataset.themePreference = preference
-        root.classList.toggle('dark', resolved === 'dark')
-        root.classList.toggle('light', resolved === 'light')
-        root.style.colorScheme = resolved
+        root.classList.toggle('dark', preference === 'dark')
+        root.classList.toggle('light', preference === 'light')
+        root.style.colorScheme = preference === 'system' ? 'light dark' : preference
 
         if (transition && ! reducedMotion?.matches) {
             root.classList.add('pcdr-theme-transition')
@@ -68,7 +74,7 @@ export function applyThemePreference(value, options = {}) {
 
         const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]')
         if (colorSchemeMeta) {
-            colorSchemeMeta.setAttribute('content', resolved)
+            colorSchemeMeta.setAttribute('content', preference === 'system' ? 'light dark' : preference)
         }
 
         const themeColorMeta = document.querySelector('meta[name="theme-color"]')

@@ -36,7 +36,7 @@ function switchTo(code) {
             type="button"
             class="lang-switcher__btn"
             :class="{ 'is-active': option.code === locale }"
-            :aria-label="option.ariaLabel"
+            :aria-label="`${option.label} — ${option.ariaLabel}`"
             :aria-pressed="option.code === locale ? 'true' : 'false'"
             :lang="option.lang"
             @click="switchTo(option.code)"
