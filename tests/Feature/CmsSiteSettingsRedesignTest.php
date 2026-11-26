@@ -42,7 +42,7 @@ final class CmsSiteSettingsRedesignTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Cms/Settings/Index')
-                ->where('settings', fn ($settings): bool => $settings->count() === 19
+                ->where('settings', fn ($settings): bool => $settings->count() === 22
                     && $settings->pluck('key')->all() === SiteSettingsCatalog::keys()
                     && $settings->every(fn (array $setting): bool => ! str_starts_with($setting['key'], 'app.')
                         && ! str_starts_with($setting['key'], 'mail.')))
@@ -102,6 +102,47 @@ final class CmsSiteSettingsRedesignTest extends TestCase
         $audit = AuditLog::query()->where('action', 'cms.settings.update')->latest('id')->firstOrFail();
         $this->assertContains('contact.email', $audit->context['keys']);
         $this->assertSame('info@example.test', $audit->after['contact.email']);
+    }
+
+    public function test_social_values_are_normalized_on_save_and_invalid_values_are_rejected(): void
+    {
+        $owner = User::factory()->platformOwner()->create();
+
+        $this->actingAs($owner)->put('/ar/cms/settings', [
+            'settings' => [
+                ['key' => 'social.tiktok', 'value' => ' @pcdr '],
+                ['key' => 'social.whatsapp', 'value' => '+970 59 123 4567'],
+            ],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('website_settings', [
+            'key' => 'social.tiktok',
+            'value' => 'https://www.tiktok.com/@pcdr',
+        ]);
+        $this->assertDatabaseHas('website_settings', [
+            'key' => 'social.whatsapp',
+            'value' => 'https://wa.me/970591234567',
+        ]);
+
+        $links = app(SiteSettings::class)->socialLinks('en');
+        $this->assertContains([
+            'platform' => 'tiktok',
+            'label' => 'TikTok',
+            'url' => 'https://www.tiktok.com/@pcdr',
+        ], $links);
+        $this->assertContains([
+            'platform' => 'whatsapp',
+            'label' => 'WhatsApp',
+            'url' => 'https://wa.me/970591234567',
+        ], $links);
+
+        $this->actingAs($owner)->put('/ar/cms/settings', [
+            'settings' => [
+                ['key' => 'social.facebook', 'value' => 'javascript:alert(1)'],
+            ],
+        ])->assertSessionHasErrors('settings.0.value');
+
+        $this->assertDatabaseMissing('website_settings', ['key' => 'social.facebook']);
     }
 
     public function test_update_rejects_invalid_values_and_unknown_setting_keys(): void

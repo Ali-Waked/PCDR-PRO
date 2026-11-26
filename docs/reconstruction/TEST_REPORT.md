@@ -1,7 +1,7 @@
 # PCDR PRO — Reconstruction Test Report
 
 **Date:** 2026-11-26  
-**Scope:** Full Laravel suite, homepage CMS/API contracts, theme persistence, dashboard shell, route/legacy audit, production build and browser smoke.  
+**Scope:** Full Laravel suite, homepage CMS/API contracts, theme persistence, dashboard shell, route/legacy audit, social links, production build and browser smoke.
 **Governance:** `NOT CLEARED`. This report records verification only. It does not approve ADR-001–017, close OQ-24–29, mark OQ-49 resolved, authorize Phase 6, or deploy.
 
 ---
@@ -99,7 +99,27 @@ The header nav spec did not complete. The 390/768/1440 locale matrix, anchors, t
 
 ---
 
-## 7. Known limitations
+## 7. Social Links verification
+
+| Check | Result |
+|---|---|
+| Social links, normalizer and related CMS/public regression set | 100/100 passed, 4,432 assertions |
+| Full PHP suite after integration | 467/467 passed, 17,831 assertions |
+| `vendor/bin/pint --dirty --format agent` | Passed |
+| `npm run build` | Passed; 840 modules, optional `fontaine` and large-chunk notices only |
+| `git diff --check` | Clean |
+| Pinned-file hashes | Match the authoritative values in section 4 |
+
+- The public-site CMS is the source of truth. The catalog and seeder expose Facebook, X, Instagram, LinkedIn, YouTube, TikTok, Snapchat and WhatsApp with `null` defaults; no social account was invented.
+- CMS input accepts a full URL, scheme-less host/path, `@handle`, bare username or WhatsApp number. `SocialLinkNormalizer` canonicalizes to https on save and again on render; invalid values are rejected with translated English/Arabic validation messages and CMS hints.
+- `SocialLinks.vue` renders only configured platforms and no empty container. It uses one local inline 24×24 `currentColor` SVG path map, translated `aria-label`s, `target="_blank"`, `rel="noopener noreferrer"`, 44×44 minimum targets, visible focus rings, RTL-safe logical properties, and dark/light tones.
+- Computed contrast: white icon on `#25334B` 12.70:1; white label 10.60:1 on the default surface and 8.72:1 on hover; teal focus ring on `#25334B` 5.79:1; `#3E5172` label 8.00:1 on white and 6.92:1 on `#F3EEE4`.
+- `tests/e2e/social-links.spec.mjs` was added for the 390×844 and 1440×900 responsive, focus and overflow checks, but browser execution was skipped by user decision. No Playwright result, screenshot or browser pass is claimed for this feature.
+- Governance statuses were not changed: all ADRs remain `PROPOSED`, OQ-24–29 remain `DECISION REQUIRED`, OQ-49 remains `PARTIALLY RESOLVED — PENDING FORMAL APPROVAL`, Phase 6 remains `NOT STARTED / NOT AUTHORIZED`, and nothing was pushed or deployed.
+
+---
+
+## 8. Known limitations
 
 - The publication workflow bypass remains: direct `published ↔ draft` transitions are accepted because existing tests depend on that behavior.
 - Hardcoded Vue fallback copy is source-derived prototype scaffolding, not approval of OQ-05/OQ-06.

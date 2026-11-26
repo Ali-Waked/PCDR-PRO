@@ -143,7 +143,7 @@ final class WebsiteCmsScopeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Cms/Settings/Index')
-                ->where('settings', fn ($settings): bool => $settings->count() === 19
+                ->where('settings', fn ($settings): bool => $settings->count() === 22
                     && $settings->contains(fn (array $setting): bool => $setting['key'] === 'contact.complaints_email'
                         && $setting['group'] === 'contact'
                         && $setting['type'] === 'email')

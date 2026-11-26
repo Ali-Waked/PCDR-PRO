@@ -13,6 +13,7 @@ use App\Services\AuditService;
 use App\Services\CmsAccess;
 use App\Services\SiteSettings;
 use App\Support\SiteSettingsCatalog;
+use App\Support\SocialLinkNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
@@ -127,7 +128,7 @@ final class SettingController extends Controller
                         );
                     }
                 } else {
-                    $attributes['value'] = $this->normalize($entry['value'] ?? null);
+                    $attributes['value'] = $this->normalizeValue($key, $entry['value'] ?? null);
                     $setting->fill($attributes)->save();
                 }
 
@@ -188,5 +189,16 @@ final class SettingController extends Controller
         $value = $value === null ? null : trim($value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function normalizeValue(string $key, ?string $value): ?string
+    {
+        $value = $this->normalize($value);
+
+        if ($value === null || ! str_starts_with($key, 'social.')) {
+            return $value;
+        }
+
+        return app(SocialLinkNormalizer::class)->normalize($key, $value);
     }
 }

@@ -92,6 +92,9 @@ final class SiteSettingsSeeder extends Seeder
         'social.instagram' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
         'social.linkedin' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
         'social.youtube' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
+        'social.tiktok' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
+        'social.snapchat' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
+        'social.whatsapp' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
     ];
 
     public function run(): void

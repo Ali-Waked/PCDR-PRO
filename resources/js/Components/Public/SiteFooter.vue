@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3'
 import { useI18n } from '../../composables/useI18n'
 import { usePublicNavigation } from '../../composables/usePublicNavigation'
 import { useInView } from '../../composables/useInView'
+import SocialLinks from './SocialLinks.vue'
 
 const { page, t, site, localPath, locale } = useI18n()
 const { footerGroups: navFooterGroups } = usePublicNavigation()
@@ -172,8 +173,8 @@ const footerLabel = computed(() => locale.value === 'en' ? 'Site footer' : 'تذ
                             <span class="ps-footer__contact-label">{{ locale === 'en' ? 'Hours' : 'ساعات العمل' }}:</span>
                             <span>{{ contact.hours }}</span>
                         </li>
-                        <li v-for="link in social" :key="link.url" class="ps-footer__contact-item">
-                            <a :href="link.url" class="ps-footer__link" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
+                        <li v-if="social.length" class="ps-footer__contact-item ps-footer__contact-item--social">
+                            <SocialLinks :links="social" compact />
                         </li>
                     </ul>
                 </div>
