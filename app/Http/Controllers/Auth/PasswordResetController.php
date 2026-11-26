@@ -31,14 +31,20 @@ final class PasswordResetController extends Controller
         $status = Password::broker()->sendResetLink($request->only('email'));
 
         $this->audit->record('auth.password_reset_requested', 'users', null, null, [
-            'status' => $status,
+            'status' => match ($status) {
+                Password::RESET_LINK_SENT => 'sent',
+                Password::RESET_THROTTLED => 'throttled',
+                default => 'suppressed',
+            },
         ]);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return back()->with('success', __($status));
+        if ($status === Password::RESET_THROTTLED) {
+            return back()->withErrors(['email' => __($status)]);
         }
 
-        return back()->withErrors(['email' => __($status)]);
+        // Always use the same response so the endpoint cannot be used to
+        // enumerate registered email addresses.
+        return back()->with('success', __(Password::RESET_LINK_SENT));
     }
 
     public function showReset(string $locale, Request $request, string $token): Response

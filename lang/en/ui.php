@@ -58,6 +58,9 @@ return [
         'verify_title' => 'Verify your email address',
         'verify_subtitle' => 'Check your inbox for the verification link.',
         'resend' => 'Resend verification email',
+        'show_password' => 'Show password',
+        'hide_password' => 'Hide password',
+        'check_email_title' => 'Check your email',
     ],
     'dashboard' => [
         'title' => 'Platform overview',
