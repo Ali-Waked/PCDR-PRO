@@ -148,7 +148,6 @@ final class CmsWorkflowTest extends TestCase
             'cms.news.index', 'cms.news.create',
             'cms.publications.index', 'cms.publications.create',
             'cms.media.index',
-            'cms.homepage.index',
             'cms.settings.index',
             'cms.inquiries.index',
         ];
@@ -181,7 +180,6 @@ final class CmsWorkflowTest extends TestCase
             '/ar/cms/news',
             '/ar/cms/publications',
             '/ar/cms/media',
-            '/ar/cms/homepage',
             '/ar/cms/settings',
             '/ar/cms/inquiries',
         ];
@@ -226,8 +224,6 @@ final class CmsWorkflowTest extends TestCase
             ['get', 'cms.media.index', []],
             ['post', 'cms.media.store', []],
             ['get', 'cms.media.signed', ['media' => 1]],
-            ['get', 'cms.homepage.index', []],
-            ['put', 'cms.homepage.update', []],
             ['get', 'cms.settings.index', []],
             ['put', 'cms.settings.update', []],
             ['get', 'cms.inquiries.index', []],

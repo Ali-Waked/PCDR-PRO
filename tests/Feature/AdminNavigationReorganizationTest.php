@@ -32,7 +32,6 @@ final class AdminNavigationReorganizationTest extends TestCase
     private const ROUTE_NAMES = [
         'dashboard' => 'dashboard',
         'cms_dashboard' => 'cms.dashboard',
-        'homepage' => 'cms.homepage.index',
         'pillars' => 'cms.pillars.index',
         'programs' => 'cms.programs.index',
         'projects' => 'cms.projects.index',
@@ -66,7 +65,6 @@ final class AdminNavigationReorganizationTest extends TestCase
             ],
             'content' => [
                 ['cms_dashboard', '/cms'],
-                ['homepage', '/cms/homepage'],
                 ['pillars', '/cms/pillars'],
                 ['programs', '/cms/programs'],
                 ['projects', '/cms/projects'],
@@ -108,7 +106,7 @@ final class AdminNavigationReorganizationTest extends TestCase
             }
         }
 
-        $this->assertCount(18, $allKeys);
+        $this->assertCount(17, $allKeys);
         $this->assertSame($allKeys, array_values(array_unique($allKeys)));
         $this->assertSame($allPaths, array_values(array_unique($allPaths)));
     }
@@ -162,7 +160,7 @@ final class AdminNavigationReorganizationTest extends TestCase
                 'groups' => ['نظرة عامة', 'المحتوى والموقع', 'التواصل', 'الهوية والأمان', 'النظام'],
                 'items' => [
                     'overview' => ['لوحة التحكم'],
-                    'content' => ['لوحة المحتوى', 'الصفحة الرئيسية', 'المحاور الاستراتيجية', 'البرامج', 'المشاريع', 'الأخبار', 'الإصدارات', 'دليل الشركاء', 'مكتبة الوسائط', 'إعدادات الموقع'],
+                    'content' => ['لوحة المحتوى', 'المحاور الاستراتيجية', 'البرامج', 'المشاريع', 'الأخبار', 'الإصدارات', 'دليل الشركاء', 'مكتبة الوسائط', 'إعدادات الموقع'],
                     'communications' => ['الاستفسارات', 'قوالب البريد الإلكتروني'],
                     'identity' => ['الأدوار والصلاحيات', 'المستخدمون', 'سجلات التدقيق', 'أرشيف سجلات التدقيق'],
                     'system' => ['إعدادات المنصة'],
@@ -173,7 +171,7 @@ final class AdminNavigationReorganizationTest extends TestCase
                 'groups' => ['Overview', 'Content & Website', 'Communications', 'Identity & Security', 'System'],
                 'items' => [
                     'overview' => ['Dashboard'],
-                    'content' => ['Content dashboard', 'Homepage', 'Strategic pillars', 'Programmes', 'Projects', 'News', 'Publications', 'Partners directory', 'Media library', 'Site settings'],
+                    'content' => ['Content dashboard', 'Strategic pillars', 'Programmes', 'Projects', 'News', 'Publications', 'Partners directory', 'Media library', 'Site settings'],
                     'communications' => ['Inquiries', 'Email templates'],
                     'identity' => ['Roles & Permissions', 'Users', 'Audit logs', 'Audit archives'],
                     'system' => ['Platform settings'],

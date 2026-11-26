@@ -8,7 +8,6 @@ use App\Models\HomepageSection;
 use App\Models\HomepageSectionItem;
 use App\Models\NavigationItem;
 use App\Models\StrategicPillar;
-use App\Models\User;
 use App\Models\WebsiteSetting;
 use App\Services\HomepageService;
 use App\Services\SiteSettings;
@@ -16,7 +15,6 @@ use Database\Seeders\HomepageContentSeeder;
 use Database\Seeders\SiteSettingsSeeder;
 use Database\Seeders\WebsiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -349,82 +347,6 @@ final class HomepageBackendIntegrationTest extends TestCase
                 $this->assertStringContainsString($marker, $componentSource, $component.' is missing '.$marker.'.');
             }
         }
-    }
-
-    public function test_admin_can_review_and_update_inline_homepage_items(): void
-    {
-        $this->seedHomepage();
-
-        $editor = User::factory()->create([
-            'email' => self::BOOTSTRAP_EMAIL,
-            'password' => Hash::make('password12345'),
-        ]);
-
-        $this->actingAs($editor)->get(route('cms.homepage.index', ['locale' => 'ar']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Cms/Homepage/Index')
-                ->where('sections.5.key', 'targets')
-                ->where('sections.5.items.0.itemKey', 'families'));
-
-        $section = $this->section('targets');
-        $payload = [
-            'sections' => [[
-                'id' => $section->id,
-                'is_enabled' => true,
-                'display_order' => $section->display_order,
-                'translations' => [
-                    'ar' => [
-                        'eyebrow' => $section->t('eyebrow', 'ar'),
-                        'title' => $section->t('title', 'ar'),
-                        'body' => $section->t('body', 'ar'),
-                        'cta_label' => $section->t('cta_label', 'ar'),
-                        'cta_link' => $section->t('cta_link', 'ar'),
-                    ],
-                    'en' => [
-                        'eyebrow' => $section->t('eyebrow', 'en'),
-                        'title' => $section->t('title', 'en'),
-                        'body' => $section->t('body', 'en'),
-                        'cta_label' => $section->t('cta_label', 'en'),
-                        'cta_link' => $section->t('cta_link', 'en'),
-                    ],
-                ],
-                'items' => $section->items->map(function (HomepageSectionItem $item): array {
-                    return [
-                        'id' => $item->id,
-                        'item_type' => $item->item_type,
-                        'item_id' => $item->item_id,
-                        'item_key' => $item->item_key,
-                        'is_published' => $item->is_published,
-                        'numeric_value' => $item->numeric_value,
-                        'translations' => [
-                            'ar' => [
-                                'label' => $item->t('label', 'ar'),
-                                'title' => $item->t('title', 'ar') === 'الأسر المستهدفة بالتدخلات الإنسانية'
-                                    ? 'صياغة مخصصة من المسؤول'
-                                    : $item->t('title', 'ar'),
-                                'body' => $item->t('body', 'ar'),
-                                'display_value' => $item->t('display_value', 'ar'),
-                                'url' => $item->t('url', 'ar'),
-                            ],
-                            'en' => [
-                                'label' => $item->t('label', 'en'),
-                                'title' => $item->t('title', 'en'),
-                                'body' => $item->t('body', 'en'),
-                                'display_value' => $item->t('display_value', 'en'),
-                                'url' => $item->t('url', 'en'),
-                            ],
-                        ],
-                    ];
-                })->all(),
-            ]],
-        ];
-
-        $this->actingAs($editor)->put(route('cms.homepage.update', ['locale' => 'ar']), $payload)
-            ->assertRedirect();
-
-        $this->assertSame('صياغة مخصصة من المسؤول', $this->item('targets', 'families')->t('title', 'ar'));
-        $this->assertSame(5, $this->section('targets')->items()->count());
     }
 
     private function seedHomepage(): void

@@ -88,7 +88,7 @@ final class PublicSurfacePreservationTest extends TestCase
     {
         foreach ([
             'dashboard', 'admin.users.index', 'admin.permissions.index',
-            'cms.dashboard', 'cms.programs.index', 'cms.homepage.index',
+            'cms.dashboard', 'cms.programs.index',
             'operations.dashboard', 'phase5.dashboard',
         ] as $name) {
             $this->assertTrue(Route::has($name), $name.' is missing.');

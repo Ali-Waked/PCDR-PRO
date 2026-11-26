@@ -373,7 +373,6 @@ return [
         'publications' => 'Publications',
         'partner_directory' => 'Partners directory',
         'media' => 'Media library',
-        'homepage' => 'Homepage',
         'cms_settings' => 'Site settings',
         'inquiries' => 'Inquiries',
         'email_templates' => 'Email templates',
@@ -494,7 +493,6 @@ return [
             'projects' => 'Projects',
             'publications' => 'Publications',
             'pillars' => 'Strategic pillars',
-            'homepage' => 'Homepage',
             'media' => 'Media library',
         ],
         'pending' => [

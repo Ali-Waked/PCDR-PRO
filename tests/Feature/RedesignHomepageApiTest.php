@@ -7,15 +7,10 @@ namespace Tests\Feature;
 use App\Enums\MediaType;
 use App\Models\HomepageSection;
 use App\Models\Media;
-use App\Models\Permission;
-use App\Models\Role;
-use App\Models\User;
-use App\Services\AccessManagementService;
 use App\Services\HomepageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class RedesignHomepageApiTest extends TestCase
@@ -117,40 +112,6 @@ final class RedesignHomepageApiTest extends TestCase
         }
 
         $response->assertStatus(429);
-    }
-
-    public function test_cms_homepage_index_sees_drafts_and_requires_permission(): void
-    {
-        $this->createSection('cta', ['is_enabled' => true, 'status' => 'draft']);
-
-        $this->actingAs(User::factory()->create())
-            ->get(route('cms.homepage.index', ['locale' => 'ar']))
-            ->assertForbidden();
-
-        $editor = User::factory()->create();
-        $this->grantPermission($editor, 'homepage.view');
-
-        $this->actingAs($editor)
-            ->get(route('cms.homepage.index', ['locale' => 'ar']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Cms/Homepage/Index')
-                ->has('sections', 1)
-                ->where('sections.0.key', 'cta')
-                ->where('sections.0.status', 'draft')
-            );
-    }
-
-    private function grantPermission(User $user, string $permission): void
-    {
-        $role = Role::create(['key' => 'test-'.$permission, 'name' => 'Test '.$permission]);
-        $role->permissions()->attach(Permission::create([
-            'key' => $permission,
-            'name' => $permission,
-            'module' => 'website',
-        ]));
-
-        app(AccessManagementService::class)->syncRoles($user, [$role->id]);
     }
 
     /**

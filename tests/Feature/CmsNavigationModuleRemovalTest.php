@@ -139,10 +139,10 @@ final class CmsNavigationModuleRemovalTest extends TestCase
     public function test_other_cms_modules_remain_accessible_without_navigation_management(): void
     {
         $user = $this->userWith([
-            'pillars.view', 'news.view', 'publications.view', 'media.view', 'homepage.view',
+            'pillars.view', 'news.view', 'publications.view', 'media.view',
         ]);
 
-        foreach (['cms.dashboard', 'cms.pillars.index', 'cms.news.index', 'cms.publications.index', 'cms.homepage.index'] as $route) {
+        foreach (['cms.dashboard', 'cms.pillars.index', 'cms.news.index', 'cms.publications.index'] as $route) {
             $this->actingAs($user)->get(route($route, ['locale' => 'ar']))
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page

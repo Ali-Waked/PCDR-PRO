@@ -23,7 +23,6 @@ use App\Http\Controllers\Cms\DashboardController;
 use App\Http\Controllers\Cms\DirectoryPartnerCategoryController;
 use App\Http\Controllers\Cms\DirectoryPartnerController;
 use App\Http\Controllers\Cms\EmailTemplateController;
-use App\Http\Controllers\Cms\HomepageController;
 use App\Http\Controllers\Cms\InquiryController;
 use App\Http\Controllers\Cms\MediaController as CmsMediaController;
 use App\Http\Controllers\Cms\PillarController as CmsPillarController;
@@ -149,15 +148,6 @@ Route::prefix('{locale}')
                 Route::put('/media/{media}', [CmsMediaController::class, 'update'])->middleware('cms:media.update')->name('media.update');
                 Route::delete('/media/{media}', [CmsMediaController::class, 'destroy'])->middleware('cms:media.delete')->name('media.destroy');
                 Route::get('/media/{media}/signed', [CmsMediaController::class, 'signed'])->middleware('cms:media.view')->name('media.signed');
-
-                Route::get('/homepage', [HomepageController::class, 'index'])->middleware('cms:homepage.view')->name('homepage.index');
-                Route::put('/homepage', [HomepageController::class, 'update'])->middleware('cms:homepage.update')->name('homepage.update');
-                Route::get('/homepage/preview', [HomepageController::class, 'preview'])->middleware('cms:homepage.view')->name('homepage.preview');
-                Route::post('/homepage/reorder', [HomepageController::class, 'reorder'])->middleware('cms:homepage.update')->name('homepage.reorder');
-                Route::patch('/homepage/{homepageSection}/status', [HomepageController::class, 'status'])->middleware('cms:homepage.update')->name('homepage.status');
-                Route::post('/homepage/{homepageSection}/toggle', [HomepageController::class, 'toggle'])->middleware('cms:homepage.update')->name('homepage.toggle');
-                Route::post('/homepage/sections', [HomepageController::class, 'store'])->middleware('cms:homepage.update')->name('homepage.sections.store');
-                Route::delete('/homepage/sections/{homepageSection}', [HomepageController::class, 'destroy'])->middleware('cms:homepage.update')->name('homepage.sections.destroy');
 
                 Route::prefix('partner-directory')->as('partner-directory.')->middleware('cms:directory_partners.view')->group(function (): void {
                     Route::get('/', [DirectoryPartnerController::class, 'index'])->name('index');

@@ -43,8 +43,6 @@ return [
         'media.upload' => 'Upload media',
         'media.update' => 'Edit media',
         'media.delete' => 'Delete media',
-        'homepage.view' => 'View homepage sections',
-        'homepage.update' => 'Edit homepage sections',
         'directory_partners.view' => 'View partners directory',
         'directory_partners.create' => 'Create partners directory entries',
         'directory_partners.update' => 'Edit partners directory entries',

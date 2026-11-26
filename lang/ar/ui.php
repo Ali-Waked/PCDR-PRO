@@ -373,7 +373,6 @@ return [
         'publications' => 'الإصدارات',
         'partner_directory' => 'دليل الشركاء',
         'media' => 'مكتبة الوسائط',
-        'homepage' => 'الصفحة الرئيسية',
         'cms_settings' => 'إعدادات الموقع',
         'inquiries' => 'الاستفسارات',
         'email_templates' => 'قوالب البريد الإلكتروني',
@@ -494,7 +493,6 @@ return [
             'projects' => 'المشاريع',
             'publications' => 'الإصدارات',
             'pillars' => 'المحاور الاستراتيجية',
-            'homepage' => 'الصفحة الرئيسية',
             'media' => 'مكتبة الوسائط',
         ],
         'pending' => [

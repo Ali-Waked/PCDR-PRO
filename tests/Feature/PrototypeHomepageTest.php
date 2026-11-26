@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\HomepageSection;
-use App\Models\Permission;
-use App\Models\Role;
-use App\Models\User;
-use App\Services\AccessManagementService;
 use App\Services\HomepageService;
 use Database\Seeders\HomepagePrototypeContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,97 +126,6 @@ final class PrototypeHomepageTest extends TestCase
         $this->assertNotContains('stories', $keys);
     }
 
-    public function test_authorized_admin_can_create_update_and_delete_prototype_sections(): void
-    {
-        $editor = User::factory()->create();
-        $this->grantPermission($editor, 'homepage.update');
-
-        $this->actingAs($editor)
-            ->post(route('cms.homepage.sections.store', ['locale' => 'ar']), [
-                'key' => 'prototype-test',
-                'type' => 'prototype-test',
-            ])
-            ->assertRedirect();
-
-        $section = HomepageSection::query()->where('key', 'prototype-test')->firstOrFail();
-
-        $this->actingAs($editor)
-            ->put(route('cms.homepage.update', ['locale' => 'ar']), [
-                'sections' => [[
-                    'id' => $section->id,
-                    'is_enabled' => true,
-                    'display_order' => 99,
-                    'translations' => [
-                        'ar' => [
-                            'title' => 'اختبار',
-                            'tickerLabel' => 'أهم الأخبار',
-                            'tabLabels' => ['news' => 'أخبار', 'publications' => 'إصدارات', 'projects' => 'مشاريع'],
-                        ],
-                    ],
-                    'items' => [[
-                        'item_type' => 'inline',
-                        'item_key' => 'prototype-item',
-                        'is_published' => true,
-                        'sort_order' => 1,
-                        'tab' => 'news',
-                        'featured' => true,
-                        'motifKey' => 'm-sun',
-                        'translations' => [
-                            'ar' => [
-                                'title' => 'عنوان',
-                                'body' => 'نص',
-                                'display' => '11',
-                                'url' => '#news',
-                                'unit' => 'محوراً',
-                                'dateLabel' => '2027',
-                                'ctaLabel' => 'أكمل القراءة',
-                                'caption' => 'وصف',
-                            ],
-                        ],
-                    ]],
-                ]],
-            ])
-            ->assertRedirect();
-
-        $this->assertSame('أهم الأخبار', $section->fresh()->t('ticker_label', 'ar'));
-        $this->assertSame(['news' => 'أخبار', 'publications' => 'إصدارات', 'projects' => 'مشاريع'], $section->fresh()->t('tab_labels', 'ar'));
-
-        $item = $section->items()->firstOrFail();
-        $this->assertSame('m-sun', $item->motif_key);
-        $this->assertSame('news', $item->tab);
-        $this->assertTrue((bool) $item->is_featured);
-        $this->assertSame('محوراً', $item->t('unit', 'ar'));
-
-        $this->actingAs($editor)
-            ->delete(route('cms.homepage.sections.destroy', ['locale' => 'ar', 'homepageSection' => $section]))
-            ->assertRedirect();
-
-        $this->assertDatabaseMissing('homepage_sections', ['id' => $section->id]);
-    }
-
-    public function test_admin_endpoints_require_homepage_permission(): void
-    {
-        $section = HomepageSection::query()->create([
-            'key' => 'protected-section',
-            'type' => 'protected-section',
-            'status' => 'published',
-            'is_enabled' => true,
-            'display_order' => 0,
-        ]);
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->post(route('cms.homepage.sections.store', ['locale' => 'ar']), ['key' => 'denied', 'type' => 'denied'])
-            ->assertForbidden();
-
-        $this->actingAs($user)
-            ->delete(route('cms.homepage.sections.destroy', ['locale' => 'ar', 'homepageSection' => $section]))
-            ->assertForbidden();
-
-        $this->assertDatabaseHas('homepage_sections', ['key' => 'protected-section']);
-        $this->assertDatabaseMissing('homepage_sections', ['key' => 'denied']);
-    }
-
     public function test_source_assets_and_public_components_exist_for_the_prototype(): void
     {
         $source = (string) file_get_contents(resource_path('../docs/redesign/source-homepage/index.html'));
@@ -258,17 +163,5 @@ final class PrototypeHomepageTest extends TestCase
 
         $this->assertFileExists(public_path('assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg'));
         $this->assertFileExists(resource_path('css/pcdr-prototype.css'));
-    }
-
-    private function grantPermission(User $user, string $permission): void
-    {
-        $role = Role::create(['key' => 'prototype-'.$permission, 'name' => 'Prototype '.$permission]);
-        $role->permissions()->attach(Permission::create([
-            'key' => $permission,
-            'name' => $permission,
-            'module' => 'website',
-        ]));
-
-        app(AccessManagementService::class)->syncRoles($user, [$role->id]);
     }
 }
