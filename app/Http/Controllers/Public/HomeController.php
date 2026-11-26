@@ -54,7 +54,7 @@ final class HomeController extends PublicController
                     ? $publication->document->url() : null,
                 'restricted' => $publication->is_restricted,
             ])->all(),
-            'sections' => $homepage->sections($locale, false),
+            'sections' => $homepage->sections($locale),
             'meta' => $this->seo($locale, (string) config("website.slogan.{$locale}"), path: "{$locale}"),
         ]);
     }

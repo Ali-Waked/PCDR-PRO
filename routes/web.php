@@ -192,6 +192,8 @@ Route::prefix('{locale}')
                 Route::post('/homepage/reorder', [HomepageController::class, 'reorder'])->middleware('cms:homepage.update')->name('homepage.reorder');
                 Route::patch('/homepage/{homepageSection}/status', [HomepageController::class, 'status'])->middleware('cms:homepage.update')->name('homepage.status');
                 Route::post('/homepage/{homepageSection}/toggle', [HomepageController::class, 'toggle'])->middleware('cms:homepage.update')->name('homepage.toggle');
+                Route::post('/homepage/sections', [HomepageController::class, 'store'])->middleware('cms:homepage.update')->name('homepage.sections.store');
+                Route::delete('/homepage/sections/{homepageSection}', [HomepageController::class, 'destroy'])->middleware('cms:homepage.update')->name('homepage.sections.destroy');
 
                 Route::prefix('partner-directory')->as('partner-directory.')->middleware('cms:directory_partners.view')->group(function (): void {
                     Route::get('/', [DirectoryPartnerController::class, 'index'])->name('index');

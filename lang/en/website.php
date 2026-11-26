@@ -15,6 +15,18 @@ return [
         'involve' => 'Get involved',
         'contact' => 'Contact',
         'complaints' => 'Complaints Box',
+        'groups' => [
+            'about' => 'About us',
+            'knowledge' => 'Knowledge & Accountability',
+        ],
+        'descriptions' => [
+            'about' => 'Who we are and what we work on',
+            'pillars' => 'Our strategic focus areas',
+            'programs' => 'Programmes and projects',
+            'news' => 'Latest news and activities',
+            'publications' => 'Reports and publications',
+            'transparency' => 'Transparency and accountability',
+        ],
     ],
 
     'publication' => [
@@ -646,13 +658,11 @@ return [
         'cta_link' => 'Call-to-action link',
         'label' => 'Label',
         'audit_logs' => 'Audit history',
-        'dashboard_workspace' => 'Website management workspace',
         'dashboard_content_studio' => 'Editorial content studio',
         'dashboard_content_studio_hint' => 'Here you manage the website’s pages, media, and published content.',
         'cms_dashboard_hint' => 'Use this dashboard to follow editorial items and inquiries, and reach publishing tools and settings quickly.',
         'dashboard_navigation' => 'Dashboard navigation',
         'dashboard_search_navigation' => 'Find a section',
-        'dashboard_technical_note' => 'A focused workspace for the public website and its content.',
         'dashboard_close_navigation' => 'Close navigation',
         'dashboard_open_navigation' => 'Open navigation',
         'dashboard_expand' => 'Expand sidebar',

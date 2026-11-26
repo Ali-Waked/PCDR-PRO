@@ -166,22 +166,25 @@ final class HomepageBackendIntegrationTest extends TestCase
             ->where('meta.og.image', null));
     }
 
-    public function test_public_home_keeps_disabled_sections_but_cms_preview_hides_them(): void
+    public function test_public_home_hides_disabled_sections_but_cms_preview_keeps_them(): void
     {
         $this->seedHomepage();
 
         $hero = $this->section('hero');
-        $hero->update(['is_enabled' => false]);
+        $hero->update(['is_enabled' => false, 'status' => 'draft']);
+        app(HomepageService::class)->flush();
 
-        $publicKeys = array_column(app(HomepageService::class)->sections('ar', false), 'key');
-        $previewKeys = array_column(app(HomepageService::class)->sections('ar'), 'key');
+        $publicKeys = array_column(app(HomepageService::class)->sections('ar'), 'key');
+        $previewKeys = array_column(app(HomepageService::class)->sections('ar', false, true), 'key');
 
-        $this->assertContains('hero', $publicKeys);
-        $this->assertNotContains('hero', $previewKeys);
+        $this->assertNotContains('hero', $publicKeys);
+        $this->assertContains('intro', $publicKeys);
+        $this->assertContains('hero', $previewKeys);
 
         $this->get('/ar')->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('sections.0.key', 'hero')
-            ->where('sections.0.title', "العمل التشاركي\nفي الأزمات والكوارث"));
+            ->component('Public/Home')
+            ->where('sections.0.key', 'intro')
+            ->where('sections.0.title', 'الإنسان أولاً... والمجتمع شريك في التغيير'));
     }
 
     public function test_unpublished_inline_items_are_excluded_from_public_home_content(): void
@@ -260,52 +263,74 @@ final class HomepageBackendIntegrationTest extends TestCase
         $this->assertStringNotContainsString('mailto:', $source);
     }
 
-    public function test_homepage_source_preserves_fixed_dom_order_link_map_and_public_shell(): void
+    public function test_homepage_source_uses_prototype_structure_and_anchor_map(): void
     {
         $source = (string) file_get_contents(resource_path('js/Pages/Public/Home.vue'));
 
-        $this->assertStringContainsString('class="pcdr-home public-shell"', $source);
-        $this->assertStringContainsString('<SiteHeader :transparent="true" />', $source);
-        $this->assertStringContainsString('<SiteFooter />', $source);
-        $this->assertStringContainsString('class="sec cta"', $source);
-        $this->assertSame(1, substr_count($source, 'href="#main"'));
-        $this->assertStringContainsString('props.sections', $source);
-        $this->assertStringNotContainsString('const content = {', $source);
-        $this->assertStringNotContainsString('navOpen', $source);
-
         foreach ([
-            "'#about': localPath('about')",
-            "'#areas': localPath('strategic-areas')",
-            "'#programs': localPath('programs')",
-            "'#targets': localPath('about/direction')",
-            "'#knowledge': localPath('publications')",
-            "'#contact': localPath('contact')",
-            "'#partners': localPath('partnerships')",
-            "'#footer': localPath('contact')",
-            "'#community': localPath('get-involved')",
-        ] as $routeDefinition) {
-            $this->assertStringContainsString($routeDefinition, $source);
+            'class="pcdr-prototype"',
+            "import '../../../css/pcdr-prototype.css'",
+            '<ProPrototypeSprite />',
+            'class="skip" href="#top"',
+            '<ProTopStrip />',
+            '<ProPillHeader />',
+            'props.sections',
+        ] as $marker) {
+            $this->assertStringContainsString($marker, $source, $marker.' marker missing.');
         }
 
+        foreach ([
+            'class="pcdr-home public-shell"',
+            '<SiteHeader',
+            '<SiteFooter',
+            'routeFor(',
+            'localPath(',
+            'href="#main"',
+            'const content = {',
+            'navOpen',
+        ] as $retiredMarker) {
+            $this->assertStringNotContainsString($retiredMarker, $source, $retiredMarker.' still present.');
+        }
+
+        $this->assertSame(1, substr_count($source, 'href="#top"'));
+
         $templateOrder = [
-            'class="hero" id="top"',
-            'class="sec about" id="about"',
-            'class="sec areas" id="areas"',
-            'class="sec approach" id="approach"',
-            'class="sec programs" id="programs"',
-            'class="sec targets" id="targets"',
-            'class="sec community" id="community"',
-            'class="sec partners" id="partners"',
-            'class="sec knowledge" id="knowledge"',
-            'class="sec cta" id="contact"',
+            '<main id="top">',
+            '<ProHeroCarousel :sections="props.sections" />',
+            '<ProTicker :sections="props.sections" />',
+            '<ProImpact :sections="props.sections" />',
+            '<ProProgramAxes :sections="props.sections" />',
+            '<ProNewsTabs :sections="props.sections" />',
+            '<ProMediaGallery :sections="props.sections" />',
+            '<ProAboutTabs :sections="props.sections" />',
+            '<ProStories :sections="props.sections" />',
+            '<ProPrototypeFooter :sections="props.sections" />',
         ];
 
         $previousPosition = -1;
         foreach ($templateOrder as $marker) {
             $position = strpos($source, $marker);
-            $this->assertNotFalse($position, "Missing homepage marker: {$marker}");
-            $this->assertGreaterThan($previousPosition, $position, "Out-of-order homepage marker: {$marker}");
+            $this->assertNotFalse($position, "Missing prototype marker: {$marker}");
+            $this->assertGreaterThan($previousPosition, $position, "Out-of-order prototype marker: {$marker}");
             $previousPosition = $position;
+        }
+
+        $anchors = [
+            'ProImpact.vue' => ['id="impact"', 'id="targets"'],
+            'ProProgramAxes.vue' => ['id="programs"'],
+            'ProNewsTabs.vue' => ['id="news"'],
+            'ProMediaGallery.vue' => ['id="albums"'],
+            'ProAboutTabs.vue' => ['id="about"'],
+            'ProStories.vue' => ['id="stories"'],
+            'ProPrototypeFooter.vue' => ['id="contact"'],
+        ];
+
+        foreach ($anchors as $component => $markers) {
+            $componentSource = (string) file_get_contents(resource_path('js/Components/RedesignHome/'.$component));
+
+            foreach ($markers as $marker) {
+                $this->assertStringContainsString($marker, $componentSource, $component.' is missing '.$marker.'.');
+            }
         }
     }
 

@@ -25,7 +25,15 @@ final class HomepageItemResource extends JsonResource
             'display' => $this['display'],
             'url' => $this['url'],
             'value' => $this['value'],
+            'tab' => $this['tab'],
+            'featured' => $this['featured'],
+            'motifKey' => $this['motifKey'],
+            'dateLabel' => $this['dateLabel'],
+            'ctaLabel' => $this['ctaLabel'],
+            'caption' => $this['caption'],
+            'unit' => $this['unit'],
             'media' => $this['media'],
+            'published' => $this['published'],
         ];
     }
 }

@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(WebsiteSeeder::class);
         $this->call(HomepageContentSeeder::class);
         $this->call(RedesignHomepageContentSeeder::class);
+        $this->call(HomepagePrototypeContentSeeder::class);
         $this->call(CmsRolesSeeder::class);
         $this->call(EmailTemplatesSeeder::class);
 

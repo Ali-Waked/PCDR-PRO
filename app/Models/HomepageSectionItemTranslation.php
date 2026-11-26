@@ -16,5 +16,9 @@ final class HomepageSectionItemTranslation extends Model
         'body',
         'display_value',
         'url',
+        'date_label',
+        'cta_label',
+        'caption',
+        'unit',
     ];
 }

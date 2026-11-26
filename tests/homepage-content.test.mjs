@@ -44,3 +44,35 @@ test('useHomepageContent degrades safely when the source is not an array', () =>
         assert.deepEqual(content.items('hero'), [])
     }
 })
+
+test('useHomepageContent groups prototype items by tab', () => {
+    const content = useHomepageContent([{
+        key: 'news',
+        items: [
+            { key: 'news-1', tab: 'news', published: true, sortOrder: 2 },
+            { key: 'pubs-1', tab: 'publications', published: true, sortOrder: 1 },
+            { key: 'news-2', tab: 'news', published: true, sortOrder: 1 },
+            { key: 'news-draft', tab: 'news', published: false, sortOrder: 0 },
+        ],
+    }])
+
+    assert.deepEqual(content.itemsByTab('news', 'news').map((item) => item.key), ['news-2', 'news-1'])
+    assert.deepEqual(content.itemsByTab('news', 'publications').map((item) => item.key), ['pubs-1'])
+    assert.deepEqual(content.itemsByTab('missing', 'news'), [])
+})
+
+test('useHomepageContent keeps only prototype-approved destinations', () => {
+    const content = useHomepageContent([])
+
+    assert.equal(content.safeUrl('#news'), '#news')
+    assert.equal(content.safeUrl('/ar/programs'), '/ar/programs')
+    assert.equal(content.safeUrl('https://example.org/page'), 'https://example.org/page')
+    assert.equal(content.safeUrl('#'), '')
+    assert.equal(content.safeUrl('javascript:alert(1)'), '')
+    assert.equal(content.safeUrl('data:text/html,unsafe'), '')
+    assert.equal(content.safeUrl('http://example.org'), '')
+    assert.equal(content.safeUrl('//evil.example'), '')
+    assert.equal(content.safeUrl('/\\evil.example'), '')
+    assert.equal(content.safeUrl('/%5Cevil.example'), '')
+    assert.equal(content.safeUrl('/ar/page\nX-Evil: 1'), '')
+})

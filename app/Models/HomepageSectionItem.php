@@ -21,6 +21,9 @@ class HomepageSectionItem extends Model
         'item_id',
         'media_id',
         'item_key',
+        'tab',
+        'is_featured',
+        'motif_key',
         'is_published',
         'numeric_value',
         'sort_order',
@@ -29,6 +32,9 @@ class HomepageSectionItem extends Model
     protected function casts(): array
     {
         return [
+            'tab' => 'string',
+            'is_featured' => 'boolean',
+            'motif_key' => 'string',
             'is_published' => 'boolean',
             'numeric_value' => 'decimal:4',
             'sort_order' => 'integer',

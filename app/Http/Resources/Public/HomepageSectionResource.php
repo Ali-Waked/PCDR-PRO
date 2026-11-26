@@ -25,6 +25,10 @@ final class HomepageSectionResource extends JsonResource
             'body' => $this['body'],
             'cta_label' => $this['ctaLabel'],
             'cta_link' => $this['ctaLink'],
+            'tickerLabel' => $this['tickerLabel'],
+            'tabLabels' => $this['tabLabels'],
+            'videoUrl' => $this['videoUrl'],
+            'videoCaption' => $this['videoCaption'],
             'items' => HomepageItemResource::collection($this['items']),
         ];
     }

@@ -14,7 +14,15 @@ class HomepageSectionTranslation extends Model
 
     protected $fillable = [
         'homepage_section_id', 'locale', 'eyebrow', 'title', 'body', 'cta_label', 'cta_link',
+        'ticker_label', 'tab_labels', 'video_url', 'video_caption',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'tab_labels' => 'array',
+        ];
+    }
 
     public function section(): BelongsTo
     {

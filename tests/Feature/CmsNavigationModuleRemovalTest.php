@@ -137,7 +137,10 @@ final class CmsNavigationModuleRemovalTest extends TestCase
 
         $header = (string) File::get(resource_path('js/Components/Public/SiteHeader.vue'));
         $this->assertStringContainsString("from '../../composables/usePublicNavigation'", $header);
-        $this->assertStringContainsString('const { links, cta } = usePublicNavigation()', $header);
+        $this->assertMatchesRegularExpression(
+            '/const \{ links, cta(?:, barEntries)? \} = usePublicNavigation\(\)/',
+            $header,
+        );
         $this->assertStringContainsString('v-for="(item, i) in links"', $header);
 
         $footer = (string) File::get(resource_path('js/Components/Public/SiteFooter.vue'));

@@ -37,14 +37,43 @@ export function useHomepageContent(sectionsSource) {
             .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0))
     }
 
+    function itemsByTab(sectionKey, tab) {
+        return items(sectionKey).filter((item) => text(item, 'tab') === tab)
+    }
+
+    /** Only prototype-approved destinations become links; "#" stays inert. */
+    function safeUrl(value) {
+        if (typeof value !== 'string') {
+            return ''
+        }
+
+        const url = value.trim()
+        if (!url || url === '#') {
+            return ''
+        }
+        if (/[\\\u0000-\u001F\u007F\s]/i.test(url) || /%5c/i.test(url)) {
+            return ''
+        }
+        if (/^https:\/\/[^\s]+$/i.test(url)) {
+            return url
+        }
+        if (/^#[A-Za-z][\w:-]*$/.test(url)) {
+            return url
+        }
+        if (url.startsWith('/') && !url.startsWith('//')) {
+            return url
+        }
+
+        return ''
+    }
+
     function mediaUrl(item) {
-        const url = item?.media?.url
-        return typeof url === 'string' && /^(https:\/\/|\/)/.test(url) ? url : ''
+        return safeUrl(item?.media?.url)
     }
 
     function mediaAlt(item) {
         return typeof item?.media?.alt === 'string' ? item.media.alt : ''
     }
 
-    return { sectionsByKey, section, text, items, mediaUrl, mediaAlt }
+    return { sectionsByKey, section, text, items, itemsByTab, safeUrl, mediaUrl, mediaAlt }
 }

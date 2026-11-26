@@ -41,6 +41,16 @@ class HomepageSection extends Model
         return 'homepage_section_id';
     }
 
+    /**
+     * The prototype stores tab labels as a translated JSON map. The shared
+     * translation trait is typed for strings, so sections expose a wider
+     * accessor while keeping the same locale fallback chain.
+     */
+    public function t(string $field, ?string $locale = null): mixed
+    {
+        return $this->translate($locale)?->getAttribute($field);
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(HomepageSectionItem::class)->orderBy('sort_order');

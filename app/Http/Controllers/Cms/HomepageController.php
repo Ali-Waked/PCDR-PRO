@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Cms;
 
 use App\Enums\ContentStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cms\DeleteHomepageSectionRequest;
 use App\Http\Requests\Cms\ReorderHomepageRequest;
+use App\Http\Requests\Cms\StoreHomepageSectionRequest;
 use App\Http\Requests\Cms\ToggleHomepageSectionRequest;
 use App\Http\Requests\Cms\UpdateHomepageRequest;
 use App\Http\Requests\Cms\UpdateHomepageStatusRequest;
@@ -23,12 +25,6 @@ use Inertia\Response;
 
 final class HomepageController extends Controller
 {
-    /** @var list<string> */
-    private const CANONICAL_KEYS = [
-        'hero', 'intro', 'areas', 'framework', 'programs',
-        'targets', 'community', 'partners', 'knowledge', 'cta',
-    ];
-
     public function __construct(private AuditService $audit) {}
 
     private function authorize(string $permission): void
@@ -46,24 +42,6 @@ final class HomepageController extends Controller
             ->orderBy('id')
             ->get();
 
-        if ($sections->isEmpty()) {
-            foreach (self::CANONICAL_KEYS as $index => $key) {
-                HomepageSection::create([
-                    'key' => $key,
-                    'type' => $key,
-                    'status' => ContentStatus::Published,
-                    'is_enabled' => true,
-                    'display_order' => $index,
-                ]);
-            }
-
-            $sections = HomepageSection::query()
-                ->with('translations', 'items.translations', 'items.media.translations')
-                ->orderBy('display_order')
-                ->orderBy('id')
-                ->get();
-        }
-
         return Inertia::render('Cms/Homepage/Index', [
             'sections' => $sections->map(fn (HomepageSection $section) => [
                 'id' => $section->id,
@@ -78,6 +56,14 @@ final class HomepageController extends Controller
                     'body' => $t->body,
                     'cta_label' => $t->cta_label,
                     'cta_link' => $t->cta_link,
+                    'ticker_label' => $t->ticker_label,
+                    'tickerLabel' => $t->ticker_label,
+                    'tab_labels' => $t->tab_labels,
+                    'tabLabels' => $t->tab_labels,
+                    'video_url' => $t->video_url,
+                    'videoUrl' => $t->video_url,
+                    'video_caption' => $t->video_caption,
+                    'videoCaption' => $t->video_caption,
                 ]])->all(),
                 'items' => $section->items->map(fn ($item) => [
                     'id' => $item->id,
@@ -85,6 +71,9 @@ final class HomepageController extends Controller
                     'itemId' => $item->item_id,
                     'mediaId' => $item->media_id,
                     'itemKey' => $item->item_key,
+                    'tab' => $item->tab,
+                    'featured' => (bool) $item->is_featured,
+                    'motifKey' => $item->motif_key,
                     'isPublished' => $item->is_published,
                     'numericValue' => $item->numeric_value,
                     'sortOrder' => $item->sort_order,
@@ -93,7 +82,14 @@ final class HomepageController extends Controller
                         'title' => $t->title,
                         'body' => $t->body,
                         'display_value' => $t->display_value,
+                        'display' => $t->display_value,
                         'url' => $t->url,
+                        'date_label' => $t->date_label,
+                        'dateLabel' => $t->date_label,
+                        'cta_label' => $t->cta_label,
+                        'ctaLabel' => $t->cta_label,
+                        'caption' => $t->caption,
+                        'unit' => $t->unit,
                     ]])->all(),
                 ])->all(),
             ])->all(),
@@ -129,7 +125,10 @@ final class HomepageController extends Controller
                     if (! in_array($code, config('website.locales', ['ar', 'en']), true)) {
                         continue;
                     }
-                    $section->translations()->updateOrCreate(['locale' => $code], $values);
+                    $section->translations()->updateOrCreate(
+                        ['locale' => $code],
+                        $this->normalizeSectionTranslationValues($values),
+                    );
                 }
 
                 if (! array_key_exists('items', $sectionData)) {
@@ -152,15 +151,21 @@ final class HomepageController extends Controller
                         continue;
                     }
 
+                    $submittedOrder = $itemData['sort_order'] ?? $sortOrder;
                     $attributes = [
                         'item_type' => $itemData['item_type'],
                         'item_id' => $itemData['item_id'] ?? null,
                         'media_id' => $this->nullableMediaId($itemData['media_id'] ?? null),
                         'item_key' => $itemData['item_key'] ?? null,
+                        'tab' => $itemData['tab'] ?? null,
+                        'is_featured' => $itemData['featured'] ?? $itemData['is_featured'] ?? false,
+                        'motif_key' => $itemData['motifKey'] ?? $itemData['motif_key'] ?? null,
                         'is_published' => $itemData['is_published'] ?? true,
                         'numeric_value' => $itemData['numeric_value'] ?? null,
-                        'sort_order' => $sortOrder++,
+                        'sort_order' => (int) $submittedOrder,
                     ];
+
+                    $sortOrder = max($sortOrder, (int) $submittedOrder) + 1;
 
                     $item = ! empty($itemData['id'])
                         ? $section->items()->find($itemData['id'])
@@ -176,7 +181,10 @@ final class HomepageController extends Controller
                         if (! in_array($code, config('website.locales', ['ar', 'en']), true)) {
                             continue;
                         }
-                        $item->translations()->updateOrCreate(['locale' => $code], $values);
+                        $item->translations()->updateOrCreate(
+                            ['locale' => $code],
+                            $this->normalizeItemTranslationValues($values),
+                        );
                     }
                 }
             }
@@ -186,6 +194,57 @@ final class HomepageController extends Controller
         $this->audit->record('homepage.updated', 'homepage', 'sections');
 
         return back()->with('flash', ['success' => __('website.cms.saved')]);
+    }
+
+    public function store(
+        string $locale,
+        StoreHomepageSectionRequest $request,
+        HomepageService $homepage,
+    ): RedirectResponse {
+        $validated = $request->validated();
+        $status = isset($validated['status'])
+            ? ContentStatus::from((string) $validated['status'])
+            : ContentStatus::Published;
+        $order = array_key_exists('display_order', $validated)
+            ? (int) $validated['display_order']
+            : ((int) (HomepageSection::query()->max('display_order') ?? -1)) + 1;
+
+        $section = HomepageSection::query()->create([
+            'key' => $validated['key'],
+            'type' => $validated['type'],
+            'status' => $status,
+            'published_at' => $status === ContentStatus::Published ? now() : null,
+            'is_enabled' => $validated['is_enabled'] ?? true,
+            'display_order' => $order,
+        ]);
+
+        $homepage->flush();
+        $this->audit->record(
+            'homepage.section_created',
+            'homepage',
+            (string) $section->id,
+            ['key' => $section->key],
+        );
+
+        return back()->with('flash', ['success' => __('website.cms.saved', [], $locale)]);
+    }
+
+    public function destroy(
+        string $locale,
+        DeleteHomepageSectionRequest $request,
+        HomepageSection $homepageSection,
+        HomepageService $homepage,
+    ): RedirectResponse {
+        $this->authorize('homepage.update');
+
+        $id = (string) $homepageSection->id;
+        $key = $homepageSection->key;
+        $homepageSection->delete();
+
+        $homepage->flush();
+        $this->audit->record('homepage.section_deleted', 'homepage', $id, ['key' => $key]);
+
+        return back()->with('flash', ['success' => __('website.cms.saved', [], $locale)]);
     }
 
     public function reorder(
@@ -301,5 +360,57 @@ final class HomepageController extends Controller
         }
 
         return (int) $value;
+    }
+
+    /**
+     * CMS payloads expose public camel-case names, while the database columns
+     * remain snake-case. Normalising here avoids recursive Eloquent mutators.
+     *
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function normalizeSectionTranslationValues(array $values): array
+    {
+        return $this->normalizeTranslationKeys($values, [
+            'tickerLabel' => 'ticker_label',
+            'tabLabels' => 'tab_labels',
+            'videoUrl' => 'video_url',
+            'videoCaption' => 'video_caption',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function normalizeItemTranslationValues(array $values): array
+    {
+        return $this->normalizeTranslationKeys($values, [
+            'display' => 'display_value',
+            'dateLabel' => 'date_label',
+            'ctaLabel' => 'cta_label',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @param  array<string, string>  $aliases
+     * @return array<string, mixed>
+     */
+    private function normalizeTranslationKeys(array $values, array $aliases): array
+    {
+        foreach ($aliases as $alias => $column) {
+            if (! array_key_exists($alias, $values)) {
+                continue;
+            }
+
+            if (! array_key_exists($column, $values) || $values[$column] === null || $values[$column] === '') {
+                $values[$column] = $values[$alias];
+            }
+
+            unset($values[$alias]);
+        }
+
+        return $values;
     }
 }

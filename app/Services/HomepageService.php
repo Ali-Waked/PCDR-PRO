@@ -125,7 +125,11 @@ final class HomepageService
             'title' => $this->translated($section, 'title', $locale),
             'body' => $this->translated($section, 'body', $locale),
             'ctaLabel' => $this->translated($section, 'cta_label', $locale),
-            'ctaLink' => $this->translated($section, 'cta_link', $locale),
+            'ctaLink' => $this->safeLink($this->translated($section, 'cta_link', $locale)),
+            'tickerLabel' => $this->translated($section, 'ticker_label', $locale),
+            'tabLabels' => $this->translated($section, 'tab_labels', $locale),
+            'videoUrl' => $this->safeLink($this->translated($section, 'video_url', $locale)),
+            'videoCaption' => $this->translated($section, 'video_caption', $locale),
             'items' => $section->items
                 ->filter(fn (HomepageSectionItem $item) => (bool) $item->is_published)
                 ->sortBy(fn (HomepageSectionItem $item) => [(int) $item->sort_order, (int) $item->id])
@@ -153,8 +157,15 @@ final class HomepageService
                 'label' => $this->translated($item, 'label', $locale),
                 'body' => $this->translated($item, 'body', $locale),
                 'display' => $this->translated($item, 'display_value', $locale),
-                'url' => $this->translated($item, 'url', $locale),
+                'url' => $this->safeLink($this->translated($item, 'url', $locale)),
                 'value' => $item->numeric_value === null ? null : (float) $item->numeric_value,
+                'tab' => $item->tab,
+                'featured' => (bool) $item->is_featured,
+                'motifKey' => $item->motif_key,
+                'dateLabel' => $this->translated($item, 'date_label', $locale),
+                'ctaLabel' => $this->translated($item, 'cta_label', $locale),
+                'caption' => $this->translated($item, 'caption', $locale),
+                'unit' => $this->translated($item, 'unit', $locale),
                 'media' => $media,
                 'published' => true,
             ];
@@ -175,8 +186,15 @@ final class HomepageService
             'label' => $this->translated($model, 'short_title', $locale) ?? $this->translated($model, 'title', $locale),
             'body' => $this->translated($model, 'summary', $locale) ?? $this->translated($model, 'description', $locale),
             'display' => null,
-            'url' => method_exists($model, 'route') ? $model->route($locale) : null,
+            'url' => $this->safeLink(method_exists($model, 'route') ? $model->route($locale) : null),
             'value' => null,
+            'tab' => $item->tab,
+            'featured' => (bool) $item->is_featured,
+            'motifKey' => $item->motif_key,
+            'dateLabel' => $this->translated($item, 'date_label', $locale),
+            'ctaLabel' => $this->translated($item, 'cta_label', $locale),
+            'caption' => $this->translated($item, 'caption', $locale),
+            'unit' => $this->translated($item, 'unit', $locale),
             'media' => $media,
             'published' => true,
         ];
@@ -213,8 +231,37 @@ final class HomepageService
         return Storage::disk($media->disk)->url($media->path);
     }
 
-    private function translated(Model $model, string $field, string $locale): ?string
+    private function translated(Model $model, string $field, string $locale): mixed
     {
         return $model->t($field, $locale);
+    }
+
+    /**
+     * Mirror the CMS link rules at serialization time so the public payload
+     * never emits a value a browser could normalize into another scheme.
+     */
+    private function safeLink(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '' || $value !== trim($value)) {
+            return null;
+        }
+
+        if (preg_match('/[\x00-\x1F\x7F\s]/', $value) === 1) {
+            return null;
+        }
+
+        if (str_contains($value, '\\') || stripos($value, '%5c') !== false) {
+            return null;
+        }
+
+        if (preg_match('/^#[A-Za-z0-9_:-]+$/', $value) === 1) {
+            return $value;
+        }
+
+        if (str_starts_with($value, '/') && ! str_starts_with($value, '//')) {
+            return $value;
+        }
+
+        return preg_match('/^https:\/\/[^\s]+$/i', $value) === 1 ? $value : null;
     }
 }

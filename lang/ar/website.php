@@ -15,6 +15,18 @@ return [
         'involve' => 'شارك معنا',
         'contact' => 'اتصل بنا',
         'complaints' => 'صندوق الشكاوى',
+        'groups' => [
+            'about' => 'من نحن',
+            'knowledge' => 'المعرفة والمساءلة',
+        ],
+        'descriptions' => [
+            'about' => 'من نحن وما نعمل عليه',
+            'pillars' => 'مجالاتنا الاستراتيجية',
+            'programs' => 'البرامج والمشاريع',
+            'news' => 'آخر الأخبار والأنشطة',
+            'publications' => 'التقارير والإصدارات',
+            'transparency' => 'الشفافية والمساءلة',
+        ],
     ],
 
     'publication' => [
@@ -646,13 +658,11 @@ return [
         'cta_link' => 'رابط دعوة العمل',
         'label' => 'التسمية',
         'audit_logs' => 'سجل التدقيق',
-        'dashboard_workspace' => 'مساحة إدارة الموقع',
         'dashboard_content_studio' => 'استوديو المحتوى التحريري',
         'dashboard_content_studio_hint' => 'هنا تدير صفحات الموقع ووسائطه والمحتوى المنشور.',
         'cms_dashboard_hint' => 'من هنا تتابع المحتوى التحريري والاستفسارات، وتصل بسرعة إلى أدوات النشر والإعدادات.',
         'dashboard_navigation' => 'تنقل لوحة التحكم',
         'dashboard_search_navigation' => 'ابحث عن قسم',
-        'dashboard_technical_note' => 'مساحة عمل مركّزة للموقع العام ومحتواه.',
         'dashboard_close_navigation' => 'إغلاق التنقل',
         'dashboard_open_navigation' => 'فتح التنقل',
         'dashboard_expand' => 'توسيع الشريط الجانبي',
