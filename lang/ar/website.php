@@ -123,6 +123,12 @@ return [
         'clear' => 'مسح',
         'select' => 'اختيار',
         'selected' => 'محدد',
+        'account_profile' => [
+            'manage_account' => 'إدارة الحساب',
+        ],
+        'account_security' => [
+            'title' => 'إعدادات الأمان',
+        ],
         'notification' => [
             'notifications_title' => 'الإشعارات',
             'success_title' => 'تم بنجاح',

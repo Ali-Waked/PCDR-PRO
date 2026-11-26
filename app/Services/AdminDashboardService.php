@@ -40,6 +40,7 @@ final class AdminDashboardService
         private readonly CmsAccess $cms,
         private readonly AdminNavigationService $navigation,
         private readonly SiteSettings $siteSettings,
+        private readonly AccountSessionService $accountSessions,
     ) {}
 
     /**
@@ -66,6 +67,7 @@ final class AdminDashboardService
             'content' => $content,
             'pending' => $pending,
             'activity' => $this->activity($permissions, $locale),
+            'account_activity' => $this->accountActivity($user, $locale),
             'quick_actions' => $this->quickActions($user, $locale),
             'website' => $this->websiteStatus($permissions, $locale),
         ];
@@ -432,6 +434,69 @@ final class AdminDashboardService
                     'created_at' => $log->created_at?->toIso8601String(),
                 ];
             })->all();
+    }
+
+    /**
+     * Build a permission-independent view of the authenticated user's own
+     * account activity, sessions and security state.
+     *
+     * @return array{
+     *     last_activity_at: ?string,
+     *     last_login_at: ?string,
+     *     active_sessions: int,
+     *     current_session: bool,
+     *     security_status: 'protected'|'review',
+     *     events: list<array{id: int, action: string, label: string, created_at: ?string}>,
+     *     profile_url: string,
+     *     security_url: string
+     * }
+     */
+    private function accountActivity(User $user, string $locale): array
+    {
+        $activeSessions = $this->accountSessions->count($user);
+        $fallback = __('ui.admin_dashboard.account_activity_other', [], $locale);
+
+        $events = AuditLog::query()
+            ->select(['id', 'action', 'created_at'])
+            ->where(function (Builder $query) use ($user): void {
+                $query->where('actor_id', $user->id)
+                    ->orWhere(function (Builder $nested) use ($user): void {
+                        $nested->where('action', 'auth.login_failed')
+                            ->where('subject_type', 'users')
+                            ->where('subject_id', (string) $user->id);
+                    });
+            })
+            ->latest('created_at')
+            ->limit(5)
+            ->get()
+            ->map(static function (AuditLog $log) use ($fallback, $locale): array {
+                $translationKey = 'ui.admin_dashboard.account_activity_actions.'.Str::replace(['.'], '_', (string) $log->action);
+                $label = __($translationKey, [], $locale);
+
+                return [
+                    'id' => (int) $log->id,
+                    'action' => (string) $log->action,
+                    'label' => $label === $translationKey ? $fallback : $label,
+                    'created_at' => $log->created_at?->toIso8601String(),
+                ];
+            })->all();
+
+        $profileUrl = route('account.profile.show', ['locale' => $locale], false);
+
+        return [
+            'last_activity_at' => $user->last_activity_at === null
+                ? null
+                : Carbon::parse((string) $user->last_activity_at)->toIso8601String(),
+            'last_login_at' => $user->last_login_at === null
+                ? null
+                : Carbon::parse((string) $user->last_login_at)->toIso8601String(),
+            'active_sessions' => $activeSessions,
+            'current_session' => $activeSessions > 0,
+            'security_status' => $user->hasVerifiedEmail() && $user->isActive() ? 'protected' : 'review',
+            'events' => $events,
+            'profile_url' => $profileUrl,
+            'security_url' => $profileUrl.'#security',
+        ];
     }
 
     /**

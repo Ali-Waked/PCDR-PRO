@@ -84,6 +84,7 @@ const kpis = computed(() => props.overview?.kpis ?? [])
 const contentRows = computed(() => props.overview?.content ?? [])
 const pendingRows = computed(() => props.overview?.pending ?? [])
 const activityRows = computed(() => props.overview?.activity ?? [])
+const accountActivity = computed(() => props.overview?.account_activity ?? null)
 const quickActions = computed(() => props.overview?.quick_actions ?? [])
 const websiteStatus = computed(() => props.overview?.website ?? null)
 
@@ -238,6 +239,18 @@ const websiteChecks = computed(() => {
                     </div>
                 </div>
             </section>
+
+            <AccountActivityWidget
+                v-if="accountActivity"
+                :events="accountActivity.events"
+                :last-activity-at="accountActivity.last_activity_at"
+                :last-login-at="accountActivity.last_login_at"
+                :active-sessions="accountActivity.active_sessions"
+                :security-status="accountActivity.security_status"
+                :profile-url="accountActivity.profile_url"
+                :security-url="accountActivity.security_url"
+                :timezone="overview.timezone"
+            />
         </div>
 
         <div class="pc-grid pc-overview-panels">

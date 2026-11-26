@@ -296,7 +296,8 @@ onBeforeUnmount(() => {
                                 :aria-label="user.name || t('ui.dashboard_profile')"
                                 @click="userMenuOpen = !userMenuOpen"
                             >
-                                <span class="pc-avatar" aria-hidden="true">{{ initials }}</span>
+                                <img v-if="user.avatar_url" :src="user.avatar_url" class="pc-avatar" alt="" aria-hidden="true">
+                                <span v-else class="pc-avatar" aria-hidden="true">{{ initials }}</span>
                                 <span class="pc-user__meta">
                                     <strong>{{ user.name }}</strong>
                                     <span>{{ user.email }}</span>
@@ -308,6 +309,12 @@ onBeforeUnmount(() => {
                                     <strong>{{ user.name }}</strong>
                                     <span>{{ user.email }}</span>
                                 </div>
+                                <Link :href="hrefFor('dashboard/profile')" class="pc-menu__item" role="menuitem">
+                                    <UiIcon name="users" :size="16" /> {{ t('ui.account_profile.manage_account') }}
+                                </Link>
+                                <Link :href="hrefFor('dashboard/profile').concat('#security')" class="pc-menu__item" role="menuitem">
+                                    <UiIcon name="shield" :size="16" /> {{ t('ui.account_security.title') }}
+                                </Link>
                                 <Link v-if="!isCms" :href="hrefFor('admin/audit-logs')" class="pc-menu__item" role="menuitem">
                                     <UiIcon name="history" :size="16" /> {{ t('ui.audit_logs') }}
                                 </Link>

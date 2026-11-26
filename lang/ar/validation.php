@@ -7,6 +7,8 @@ return [
     'confirmed' => 'تأكيد الحقل :attribute غير مطابق.',
     'email' => 'يجب أن يكون :attribute بريدًا إلكترونيًا صحيحًا.',
     'exists' => 'القيمة المختارة لـ :attribute غير صحيحة.',
+    'file' => 'يجب أن يكون :attribute ملفًا.',
+    'image' => 'يجب أن يكون :attribute صورة.',
     'in' => 'القيمة المختارة لـ :attribute غير صحيحة.',
     'integer' => 'يجب أن يكون :attribute عددًا صحيحًا.',
     'max' => [
@@ -15,6 +17,7 @@ return [
     'min' => [
         'string' => 'يجب ألا يقل :attribute عن :min حرفًا.',
     ],
+    'mimetypes' => 'يجب أن يكون :attribute ملفًا من نوع: :values.',
     'regex' => 'صيغة الحقل :attribute غير صحيحة.',
     'required' => 'الحقل :attribute مطلوب.',
     'string' => 'يجب أن يكون :attribute نصًا.',
@@ -23,6 +26,8 @@ return [
         'email' => 'البريد الإلكتروني',
         'password' => 'كلمة المرور',
         'name' => 'الاسم',
+        'avatar' => 'صورة الملف الشخصي',
+        'current_password' => 'كلمة المرور الحالية',
         'key' => 'المعرّف',
         'roles' => 'الأدوار',
         'permissions' => 'الصلاحيات',

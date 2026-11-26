@@ -5340,6 +5340,12 @@ html.dark .pc-audit-page,
     padding-block: 8px;
 }
 
+img.pc-avatar {
+    object-fit: cover;
+    inline-size: 34px;
+    block-size: 34px;
+}
+
 @media (max-width: 1100px) {
     .pc-overview-kpi-grid {
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

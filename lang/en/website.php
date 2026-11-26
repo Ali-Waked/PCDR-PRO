@@ -123,6 +123,12 @@ return [
         'clear' => 'Clear',
         'select' => 'Select',
         'selected' => 'Selected',
+        'account_profile' => [
+            'manage_account' => 'Manage account',
+        ],
+        'account_security' => [
+            'title' => 'Security settings',
+        ],
         'notification' => [
             'notifications_title' => 'Notifications',
             'success_title' => 'Success',
