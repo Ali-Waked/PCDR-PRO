@@ -4,9 +4,17 @@ import { Head } from '@inertiajs/vue3'
 import SplitText from '../../Components/StaticHome/SplitText.vue'
 import SiteHeader from '../../Components/Public/SiteHeader.vue'
 import SiteFooter from '../../Components/Public/SiteFooter.vue'
+import ProAboutTabs from '../../Components/RedesignHome/ProAboutTabs.vue'
+import ProHeroCarousel from '../../Components/RedesignHome/ProHeroCarousel.vue'
+import ProMediaGallery from '../../Components/RedesignHome/ProMediaGallery.vue'
+import ProPlanningTargets from '../../Components/RedesignHome/ProPlanningTargets.vue'
+import ProStories from '../../Components/RedesignHome/ProStories.vue'
+import ProTicker from '../../Components/RedesignHome/ProTicker.vue'
+import { useHomepageContent } from '../../composables/useHomepageContent'
 import { useI18n } from '../../composables/useI18n'
 import '../../../css/public-site.css'
 import '../../../css/pcdr-home.css'
+import '../../../css/pcdr-pro-home.css'
 
 const props = defineProps({
     vision: { type: String, default: '' },
@@ -209,6 +217,93 @@ const ctaButtons = computed(() => {
                 : (textOf(button, 'key') === 'volunteer' ? routeFor('#community') : routeFor('#areas'))
         ),
     }))
+})
+
+const proContent = useHomepageContent(() => props.sections)
+
+const proSlides = computed(() => proContent.items('hero', 'slide-').map((item) => ({
+    key: item.key,
+    label: textOf(item, 'label'),
+    title: textOf(item, 'title'),
+    body: textOf(item, 'body'),
+})))
+
+const proTicker = computed(() => proContent.items('hero', 'ticker-').map((item) => ({
+    key: item.key,
+    title: textOf(item, 'title'),
+    url: textOf(item, 'url'),
+})))
+
+const proTargets = computed(() => proContent.items('targets').map((item) => ({
+    key: item.key,
+    display: textOf(item, 'display'),
+    value: item.value ?? 0,
+    label: textOf(item, 'body') || textOf(item, 'title'),
+})))
+
+const proIntroItems = computed(() => proContent.items('intro'))
+
+const proObjectives = computed(() => proIntroItems.value
+    .filter((item) => String(item.key || '').startsWith('objective-'))
+    .map((item) => ({ key: item.key, title: textOf(item, 'title') }))
+    .filter((item) => filled(item.title)))
+
+const proValues = computed(() => proIntroItems.value
+    .filter((item) => String(item.key || '').startsWith('value-'))
+    .map((item) => ({ key: item.key, title: textOf(item, 'title') }))
+    .filter((item) => filled(item.title)))
+
+const proIntroCard = (key) => {
+    const item = proIntroItems.value.find((entry) => entry.key === key)
+    return item ? { title: textOf(item, 'title'), body: textOf(item, 'body') } : null
+}
+
+const proMission = computed(() => proIntroCard('mission'))
+const proVision = computed(() => proIntroCard('vision'))
+
+const proAlbums = computed(() => proContent.items('community', 'album-').map((item) => ({
+    key: item.key,
+    title: textOf(item, 'title'),
+    mediaUrl: proContent.mediaUrl(item),
+    mediaAlt: proContent.mediaAlt(item),
+})))
+
+const proStories = computed(() => proContent.items('community', 'story-').map((item) => ({
+    key: item.key,
+    title: textOf(item, 'title'),
+    body: textOf(item, 'body'),
+})))
+
+const proLabels = computed(() => locale.value === 'ar' ? {
+    carousel: 'أبرز برامج الجمعية',
+    pause: 'إيقاف مؤقت للعرض',
+    play: 'تشغيل العرض',
+    selectSlide: 'اختيار الشريحة',
+    slide: 'الشريحة',
+    ticker: 'أهم الأخبار',
+    impact: 'بصمتنا في المجتمع',
+    group: 'رسالتنا وأهدافنا ورؤيتنا',
+    mission: 'رسالتنا',
+    objectives: 'أهدافنا',
+    vision: 'رؤيتنا',
+    values: 'قيمنا المؤسسية',
+    albums: 'ألبوم الصور',
+    stories: 'قصص نجاح',
+} : {
+    carousel: 'Featured programmes',
+    pause: 'Pause slideshow',
+    play: 'Play slideshow',
+    selectSlide: 'Choose a slide',
+    slide: 'Slide',
+    ticker: 'Latest news',
+    impact: 'Our community imprint',
+    group: 'Mission, objectives and vision',
+    mission: 'Mission',
+    objectives: 'Objectives',
+    vision: 'Vision',
+    values: 'Institutional values',
+    albums: 'Photo album',
+    stories: 'Success stories',
 })
 
 const copy = computed(() => {
@@ -484,7 +579,7 @@ onBeforeUnmount(() => {
 
         <main id="main">
             <section class="hero" id="top">
-                <div class="container hero-grid">
+                <div v-if="!proSlides.length" class="container hero-grid">
                     <div class="hero-copy">
                         <p class="eyebrow fx">{{ copy.hero.eyebrow }}</p>
                         <h1 data-split><SplitText :text="copy.hero.title" /></h1>
@@ -512,14 +607,16 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
                 </div>
+                <ProHeroCarousel v-else :slides="proSlides" :labels="proLabels" />
                 <div class="wave" aria-hidden="true"><i></i><i class="w2"></i></div>
             </section>
+            <ProTicker v-if="proTicker.length" :items="proTicker" :label="proLabels.ticker" />
 
             <section class="sec about" id="about">
                 <div class="container">
                     <p class="eyebrow rv">{{ copy.about.eyebrow }}</p>
                     <h2 data-split class="rv"><SplitText :text="copy.about.title" /></h2>
-                    <div class="vm" data-stagger>
+                    <div v-if="!proMission && !proVision && !proObjectives.length && !proValues.length" class="vm" data-stagger>
                         <article class="vision rv">
                             <h3>{{ copy.about.visionTitle }}</h3>
                             <p>{{ copy.about.vision }}</p>
@@ -529,6 +626,14 @@ onBeforeUnmount(() => {
                             <p>{{ copy.about.mission }}</p>
                         </article>
                     </div>
+                    <ProAboutTabs
+                        v-else
+                        :mission="proMission"
+                        :vision="proVision"
+                        :objectives="proObjectives"
+                        :values="proValues"
+                        :labels="proLabels"
+                    />
                 </div>
             </section>
 
@@ -588,12 +693,18 @@ onBeforeUnmount(() => {
                     <span class="badge rv">{{ copy.targets.badge }}</span>
                     <h2 data-split class="rv"><SplitText :text="copy.targets.title" /></h2>
                     <p class="note rv">{{ copy.targets.note }}</p>
-                    <dl class="stats" data-stagger>
+                    <dl v-if="!proTargets.length" class="stats" data-stagger>
                         <div v-for="stat in copy.targets.stats" :key="stat.key || stat.label" class="rv">
                             <dt class="num" :data-count="stat.value">{{ stat.display }}</dt>
                             <dd>{{ stat.label }}</dd>
                         </div>
                     </dl>
+                    <ProPlanningTargets
+                        v-else
+                        :stats="proTargets"
+                        :caveat="copy.targets.note"
+                        :heading="proLabels.impact"
+                    />
                 </div>
             </section>
 
@@ -611,6 +722,8 @@ onBeforeUnmount(() => {
                         </li>
                     </ul>
                 </div>
+                <ProMediaGallery v-if="proAlbums.length" :albums="proAlbums" :heading="proLabels.albums" />
+                <ProStories v-if="proStories.length" :stories="proStories" :heading="proLabels.stories" />
             </section>
 
             <section class="sec partners" id="partners">

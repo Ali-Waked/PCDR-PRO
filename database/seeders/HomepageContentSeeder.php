@@ -347,16 +347,24 @@ final class HomepageContentSeeder extends Seeder
                     'ar' => [
                         'eyebrow' => 'مستهدفات الخطة الاستراتيجية 2027',
                         'title' => 'ما نستهدف الوصول إليه بنهاية 2027',
-                        'body' => 'نستهدف هذه المستويات ضمن مسار الخطة الاستراتيجية، ونعمل على تحقيقها وفق الموارد والقدرات المتاحة.',
+                        'body' => 'نستهدف هذه المستويات ضمن مسار الخطة الاستراتيجية، ونعمل على تحقيقها وفق الموارد والقدرات المتاحة. مستهدفات تخطيطية أولية لعام 2027، تخضع للمراجعة بعد تحديد التمويل المتاح والقدرات التنفيذية.',
                         'cta_label' => null,
                         'cta_link' => '/ar/about/direction',
                     ],
                     'en' => [
                         'eyebrow' => 'Strategic Plan Targets 2027',
                         'title' => 'Where we aim to be by the end of 2027',
-                        'body' => 'These targets form part of the strategic plan’s path forward, and we work toward them within available resources and capacities.',
+                        'body' => 'These targets form part of the strategic plan’s path forward, and we work toward them within available resources and capacities. Initial 2027 planning targets, subject to review once available funding and implementation capacity are determined.',
                         'cta_label' => null,
                         'cta_link' => '/en/about/direction',
+                    ],
+                ],
+                'legacy' => [
+                    'ar' => [
+                        'body' => 'نستهدف هذه المستويات ضمن مسار الخطة الاستراتيجية، ونعمل على تحقيقها وفق الموارد والقدرات المتاحة.',
+                    ],
+                    'en' => [
+                        'body' => 'These targets form part of the strategic plan’s path forward, and we work toward them within available resources and capacities.',
                     ],
                 ],
                 'items' => [
