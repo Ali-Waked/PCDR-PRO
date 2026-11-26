@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\ContentStatus;
-use App\Models\Page;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -85,53 +83,17 @@ final class CmsPagesModuleRemovalAndStrategicContentTest extends TestCase
         }
     }
 
-    public function test_public_page_rendering_still_uses_existing_page_records(): void
-    {
-        $page = Page::create([
-            'status' => ContentStatus::Published->value,
-            'published_at' => now()->subDay(),
-        ]);
-        foreach (['ar', 'en'] as $locale) {
-            $page->translations()->create([
-                'locale' => $locale,
-                'slug' => 'institutional-page-'.$locale,
-                'title' => 'Institutional page '.$locale,
-                'summary' => 'Preserved public summary '.$locale,
-                'body' => '<p>Preserved public body '.$locale.'</p>',
-            ]);
-        }
-
-        foreach (['ar', 'en'] as $locale) {
-            $this->get(route('public.page', [
-                'locale' => $locale,
-                'page' => 'institutional-page-'.$locale,
-            ]))->assertOk()->assertInertia(fn (Assert $response) => $response
-                ->component('Public/Page')
-                ->where('page.title', 'Institutional page '.$locale)
-                ->where('page.summary', 'Preserved public summary '.$locale));
-        }
-
-        $this->assertDatabaseHas('pages', ['id' => $page->getKey()]);
-    }
-
-    public function test_public_routes_remain_accessible_after_admin_module_removal(): void
+    public function test_only_the_home_public_route_remains_after_admin_module_removal(): void
     {
         foreach (['ar', 'en'] as $locale) {
-            foreach ([
-                'public.home',
-                'public.about',
-                'public.pillars.index',
-                'public.programs.index',
-                'public.news.index',
-                'public.publications.index',
-                'public.transparency',
-                'public.partnerships',
-                'public.involve',
-                'public.contact',
-            ] as $route) {
-                $this->get(route($route, ['locale' => $locale]))
-                    ->assertOk()
-                    ->assertViewIs('app');
+            $this->get(route('public.home', ['locale' => $locale]))
+                ->assertOk()
+                ->assertViewIs('app');
+        }
+
+        foreach (['about', 'programs', 'news', 'publications', 'contact'] as $path) {
+            foreach (['ar', 'en'] as $locale) {
+                $this->get('/'.$locale.'/'.$path)->assertNotFound();
             }
         }
     }
@@ -139,21 +101,19 @@ final class CmsPagesModuleRemovalAndStrategicContentTest extends TestCase
     public function test_obsolete_disclaimer_is_absent_and_strategic_content_is_present_in_both_locales(): void
     {
         foreach (['ar', 'en'] as $locale) {
-            foreach (['public.home', 'public.about', 'public.transparency'] as $route) {
-                $response = $this->get(route($route, ['locale' => $locale]));
-                $response->assertOk();
+            $response = $this->get(route('public.home', ['locale' => $locale]));
+            $response->assertOk();
 
-                $html = (string) $response->getContent();
-                $this->assertStringNotContainsString(self::OLD_ARABIC_NOTICE, $html);
-                $this->assertStringNotContainsString(self::OLD_ENGLISH_NOTICE, $html);
-                $this->assertStringNotContainsString('planning_targets_notice', $html);
+            $html = (string) $response->getContent();
+            $this->assertStringNotContainsString(self::OLD_ARABIC_NOTICE, $html);
+            $this->assertStringNotContainsString(self::OLD_ENGLISH_NOTICE, $html);
+            $this->assertStringNotContainsString('planning_targets_notice', $html);
 
-                $response->assertInertia(fn (Assert $page) => $page
-                    ->where('ui.strategic_statement', self::STRATEGIC_STATEMENT[$locale])
-                    ->where('ui.strategic_programs_intro', fn ($value): bool => is_string($value) && $value !== '')
-                    ->where('ui.strategic_targets_intro', fn ($value): bool => is_string($value) && $value !== '')
-                    ->where('ui.strategic_partnerships_intro', fn ($value): bool => is_string($value) && $value !== ''));
-            }
+            $response->assertInertia(fn (Assert $page) => $page
+                ->where('ui.strategic_statement', self::STRATEGIC_STATEMENT[$locale])
+                ->where('ui.strategic_programs_intro', fn ($value): bool => is_string($value) && $value !== '')
+                ->where('ui.strategic_targets_intro', fn ($value): bool => is_string($value) && $value !== '')
+                ->where('ui.strategic_partnerships_intro', fn ($value): bool => is_string($value) && $value !== ''));
         }
     }
 

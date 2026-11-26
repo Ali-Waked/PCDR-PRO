@@ -38,141 +38,6 @@ final class PartnerDirectoryTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_public_directory_exposes_only_published_records_in_active_categories(): void
-    {
-        $health = $this->category('health-clusters', true, 1, 'Health Clusters', 'مجموعات الصحية');
-        $logistics = $this->category('logistics', true, 2, 'Logistics', 'اللوجستيات');
-        $inactive = $this->category('retired-group', false, 0, 'Retired Group', 'مجموعة متقاعدة');
-
-        $publicLogo = $this->media('public-logo.png');
-        $restrictedLogo = $this->media('restricted-logo.png', true);
-
-        $secondInHealth = $this->partner($health, 'Second Health Partner', 'شريك صحي ثانٍ', 'second-health', 5, 2024);
-        $firstInHealth = $this->partner($health, 'First Health Partner', 'شريك صحي أول', 'first-health', 1, 2026, $publicLogo->id);
-        $logisticsPartner = $this->partner($logistics, 'Logistics Partner', 'شريك لوجستي', 'logistics-partner', 3, 2025, $restrictedLogo->id);
-        $uncategorized = $this->partner(null, 'Independent Partner', 'شريك مستقل', 'independent-partner', 4, 2023);
-
-        $this->partner($health, 'Draft Partner', 'شريك مسودة', 'draft-partner', 0)
-            ->forceFill(['status' => ContentStatus::Draft, 'published_at' => null])
-            ->save();
-        $this->partner($health, 'Future Partner', 'شريك مستقبلي', 'future-partner', 0)
-            ->forceFill(['status' => ContentStatus::Published, 'published_at' => now()->addWeek()])
-            ->save();
-        $this->partner($inactive, 'Inactive Category Partner', 'شريك فئة غير مفعلة', 'inactive-partner', 0);
-
-        $this->get(route('public.partners', ['locale' => self::LOCALE]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Public/Partnerships')
-                ->where('directory.hasPartners', true)
-                ->where('directory.total', 4)
-                ->where('directory.activeCategory', 'all')
-                ->where('directory.categories', function ($categories): bool {
-                    $categories = $categories->all();
-
-                    return array_column($categories, 'slug') === ['health-clusters', 'logistics', 'other']
-                        && array_column($categories, 'count') === [2, 1, 1];
-                })
-                ->where('directory.groups', function ($groups) use (
-                    $firstInHealth,
-                    $secondInHealth,
-                    $logisticsPartner,
-                    $uncategorized,
-                    $publicLogo,
-                ): bool {
-                    $groups = $groups->all();
-                    $names = [];
-                    foreach ($groups as $group) {
-                        foreach ($group['partners'] as $partner) {
-                            $names[] = $partner['name'];
-                        }
-                    }
-
-                    return array_column($groups, 'slug') === ['health-clusters', 'logistics', 'other']
-                        && $groups[0]['partners'][0]['id'] === $firstInHealth->id
-                        && $groups[0]['partners'][1]['id'] === $secondInHealth->id
-                        && $groups[1]['partners'][0]['id'] === $logisticsPartner->id
-                        && $groups[2]['partners'][0]['id'] === $uncategorized->id
-                        && $groups[0]['partners'][0]['logo']['url'] === $publicLogo->url()
-                        && $groups[1]['partners'][0]['logo'] === null
-                        && $names === [
-                            'First Health Partner',
-                            'Second Health Partner',
-                            'Logistics Partner',
-                            'Independent Partner',
-                        ];
-                }));
-    }
-
-    public function test_public_directory_filters_by_category_and_shows_professional_empty_states(): void
-    {
-        $this->get(route('public.partners', ['locale' => self::LOCALE]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.hasPartners', false)
-                ->where('directory.total', 0)
-                ->where('directory.categories', [])
-                ->where('directory.groups', []));
-
-        $empty = $this->category('empty-category', true, 2, 'Empty Category', 'فئة فارغة');
-        $filled = $this->category('filled-category', true, 1, 'Filled Category', 'فئة ممتلئة');
-        $this->partner($filled, 'Listed Partner', 'شريك مدرج', 'listed-partner', 1);
-
-        $this->get(route('public.partners', ['locale' => self::LOCALE, 'category' => 'filled-category']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.activeCategory', 'filled-category')
-                ->where('directory.groups.0.slug', 'filled-category')
-                ->where('directory.groups.0.partners.0.name', 'Listed Partner')
-                ->where('directory.categories', function ($categories): bool {
-                    $categories = $categories->all();
-
-                    return count($categories) === 2 && array_column($categories, 'count') === [1, 0];
-                }));
-
-        $this->get(route('public.partners', ['locale' => self::LOCALE, 'category' => 'empty-category']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.activeCategory', 'empty-category')
-                ->where('directory.hasPartners', true)
-                ->where('directory.groups', []));
-
-        $this->get(route('public.partners', ['locale' => self::LOCALE, 'category' => 'unknown-category']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.activeCategory', 'all')
-                ->where('directory.groups.0.slug', 'filled-category'));
-
-        $this->get(route('public.partners', ['locale' => 'ar', 'category' => 'filled-category']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.groups.0.name', 'فئة ممتلئة')
-                ->where('directory.groups.0.partners.0.name', 'شريك مدرج'));
-    }
-
-    public function test_public_partners_routes_share_canonical_seo_metadata(): void
-    {
-        foreach (['ar' => 'دليل الشركاء المؤسسيين', 'en' => 'Institutional Partners Directory'] as $locale => $title) {
-            foreach (['public.partners' => '/partners', 'public.partnerships' => '/partnerships'] as $routeName => $path) {
-                $response = $this->get(route($routeName, ['locale' => $locale]))
-                    ->assertOk()
-                    ->assertInertia(fn (Assert $page) => $page
-                        ->component('Public/Partnerships')
-                        ->where('meta.canonical', url('/'.$locale.'/partners'))
-                        ->where('meta.og.url', url('/'.$locale.'/partners'))
-                        ->where('meta.og.title', $title)
-                        ->where('meta.twitter.title', $title)
-                        ->where('meta.locale', $locale));
-
-                $html = (string) $response->getContent();
-                $this->assertStringContainsString('<html lang="'.$locale.'"', $html);
-                $this->assertStringContainsString('rel="canonical"', $html);
-                $this->assertStringNotContainsString('/'.$locale.'/partnership/inquiry', $html);
-                $this->assertStringNotContainsString($path.'/inquiry', $html);
-            }
-        }
-    }
-
     public function test_cms_directory_routes_require_the_distinct_directory_permissions(): void
     {
         $outsider = $this->userWith([]);
@@ -285,12 +150,6 @@ final class PartnerDirectoryTest extends TestCase
             'action' => 'directory_partners.deleted',
             'subject_id' => (string) $partner->id,
         ]);
-
-        $this->get(route('public.partners', ['locale' => self::LOCALE]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.total', 0)
-                ->where('directory.hasPartners', false));
     }
 
     public function test_cms_partner_validation_rejects_unsafe_media_duplicate_slugs_and_invalid_fields(): void
@@ -425,12 +284,6 @@ final class PartnerDirectoryTest extends TestCase
             'action' => 'directory_partners.category_status_updated',
             'subject_id' => (string) $category->id,
         ]);
-
-        $this->get(route('public.partners', ['locale' => self::LOCALE]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('directory.total', 0)
-                ->where('directory.categories', []));
 
         $partner->delete();
         $this->actingAs($editor)->delete($this->cmsRoute('categories.destroy', $category->id))->assertRedirect();

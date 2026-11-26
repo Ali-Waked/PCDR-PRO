@@ -84,19 +84,19 @@ final class PublicationsMediaUsersSettingsRedesignTest extends TestCase
         ]);
 
         $downloadUrl = URL::temporarySignedRoute(
-            'public.publications.download',
+            'public.media.download',
             now()->addMinutes(30),
-            ['locale' => self::LOCALE, 'publication' => $publication->id],
+            ['locale' => self::LOCALE, 'uuid' => $restrictedDocument->uuid],
         );
 
         auth()->logout();
         $this->get($downloadUrl)->assertForbidden();
 
-        $viewer = $this->userWith(['publications.view']);
+        $viewer = $this->userWith(['publications.view', 'media.view']);
         $this->actingAs($viewer)->get($downloadUrl)->assertOk();
 
         $this->actingAs($viewer)
-            ->get(route('public.publications.download', ['locale' => self::LOCALE, 'publication' => $publication->id]))
+            ->get(route('public.media.download', ['locale' => self::LOCALE, 'uuid' => $restrictedDocument->uuid]))
             ->assertForbidden();
     }
 

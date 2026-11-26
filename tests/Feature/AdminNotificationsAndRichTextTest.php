@@ -104,28 +104,4 @@ final class AdminNotificationsAndRichTextTest extends TestCase
         $this->assertStringNotContainsString('onmouseover', $translation->body);
         $this->assertStringNotContainsString('dir=', $translation->body);
     }
-
-    public function test_public_page_receives_sanitized_body_html(): void
-    {
-        $page = Page::create([
-            'status' => ContentStatus::Published->value,
-            'published_at' => now(),
-            'display_order' => 0,
-        ]);
-        $page->translations()->create([
-            'locale' => 'ar',
-            'slug' => 'rich-text-page',
-            'title' => 'صفحة منسقة',
-            'body' => '<p>قبل <strong>آمن</strong> <script>alert(1)</script><a href="javascript:alert(2)">رابط</a></p>',
-        ]);
-
-        $this->get(route('public.page', ['locale' => 'ar', 'page' => 'rich-text-page']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $inertia) => $inertia
-                ->component('Public/Page')
-                ->where('page.bodyHtml', fn (string $html): bool => str_contains($html, '<strong>آمن</strong>')
-                    && ! str_contains($html, '<script')
-                    && ! str_contains(strtolower($html), 'javascript:'))
-                ->missing('page.body'));
-    }
 }
