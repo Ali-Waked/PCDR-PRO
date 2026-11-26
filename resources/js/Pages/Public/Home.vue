@@ -16,15 +16,7 @@ import ProTopStrip from '../../Components/RedesignHome/ProTopStrip.vue'
 import { useI18n } from '../../composables/useI18n'
 import '../../../css/pcdr-prototype.css'
 
-// Legacy props are kept so Inertia attributes never fall through to the DOM.
 const props = defineProps({
-    vision: { type: String, default: '' },
-    mission: { type: String, default: '' },
-    pillars: { type: Array, default: () => [] },
-    framework: { type: Array, default: () => [] },
-    articles: { type: Array, default: () => [] },
-    programs: { type: Array, default: () => [] },
-    publications: { type: Array, default: () => [] },
     sections: { type: Array, default: () => [] },
     meta: { type: Object, default: null },
 })

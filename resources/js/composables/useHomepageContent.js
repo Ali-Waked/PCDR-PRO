@@ -57,14 +57,31 @@ export function useHomepageContent(sectionsSource) {
         if (/^https:\/\/[^\s]+$/i.test(url)) {
             return url
         }
-        if (/^#[A-Za-z][\w:-]*$/.test(url)) {
+        if (/^#[A-Za-z0-9_:-]+$/.test(url)) {
             return url
         }
         if (url.startsWith('/') && !url.startsWith('//')) {
-            return url
+            return isRemovedPublicPath(url) ? '' : url
         }
 
         return ''
+    }
+
+    /** Public inner pages no longer exist, so stored links to them stay inert. */
+    function isRemovedPublicPath(url) {
+        let path = url.split('?')[0].split('#')[0]
+        if (!path.startsWith('/')) {
+            return false
+        }
+        if (/^\/(ar|en)\/?$/.test(path)) {
+            return false
+        }
+        path = path.replace(/^\/(ar|en)(?=\/)/, '')
+
+        return ['about', 'strategic-areas', 'programs', 'projects', 'news',
+            'publications', 'transparency', 'partners', 'partnerships',
+            'get-involved', 'contact', 'complaints', 'pages']
+            .some((prefix) => path === `/${prefix}` || path.startsWith(`/${prefix}/`))
     }
 
     function mediaUrl(item) {
