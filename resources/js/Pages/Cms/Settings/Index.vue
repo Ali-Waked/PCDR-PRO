@@ -106,6 +106,29 @@ function urlIsValid(value) {
     }
 }
 
+function isSocial(setting) {
+    return String(setting?.key ?? '').startsWith('social.')
+}
+
+function socialValueIsValid(value) {
+    const text = String(value ?? '').trim()
+    if (! text) {
+        return true
+    }
+    if (/javascript:|data:/i.test(text)) {
+        return false
+    }
+    if (/^(https?:\/\/|\/\/)/i.test(text) || /^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(text)) {
+        return urlIsValid(text.startsWith('//') ? `https:${text}` : text)
+    }
+
+    return /^\+?[\d\s().-]{7,20}$/.test(text) || /^@?[A-Za-z0-9][A-Za-z0-9._-]{0,49}$/.test(text)
+}
+
+function valueIsValid(setting, value) {
+    return isSocial(setting) ? socialValueIsValid(value) : urlIsValid(value)
+}
+
 function save() {
     if (! props.canUpdate || form.processing) {
         return
@@ -118,13 +141,17 @@ function save() {
             return
         }
 
-        if (! urlIsValid(form.settings[setting.index]?.value)) {
-            clientErrors.value[errorKey(setting)] = t('ui.cms_setting_url_invalid', 'Enter a valid URL.')
+        if (! valueIsValid(setting, form.settings[setting.index]?.value)) {
+            clientErrors.value[errorKey(setting)] = isSocial(setting)
+                ? t('ui.cms_setting_social_invalid', 'Enter a valid profile URL, @handle, username or WhatsApp number.')
+                : t('ui.cms_setting_url_invalid', 'Enter a valid URL.')
         }
 
         props.locales.forEach((code) => {
-            if (! urlIsValid(form.settings[setting.index]?.translations?.[code])) {
-                clientErrors.value[errorKey(setting, code)] = t('ui.cms_setting_url_invalid', 'Enter a valid URL.')
+            if (! valueIsValid(setting, form.settings[setting.index]?.translations?.[code])) {
+                clientErrors.value[errorKey(setting, code)] = isSocial(setting)
+                    ? t('ui.cms_setting_social_invalid', 'Enter a valid profile URL, @handle, username or WhatsApp number.')
+                    : t('ui.cms_setting_url_invalid', 'Enter a valid URL.')
             }
         })
     })
@@ -298,7 +325,9 @@ function submitImage(setting) {
                                         :disabled="!canUpdate"
                                         :aria-invalid="valueError(setting) ? 'true' : 'false'"
                                     >
-                                    <span v-if="setting.type === 'url'" class="pc-hint">{{ t('ui.cms_setting_url_hint') }}</span>
+                                    <span v-if="setting.type === 'url'" class="pc-hint">
+                                        {{ isSocial(setting) ? t('ui.cms_setting_social_hint') : t('ui.cms_setting_url_hint') }}
+                                    </span>
                                     <span v-if="valueError(setting)" class="pc-error" role="alert">{{ valueError(setting) }}</span>
                                 </label>
 
@@ -377,7 +406,9 @@ function submitImage(setting) {
                                         :disabled="!canUpdate"
                                         :aria-invalid="valueError(setting, code) ? 'true' : 'false'"
                                     >
-                                    <span v-if="setting.type === 'url'" class="pc-hint">{{ t('ui.cms_setting_url_hint') }}</span>
+                                    <span v-if="setting.type === 'url'" class="pc-hint">
+                                        {{ isSocial(setting) ? t('ui.cms_setting_social_hint') : t('ui.cms_setting_url_hint') }}
+                                    </span>
                                     <span v-if="valueError(setting, code)" class="pc-error" role="alert">{{ valueError(setting, code) }}</span>
                                 </label>
                             </fieldset>

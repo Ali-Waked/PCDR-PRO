@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3'
 import PublicLayout from '../../Layouts/PublicLayout.vue'
 import PublicPageHero from '../../Components/Public/PublicPageHero.vue'
 import PublicCta from '../../Components/Public/PublicCta.vue'
+import SocialLinks from '../../Components/Public/SocialLinks.vue'
 import SectionHeading from '../../Components/SectionHeading.vue'
 import InquiryForm from '../../Components/InquiryForm.vue'
 import { useI18n } from '../../composables/useI18n'
@@ -58,21 +59,10 @@ const closingActions = computed(() => [
                         </div>
                     </div>
 
-                    <template v-if="site.social?.length">
+                    <div v-if="site.social?.length" class="ps-social-block">
                         <h2 style="margin-block-start: 2rem; font-size: 1.2rem">{{ t('social_links') }}</h2>
-                        <div class="ps-actions">
-                            <a
-                                v-for="link in site.social"
-                                :key="link.url"
-                                :href="link.url"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="ps-pill"
-                            >
-                                {{ link.label }}
-                            </a>
-                        </div>
-                    </template>
+                        <SocialLinks :links="site.social" tone="light" />
+                    </div>
                 </div>
 
                 <div class="ps-form-card" v-reveal>

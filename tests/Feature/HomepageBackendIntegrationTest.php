@@ -229,7 +229,7 @@ final class HomepageBackendIntegrationTest extends TestCase
         $this->seed(SiteSettingsSeeder::class);
 
         $settings = WebsiteSetting::query()->get()->keyBy('key');
-        $this->assertCount(19, $settings);
+        $this->assertCount(22, $settings);
 
         $this->assertSame(
             'جمعية العمل التشاركي في الأزمات والكوارث الخيرية – قطاع غزة',
@@ -247,7 +247,7 @@ final class HomepageBackendIntegrationTest extends TestCase
         foreach ([
             'contact.email', 'contact.phone', 'contact.address', 'contact.hours',
             'social.facebook', 'social.x', 'social.instagram', 'social.linkedin',
-            'social.youtube', 'seo.og_image',
+            'social.youtube', 'social.tiktok', 'social.snapchat', 'social.whatsapp', 'seo.og_image',
         ] as $key) {
             $this->assertNull($settings->get($key)?->value, "{$key} must not be invented.");
         }

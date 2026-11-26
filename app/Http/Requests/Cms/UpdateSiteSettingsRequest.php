@@ -6,6 +6,7 @@ namespace App\Http\Requests\Cms;
 
 use App\Services\CmsAccess;
 use App\Support\SiteSettingsCatalog;
+use App\Support\SocialLinkNormalizer;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -52,6 +53,12 @@ final class UpdateSiteSettingsRequest extends FormRequest
 
             $prefix = 'settings.'.$index;
 
+            if (str_starts_with($key, 'social.')) {
+                $rules["{$prefix}.value"] = ['nullable', 'string', 'max:2000', $this->socialUrlRule($key)];
+
+                continue;
+            }
+
             if ($meta['localized']) {
                 $translations = $entry['translations'] ?? [];
 
@@ -78,6 +85,19 @@ final class UpdateSiteSettingsRequest extends FormRequest
             'url' => ['nullable', 'string', 'max:2000', $this->publicUrlRule()],
             'locale' => ['nullable', Rule::in((array) config('website.locales', ['ar', 'en']))],
             default => ['nullable', 'string', 'max:2000'],
+        };
+    }
+
+    private function socialUrlRule(string $key): Closure
+    {
+        return static function (string $attribute, mixed $value, Closure $fail) use ($key): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+
+            if (! is_string($value) || app(SocialLinkNormalizer::class)->normalize($key, $value) === null) {
+                $fail(__('website.cms.setting_social_invalid'));
+            }
         };
     }
 

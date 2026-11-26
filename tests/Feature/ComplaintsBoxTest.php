@@ -103,7 +103,7 @@ final class ComplaintsBoxTest extends TestCase
             $setting['description'],
         );
 
-        $this->assertCount(19, $settings);
+        $this->assertCount(22, $settings);
         $this->assertTrue($settings->every(fn (array $entry): bool => ! str_starts_with($entry['key'], 'app.')
             && ! str_starts_with($entry['key'], 'mail.')));
     }

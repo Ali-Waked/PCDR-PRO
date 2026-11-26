@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\WebsiteSetting;
+use App\Support\SocialLinkNormalizer;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -55,15 +56,27 @@ final class SiteSettings
         return $this->value('contact.complaints_email', null, $locale);
     }
 
-    /** @return list<array{label: string, url: string}> */
+    /** @return list<array{platform: string, label: string, url: string}> */
     public function socialLinks(?string $locale = null): array
     {
         $links = [];
-        foreach (['facebook', 'x', 'instagram', 'linkedin', 'youtube'] as $network) {
-            $url = $this->value("social.{$network}", null, $locale);
-            if ($url && str_starts_with($url, 'https://')) {
-                $links[] = ['label' => ucfirst($network), 'url' => $url];
+        $normalizer = app(SocialLinkNormalizer::class);
+        $locale ??= app()->getLocale();
+        $labels = __('website.ui.social_platforms', [], $locale);
+
+        foreach ($normalizer->platforms() as $platform) {
+            $key = "social.{$platform}";
+            $url = $normalizer->normalize($key, $this->value($key, null, $locale));
+
+            if ($url === null) {
+                continue;
             }
+
+            $links[] = [
+                'platform' => $platform,
+                'label' => $labels[$platform] ?? $platform,
+                'url' => $url,
+            ];
         }
 
         return $links;

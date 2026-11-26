@@ -34,6 +34,9 @@ final class SiteSettingsCatalog
         'social.instagram' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
         'social.linkedin' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
         'social.youtube' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
+        'social.tiktok' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
+        'social.snapchat' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
+        'social.whatsapp' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
     ];
 
     /** @var list<string> */
