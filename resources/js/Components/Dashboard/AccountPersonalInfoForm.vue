@@ -6,6 +6,7 @@ import SelectField from '../Ui/SelectField.vue'
 import Button from '../Ui/Button.vue'
 import Alert from '../Ui/Alert.vue'
 import FormSection from './FormSection.vue'
+import ThemeSelector from './ThemeSelector.vue'
 import { useLocale } from '../../Composables/useLocale.js'
 
 const props = defineProps({
@@ -18,6 +19,7 @@ const notice = ref('')
 const form = useForm({
     name: props.profile.name ?? '',
     locale: props.profile.locale ?? 'en',
+    theme: props.profile.theme ?? 'system',
 })
 
 const localeOptions = computed(() => [
@@ -30,7 +32,7 @@ function submit() {
         preserveScroll: true,
         onSuccess: () => {
             notice.value = String(t('account_profile.saved') || '')
-            form.defaults({ name: form.name, locale: form.locale })
+            form.defaults({ name: form.name, locale: form.locale, theme: form.theme })
         },
     })
 }
@@ -60,6 +62,7 @@ function submit() {
                         :searchable="false"
                         required
                     />
+                    <ThemeSelector v-model="form.theme" />
                 </div>
 
                 <div class="pc-form-actions">

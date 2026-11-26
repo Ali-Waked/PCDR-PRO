@@ -17,8 +17,9 @@ final class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'locale' => ['required', 'in:ar,en'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'locale' => ['sometimes', 'required', 'in:ar,en'],
+            'theme' => ['sometimes', 'nullable', 'in:light,dark,system'],
         ];
     }
 }

@@ -109,6 +109,40 @@ final class AccountProfileTest extends TestCase
                 ->where('profile.locale', 'en'));
     }
 
+    public function test_profile_theme_is_exposed_persisted_and_audited(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Theme Profile User',
+            'locale' => 'en',
+            'theme' => User::THEME_LIGHT,
+        ]);
+
+        $this->actingAs($user)->get('/en/dashboard/profile')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('theme', User::THEME_LIGHT)
+                ->where('auth.user.theme', User::THEME_LIGHT)
+                ->where('profile.theme', User::THEME_LIGHT)
+            );
+
+        $this->actingAs($user)->put('/en/dashboard/profile', [
+            'theme' => User::THEME_DARK,
+        ])->assertRedirect();
+
+        $this->assertSame(User::THEME_DARK, $user->fresh()->theme);
+
+        $audit = AuditLog::query()->where('action', 'account.profile.updated')->latest('id')->firstOrFail();
+        $this->assertSame(User::THEME_LIGHT, $audit->before['theme'] ?? null);
+        $this->assertSame(User::THEME_DARK, $audit->after['theme'] ?? null);
+
+        $this->actingAs($user)->get('/en/dashboard/profile')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('theme', User::THEME_DARK)
+                ->where('profile.theme', User::THEME_DARK)
+            );
+    }
+
     public function test_profile_update_changes_name_and_locale_and_writes_audit(): void
     {
         $user = User::factory()->create(['name' => 'Old Name', 'locale' => 'ar']);

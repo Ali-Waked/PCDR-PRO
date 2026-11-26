@@ -1,0 +1,298 @@
+/* PCDR institutional design tokens.
+   Every value below derives from the immutable identity palette in tokens.css.
+   The --pcdr-id-* namespace is the single authority for dashboard/auth theming;
+   the public site keeps its own approved palette and is not remapped here. */
+
+:root {
+    --pcdr-id-color-scheme: light;
+
+    /* Brand — aliases of the canonical PCDR identity. */
+    --pcdr-id-brand-navy: var(--pcdr-navy);
+    --pcdr-id-brand-navy-deep: var(--pcdr-navy-900);
+    --pcdr-id-brand-navy-soft: var(--pcdr-navy-100);
+    --pcdr-id-brand-teal: var(--pcdr-teal-ink);
+    --pcdr-id-brand-teal-bright: var(--pcdr-teal);
+    --pcdr-id-brand-teal-deep: var(--pcdr-teal-700);
+    --pcdr-id-brand-teal-soft: var(--pcdr-teal-100);
+    --pcdr-id-brand-sand: var(--pcdr-sand);
+    --pcdr-id-brand-sand-soft: var(--pcdr-sand-100);
+    --pcdr-id-brand-wheat: var(--pcdr-wheat);
+    --pcdr-id-brand-white: var(--pcdr-white);
+
+    /* Surface. */
+    --pcdr-id-surface: var(--pcdr-white);
+    --pcdr-id-surface-canvas: color-mix(in srgb, var(--pcdr-navy-100) 60%, var(--pcdr-white));
+    --pcdr-id-surface-sunken: color-mix(in srgb, var(--pcdr-navy-100) 38%, var(--pcdr-white));
+    --pcdr-id-surface-sidebar: var(--pcdr-white);
+    --pcdr-id-surface-accent: var(--pcdr-sand-100);
+    --pcdr-id-surface-teal: var(--pcdr-teal-100);
+    --pcdr-id-surface-inverse: var(--pcdr-navy-900);
+    --pcdr-id-surface-topbar: var(--pcdr-white);
+    --pcdr-id-surface-modal: var(--pcdr-white);
+    --pcdr-id-surface-toast: var(--pcdr-white);
+    --pcdr-id-surface-scrim: color-mix(in srgb, var(--pcdr-navy-900) 62%, transparent);
+
+    /* Text. */
+    --pcdr-id-text: var(--pcdr-navy-900);
+    --pcdr-id-text-strong: var(--pcdr-navy-800);
+    --pcdr-id-text-muted: var(--pcdr-muted);
+    --pcdr-id-text-inverse: var(--pcdr-white);
+    --pcdr-id-text-on-accent: color-mix(in srgb, var(--pcdr-sand) 62%, var(--pcdr-navy-900));
+    --pcdr-id-text-on-teal: color-mix(in srgb, var(--pcdr-teal-700) 80%, var(--pcdr-navy-900));
+    --pcdr-id-text-link: var(--pcdr-teal-ink);
+
+    /* Border. */
+    --pcdr-id-border-subtle: var(--pcdr-navy-100);
+    --pcdr-id-border: var(--pcdr-border);
+    --pcdr-id-border-strong: var(--pcdr-border);
+    --pcdr-id-border-accent: color-mix(in srgb, var(--pcdr-teal) 45%, var(--pcdr-white));
+    --pcdr-id-border-on-dark: color-mix(in srgb, var(--pcdr-teal) 25%, transparent);
+
+    /* State. */
+    --pcdr-id-state-danger: var(--pcdr-danger);
+    --pcdr-id-state-success: var(--pcdr-success);
+    --pcdr-id-state-warning: var(--pcdr-warning);
+    --pcdr-id-state-info: var(--pcdr-navy-700);
+    --pcdr-id-state-danger-surface: color-mix(in srgb, var(--pcdr-danger) 8%, var(--pcdr-white));
+    --pcdr-id-state-danger-border: color-mix(in srgb, var(--pcdr-danger) 28%, transparent);
+    --pcdr-id-state-success-surface: color-mix(in srgb, var(--pcdr-success) 9%, var(--pcdr-white));
+    --pcdr-id-state-success-border: color-mix(in srgb, var(--pcdr-success) 28%, transparent);
+    --pcdr-id-state-warning-surface: color-mix(in srgb, var(--pcdr-warning) 8%, var(--pcdr-white));
+    --pcdr-id-state-warning-border: color-mix(in srgb, var(--pcdr-warning) 28%, transparent);
+    --pcdr-id-state-info-surface: var(--pcdr-teal-100);
+    --pcdr-id-state-info-border: color-mix(in srgb, var(--pcdr-teal) 45%, transparent);
+    --pcdr-id-action: var(--pcdr-teal-700);
+    --pcdr-id-action-hover: color-mix(in srgb, var(--pcdr-teal-700) 82%, var(--pcdr-navy-900));
+    --pcdr-id-action-contrast: var(--pcdr-white);
+
+    /* Focus — deep teal keeps >= 3:1 against both light surfaces and the
+       darkest operational surfaces, so the dashboard ring stays legible. */
+    --pcdr-id-focus-ring: var(--pcdr-teal-700);
+    --pcdr-id-focus-halo: color-mix(in srgb, var(--pcdr-teal-700) 24%, transparent);
+    --pcdr-id-focus-offset: 2px;
+
+    /* Radius. */
+    --pcdr-id-radius-sm: var(--pcdr-radius-sm);
+    --pcdr-id-radius-md: var(--pcdr-radius-md);
+    --pcdr-id-radius-lg: var(--pcdr-radius-lg);
+    --pcdr-id-radius-xl: calc(var(--pcdr-radius-lg) + 4px);
+    --pcdr-id-radius-pill: 999px;
+
+    /* Shadow. */
+    --pcdr-id-shadow-sm: 0 1px 2px color-mix(in srgb, var(--pcdr-navy-900) 10%, transparent);
+    --pcdr-id-shadow-md: 0 12px 30px color-mix(in srgb, var(--pcdr-navy-900) 12%, transparent);
+    --pcdr-id-shadow-lg: 0 30px 90px color-mix(in srgb, var(--pcdr-navy-900) 28%, transparent);
+
+    /* Motion. */
+    --pcdr-id-motion-fast: var(--motion-duration-fast);
+    --pcdr-id-motion-base: var(--motion-duration-base);
+    --pcdr-id-motion-slow: var(--motion-duration-slow);
+    --pcdr-id-motion-ease: var(--motion-ease-standard);
+    --pcdr-id-motion-ease-soft: var(--motion-ease-decelerate);
+    --pcdr-id-motion-distance: var(--motion-distance-sm);
+
+    /* Space. */
+    --pcdr-id-space-1: 0.25rem;
+    --pcdr-id-space-2: 0.5rem;
+    --pcdr-id-space-3: 0.75rem;
+    --pcdr-id-space-4: 1rem;
+    --pcdr-id-space-5: 1.25rem;
+    --pcdr-id-space-6: 1.5rem;
+    --pcdr-id-space-8: 2rem;
+
+    /* Type. */
+    --pcdr-id-font-sans: var(--font-sans);
+    --pcdr-id-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --pcdr-id-text-xs: 0.72rem;
+    --pcdr-id-text-sm: 0.82rem;
+    --pcdr-id-text-base: 0.9375rem;
+    --pcdr-id-text-lg: 1.05rem;
+    --pcdr-id-leading: 1.55;
+
+    /* Icon. */
+    --pcdr-id-icon-size-sm: 16px;
+    --pcdr-id-icon-size-md: 18px;
+    --pcdr-id-icon-size-lg: 24px;
+    --pcdr-id-icon-color: var(--pcdr-id-text);
+    --pcdr-id-icon-color-muted: var(--pcdr-id-text-muted);
+    --pcdr-id-icon-color-accent: var(--pcdr-id-action);
+}
+
+/* Explicit dark preference plus legacy html.dark compatibility. */
+:root[data-theme='dark'],
+html.dark {
+    --pcdr-id-color-scheme: dark;
+
+    --pcdr-id-brand-navy-soft: color-mix(in srgb, var(--pcdr-navy-100) 14%, var(--pcdr-navy-900));
+    --pcdr-id-brand-teal: var(--pcdr-teal);
+    --pcdr-id-brand-teal-soft: color-mix(in srgb, var(--pcdr-teal) 18%, var(--pcdr-navy-900));
+
+    --pcdr-id-surface: color-mix(in srgb, var(--pcdr-navy-900) 82%, black);
+    --pcdr-id-surface-canvas: color-mix(in srgb, var(--pcdr-navy-900) 92%, black);
+    --pcdr-id-surface-sunken: color-mix(in srgb, var(--pcdr-navy-900) 72%, black);
+    --pcdr-id-surface-sidebar: color-mix(in srgb, var(--pcdr-navy-900) 86%, black);
+    --pcdr-id-surface-accent: color-mix(in srgb, var(--pcdr-teal-700) 16%, var(--pcdr-navy-900));
+    --pcdr-id-surface-teal: color-mix(in srgb, var(--pcdr-teal-700) 24%, var(--pcdr-navy-900));
+    --pcdr-id-surface-topbar: color-mix(in srgb, var(--pcdr-navy-900) 88%, black);
+    --pcdr-id-surface-modal: var(--pcdr-id-surface);
+    --pcdr-id-surface-toast: var(--pcdr-id-surface);
+    --pcdr-id-surface-scrim: color-mix(in srgb, black 72%, transparent);
+
+    --pcdr-id-text: color-mix(in srgb, var(--pcdr-white) 92%, var(--pcdr-teal));
+    --pcdr-id-text-strong: var(--pcdr-white);
+    --pcdr-id-text-muted: color-mix(in srgb, var(--pcdr-white) 72%, var(--pcdr-navy-900));
+    --pcdr-id-text-inverse: var(--pcdr-navy-900);
+    --pcdr-id-text-on-accent: color-mix(in srgb, var(--pcdr-sand) 82%, var(--pcdr-white));
+    --pcdr-id-text-on-teal: color-mix(in srgb, var(--pcdr-teal) 82%, var(--pcdr-white));
+    --pcdr-id-text-link: var(--pcdr-teal);
+
+    --pcdr-id-border-subtle: color-mix(in srgb, var(--pcdr-white) 12%, transparent);
+    --pcdr-id-border: color-mix(in srgb, var(--pcdr-white) 18%, transparent);
+    --pcdr-id-border-strong: color-mix(in srgb, var(--pcdr-white) 28%, transparent);
+    --pcdr-id-border-accent: color-mix(in srgb, var(--pcdr-teal) 48%, transparent);
+
+    --pcdr-id-state-danger: color-mix(in srgb, var(--pcdr-danger) 55%, var(--pcdr-white));
+    --pcdr-id-state-success: color-mix(in srgb, var(--pcdr-success) 55%, var(--pcdr-white));
+    --pcdr-id-state-warning: color-mix(in srgb, var(--pcdr-warning) 60%, var(--pcdr-white));
+    --pcdr-id-state-info: var(--pcdr-teal);
+    --pcdr-id-state-danger-surface: color-mix(in srgb, var(--pcdr-danger) 22%, var(--pcdr-id-surface));
+    --pcdr-id-state-danger-border: color-mix(in srgb, var(--pcdr-danger) 45%, transparent);
+    --pcdr-id-state-success-surface: color-mix(in srgb, var(--pcdr-success) 22%, var(--pcdr-id-surface));
+    --pcdr-id-state-success-border: color-mix(in srgb, var(--pcdr-success) 45%, transparent);
+    --pcdr-id-state-warning-surface: color-mix(in srgb, var(--pcdr-warning) 22%, var(--pcdr-id-surface));
+    --pcdr-id-state-warning-border: color-mix(in srgb, var(--pcdr-warning) 45%, transparent);
+    --pcdr-id-state-info-surface: color-mix(in srgb, var(--pcdr-teal-700) 24%, var(--pcdr-id-surface));
+    --pcdr-id-state-info-border: color-mix(in srgb, var(--pcdr-teal) 45%, transparent);
+    --pcdr-id-action: var(--pcdr-teal);
+    --pcdr-id-action-hover: color-mix(in srgb, var(--pcdr-teal) 78%, var(--pcdr-white));
+    --pcdr-id-action-contrast: var(--pcdr-navy-900);
+
+    --pcdr-id-shadow-sm: 0 1px 2px color-mix(in srgb, black 32%, transparent);
+    --pcdr-id-shadow-md: 0 12px 30px color-mix(in srgb, black 38%, transparent);
+    --pcdr-id-shadow-lg: 0 30px 90px color-mix(in srgb, black 52%, transparent);
+
+    --pcdr-id-icon-color: var(--pcdr-id-text);
+    --pcdr-id-icon-color-muted: var(--pcdr-id-text-muted);
+    --pcdr-id-icon-color-accent: var(--pcdr-id-action);
+}
+
+/* System preference applies only when the visitor has not chosen an explicit
+   light theme. The focus token is intentionally not overridden here. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']):not(.light) {
+        --pcdr-id-color-scheme: dark;
+
+        --pcdr-id-brand-navy-soft: color-mix(in srgb, var(--pcdr-navy-100) 14%, var(--pcdr-navy-900));
+        --pcdr-id-brand-teal: var(--pcdr-teal);
+        --pcdr-id-brand-teal-soft: color-mix(in srgb, var(--pcdr-teal) 18%, var(--pcdr-navy-900));
+
+        --pcdr-id-surface: color-mix(in srgb, var(--pcdr-navy-900) 82%, black);
+        --pcdr-id-surface-canvas: color-mix(in srgb, var(--pcdr-navy-900) 92%, black);
+        --pcdr-id-surface-sunken: color-mix(in srgb, var(--pcdr-navy-900) 72%, black);
+        --pcdr-id-surface-sidebar: color-mix(in srgb, var(--pcdr-navy-900) 86%, black);
+        --pcdr-id-surface-accent: color-mix(in srgb, var(--pcdr-teal-700) 16%, var(--pcdr-navy-900));
+        --pcdr-id-surface-teal: color-mix(in srgb, var(--pcdr-teal-700) 24%, var(--pcdr-navy-900));
+        --pcdr-id-surface-topbar: color-mix(in srgb, var(--pcdr-navy-900) 88%, black);
+        --pcdr-id-surface-modal: var(--pcdr-id-surface);
+        --pcdr-id-surface-toast: var(--pcdr-id-surface);
+        --pcdr-id-surface-scrim: color-mix(in srgb, black 72%, transparent);
+
+        --pcdr-id-text: color-mix(in srgb, var(--pcdr-white) 92%, var(--pcdr-teal));
+        --pcdr-id-text-strong: var(--pcdr-white);
+        --pcdr-id-text-muted: color-mix(in srgb, var(--pcdr-white) 72%, var(--pcdr-navy-900));
+        --pcdr-id-text-inverse: var(--pcdr-navy-900);
+        --pcdr-id-text-on-accent: color-mix(in srgb, var(--pcdr-sand) 82%, var(--pcdr-white));
+        --pcdr-id-text-on-teal: color-mix(in srgb, var(--pcdr-teal) 82%, var(--pcdr-white));
+        --pcdr-id-text-link: var(--pcdr-teal);
+
+        --pcdr-id-border-subtle: color-mix(in srgb, var(--pcdr-white) 12%, transparent);
+        --pcdr-id-border: color-mix(in srgb, var(--pcdr-white) 18%, transparent);
+        --pcdr-id-border-strong: color-mix(in srgb, var(--pcdr-white) 28%, transparent);
+        --pcdr-id-border-accent: color-mix(in srgb, var(--pcdr-teal) 48%, transparent);
+
+        --pcdr-id-state-danger: color-mix(in srgb, var(--pcdr-danger) 55%, var(--pcdr-white));
+        --pcdr-id-state-success: color-mix(in srgb, var(--pcdr-success) 55%, var(--pcdr-white));
+        --pcdr-id-state-warning: color-mix(in srgb, var(--pcdr-warning) 60%, var(--pcdr-white));
+        --pcdr-id-state-info: var(--pcdr-teal);
+        --pcdr-id-state-danger-surface: color-mix(in srgb, var(--pcdr-danger) 22%, var(--pcdr-id-surface));
+        --pcdr-id-state-danger-border: color-mix(in srgb, var(--pcdr-danger) 45%, transparent);
+        --pcdr-id-state-success-surface: color-mix(in srgb, var(--pcdr-success) 22%, var(--pcdr-id-surface));
+        --pcdr-id-state-success-border: color-mix(in srgb, var(--pcdr-success) 45%, transparent);
+        --pcdr-id-state-warning-surface: color-mix(in srgb, var(--pcdr-warning) 22%, var(--pcdr-id-surface));
+        --pcdr-id-state-warning-border: color-mix(in srgb, var(--pcdr-warning) 45%, transparent);
+        --pcdr-id-state-info-surface: color-mix(in srgb, var(--pcdr-teal-700) 24%, var(--pcdr-id-surface));
+        --pcdr-id-state-info-border: color-mix(in srgb, var(--pcdr-teal) 45%, transparent);
+        --pcdr-id-action: var(--pcdr-teal);
+        --pcdr-id-action-hover: color-mix(in srgb, var(--pcdr-teal) 78%, var(--pcdr-white));
+        --pcdr-id-action-contrast: var(--pcdr-navy-900);
+
+        --pcdr-id-shadow-sm: 0 1px 2px color-mix(in srgb, black 32%, transparent);
+        --pcdr-id-shadow-md: 0 12px 30px color-mix(in srgb, black 38%, transparent);
+        --pcdr-id-shadow-lg: 0 30px 90px color-mix(in srgb, black 52%, transparent);
+
+        --pcdr-id-icon-color: var(--pcdr-id-text);
+        --pcdr-id-icon-color-muted: var(--pcdr-id-text-muted);
+        --pcdr-id-icon-color-accent: var(--pcdr-id-action);
+    }
+}
+
+/* Explicit light opt-out wins over a stale legacy `dark` class. */
+:root[data-theme='light'],
+html.light {
+    --pcdr-id-color-scheme: light;
+
+    --pcdr-id-brand-navy-soft: var(--pcdr-navy-100);
+    --pcdr-id-brand-teal: var(--pcdr-teal-ink);
+    --pcdr-id-brand-teal-soft: var(--pcdr-teal-100);
+
+    --pcdr-id-surface: var(--pcdr-white);
+    --pcdr-id-surface-canvas: color-mix(in srgb, var(--pcdr-navy-100) 60%, var(--pcdr-white));
+    --pcdr-id-surface-sunken: color-mix(in srgb, var(--pcdr-navy-100) 38%, var(--pcdr-white));
+    --pcdr-id-surface-sidebar: var(--pcdr-white);
+    --pcdr-id-surface-accent: var(--pcdr-sand-100);
+    --pcdr-id-surface-teal: var(--pcdr-teal-100);
+    --pcdr-id-surface-topbar: var(--pcdr-white);
+    --pcdr-id-surface-modal: var(--pcdr-white);
+    --pcdr-id-surface-toast: var(--pcdr-white);
+    --pcdr-id-surface-scrim: color-mix(in srgb, var(--pcdr-navy-900) 62%, transparent);
+
+    --pcdr-id-text: var(--pcdr-navy-900);
+    --pcdr-id-text-strong: var(--pcdr-navy-800);
+    --pcdr-id-text-muted: var(--pcdr-muted);
+    --pcdr-id-text-inverse: var(--pcdr-white);
+    --pcdr-id-text-on-accent: color-mix(in srgb, var(--pcdr-sand) 62%, var(--pcdr-navy-900));
+    --pcdr-id-text-on-teal: color-mix(in srgb, var(--pcdr-teal-700) 80%, var(--pcdr-navy-900));
+    --pcdr-id-text-link: var(--pcdr-teal-ink);
+
+    --pcdr-id-border-subtle: var(--pcdr-navy-100);
+    --pcdr-id-border: var(--pcdr-border);
+    --pcdr-id-border-strong: var(--pcdr-border);
+    --pcdr-id-border-accent: color-mix(in srgb, var(--pcdr-teal) 45%, var(--pcdr-white));
+
+    --pcdr-id-state-danger: var(--pcdr-danger);
+    --pcdr-id-state-success: var(--pcdr-success);
+    --pcdr-id-state-warning: var(--pcdr-warning);
+    --pcdr-id-state-info: var(--pcdr-navy-700);
+    --pcdr-id-state-danger-surface: color-mix(in srgb, var(--pcdr-danger) 8%, var(--pcdr-white));
+    --pcdr-id-state-danger-border: color-mix(in srgb, var(--pcdr-danger) 28%, transparent);
+    --pcdr-id-state-success-surface: color-mix(in srgb, var(--pcdr-success) 9%, var(--pcdr-white));
+    --pcdr-id-state-success-border: color-mix(in srgb, var(--pcdr-success) 28%, transparent);
+    --pcdr-id-state-warning-surface: color-mix(in srgb, var(--pcdr-warning) 8%, var(--pcdr-white));
+    --pcdr-id-state-warning-border: color-mix(in srgb, var(--pcdr-warning) 28%, transparent);
+    --pcdr-id-state-info-surface: var(--pcdr-teal-100);
+    --pcdr-id-state-info-border: color-mix(in srgb, var(--pcdr-teal) 45%, transparent);
+    --pcdr-id-action: var(--pcdr-teal-700);
+    --pcdr-id-action-hover: color-mix(in srgb, var(--pcdr-teal-700) 82%, var(--pcdr-navy-900));
+    --pcdr-id-action-contrast: var(--pcdr-white);
+
+    --pcdr-id-shadow-sm: 0 1px 2px color-mix(in srgb, var(--pcdr-navy-900) 10%, transparent);
+    --pcdr-id-shadow-md: 0 12px 30px color-mix(in srgb, var(--pcdr-navy-900) 12%, transparent);
+    --pcdr-id-shadow-lg: 0 30px 90px color-mix(in srgb, var(--pcdr-navy-900) 28%, transparent);
+
+    --pcdr-id-focus-ring: var(--pcdr-teal-700);
+    --pcdr-id-focus-halo: color-mix(in srgb, var(--pcdr-teal-700) 24%, transparent);
+
+    --pcdr-id-icon-color: var(--pcdr-id-text);
+    --pcdr-id-icon-color-muted: var(--pcdr-id-text-muted);
+    --pcdr-id-icon-color-accent: var(--pcdr-id-action);
+}

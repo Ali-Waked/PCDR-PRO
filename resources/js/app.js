@@ -1,5 +1,6 @@
 import { createApp, h } from 'vue'
 import { createInertiaApp, router } from '@inertiajs/vue3'
+import { applyThemePreference, readStoredPreference } from './composables/useTheme'
 import '../css/app.css'
 import '../css/dashboard.css'
 import '../css/selection.css'
@@ -15,10 +16,16 @@ if (typeof document !== 'undefined') {
 function syncDocument(props) {
     const locale = props?.locale ?? document.documentElement.lang ?? 'ar'
     const direction = props?.direction ?? (locale === 'ar' ? 'rtl' : 'ltr')
+    const isAuthenticated = Boolean(props?.auth?.user)
 
     document.documentElement.lang = locale
     document.documentElement.dir = direction
     document.documentElement.dataset.locale = locale
+
+    // Authenticated preferences come from the server; guests keep the local
+    // choice already applied by the synchronous boot script.
+    const preference = isAuthenticated ? props?.theme : readStoredPreference()
+    applyThemePreference(preference, { persist: false, transition: false })
 }
 
 let revealObserver = null

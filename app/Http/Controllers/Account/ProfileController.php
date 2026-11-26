@@ -39,7 +39,7 @@ final class ProfileController extends Controller
         $user = $request->user();
         abort_if(! $user instanceof User, 403);
 
-        /** @var array{name: string, locale: string} $data */
+        /** @var array{name?: string, locale?: string, theme?: string|null} $data */
         $data = $request->validated();
         $this->profiles->update($user, $data);
 

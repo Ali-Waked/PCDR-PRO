@@ -16,7 +16,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\URL;
 
-#[Fillable(['name', 'email', 'password', 'status', 'locale'])]
+#[Fillable(['name', 'email', 'password', 'status', 'locale', 'theme'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -28,6 +28,12 @@ class User extends Authenticatable implements MustVerifyEmail
     public const STATUS_INACTIVE = 'inactive';
 
     public const STATUS_SUSPENDED = 'suspended';
+
+    public const THEME_LIGHT = 'light';
+
+    public const THEME_DARK = 'dark';
+
+    public const THEME_SYSTEM = 'system';
 
     public function sendEmailVerificationNotification(): void
     {
@@ -123,6 +129,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'name' => $this->name,
             'email' => $this->email,
             'locale' => $this->locale,
+            'theme' => $this->theme ?: self::THEME_SYSTEM,
             'status' => $this->status,
             'is_platform_owner' => $this->isPlatformOwner(),
             'email_verified_at' => $this->email_verified_at?->toISOString(),

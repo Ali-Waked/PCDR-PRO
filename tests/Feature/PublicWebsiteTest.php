@@ -662,7 +662,7 @@ final class PublicWebsiteTest extends TestCase
     {
         $expected = [
             'css/pcdr-home.css' => 'd555d276d7abbce07004fc4f73c54e4a104a5e0f9bffa26ff47df71e299dc9c9',
-            'views/app.blade.php' => '2a7affa19d09acda482e3d3dbce2ef97d374c259eaaa677848145c24ba871765',
+            'views/app.blade.php' => '540640e87ed557eff285ce5b3fbff60677ebf7d042a92309ea3ff2ba3aeaef6f',
             'js/Components/LanguageSwitcher.vue' => 'd5182c3b3a9e7f8007b2ffbbdc3fa58b7c3c4c7b6754623ba7c2a9624dda03f1',
         ];
 

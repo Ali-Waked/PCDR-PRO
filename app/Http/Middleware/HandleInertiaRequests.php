@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Services\AdminNavigationService;
 use App\Services\CmsAccess;
 use App\Services\NavigationService;
@@ -62,6 +63,7 @@ class HandleInertiaRequests extends Middleware
             'adminNavigation' => $user ? $this->adminNavigation->visibleFor($user, $locale) : [],
             'locale' => $locale,
             'direction' => $direction,
+            'theme' => $user?->theme ?: User::THEME_SYSTEM,
             'availableLocales' => ['ar', 'en'],
             'translations' => [
                 'ui' => __('ui'),

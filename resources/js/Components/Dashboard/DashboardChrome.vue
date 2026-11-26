@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { useI18n } from '../../composables/useI18n'
 import LanguageSwitcher from '../LanguageSwitcher.vue'
+import ThemeSelector from './ThemeSelector.vue'
 import AdminHintBox from './AdminHintBox.vue'
 import PageHeader from './PageHeader.vue'
 import UiIcon from './UiIcon.vue'
@@ -13,6 +14,10 @@ const props = defineProps({
     title: { type: String, default: '' },
     subtitle: { type: String, default: '' },
     eyebrow: { type: String, default: '' },
+    titleKey: { type: String, default: '' },
+    subtitleKey: { type: String, default: '' },
+    eyebrowKey: { type: String, default: '' },
+    showHeader: { type: Boolean, default: true },
     hint: { type: String, default: '' },
     breadcrumb: { type: Array, default: () => [] },
 })
@@ -27,20 +32,26 @@ const toggleRef = ref(null)
 const drawerRef = ref(null)
 const userMenuRef = ref(null)
 const isDesktop = ref(true)
+const contentGroupOpen = ref(true)
 let mql = null
 let onMql = null
 
 const isCms = computed(() => props.mode === 'cms')
+const workspaceLabel = computed(() => t(isCms.value ? 'ui.dashboard_content_studio' : 'ui.dashboard'))
 const user = computed(() => page.props.auth?.user ?? {})
 const currentPath = computed(() => (page.url || '').split('?')[0])
 const initials = computed(() => {
     const name = String(user.value.name || '').trim()
     return name ? name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') : '?'
 })
-const workspaceLabel = computed(() => t(isCms.value ? 'ui.dashboard_content_studio' : 'ui.dashboard_workspace'))
-const pageSubtitle = computed(() => props.subtitle || t('ui.dashboard_technical_note'))
-const pageTitle = computed(() => props.title || t('ui.dashboard'))
-const pageEyebrow = computed(() => props.eyebrow || (props.hint ? '' : workspaceLabel.value))
+const userTriggerLabel = computed(() => {
+    const label = [user.value.name, user.value.email].filter(Boolean).join(' ')
+    return label || t('ui.dashboard_profile')
+})
+const headerTitle = computed(() => props.title || (props.titleKey ? t(props.titleKey) : ''))
+const headerSubtitle = computed(() => props.subtitle || (props.subtitleKey ? t(props.subtitleKey) : ''))
+const headerEyebrow = computed(() => props.eyebrow || (props.eyebrowKey ? t(props.eyebrowKey) : ''))
+const pageTitle = computed(() => headerTitle.value || t('ui.dashboard'))
 const homePath = computed(() => isCms.value ? localPath('cms') : localPath('dashboard'))
 
 const iconFor = {
@@ -155,6 +166,18 @@ watch(() => page.url, () => {
     userMenuOpen.value = false
 })
 
+watch(navSearch, (value) => {
+    if (value.trim()) {
+        contentGroupOpen.value = true
+    }
+})
+
+watch(collapsed, (value) => {
+    if (value) {
+        contentGroupOpen.value = true
+    }
+})
+
 watch([locale, direction], ([loc, dir]) => {
     document.documentElement.lang = loc === 'ar' ? 'ar' : 'en'
     document.documentElement.dir = dir
@@ -227,8 +250,30 @@ onBeforeUnmount(() => {
                     </label>
 
                     <div v-for="group in navigationGroups" :key="group.key" class="pc-nav-section">
-                        <p class="pc-nav-label">{{ group.label }}</p>
-                        <nav class="pc-nav-list" :aria-label="group.label">
+                        <button
+                            v-if="group.key === 'content'"
+                            type="button"
+                            class="pc-nav-label pc-nav-label--toggle"
+                            :aria-expanded="contentGroupOpen ? 'true' : 'false'"
+                            aria-controls="pc-nav-group-content"
+                            @click="contentGroupOpen = !contentGroupOpen"
+                        >
+                            <span>{{ group.label }}</span>
+                            <UiIcon
+                                name="chevronDown"
+                                :size="14"
+                                class="pc-nav-label__chevron"
+                                :class="{ 'is-open': contentGroupOpen }"
+                            />
+                        </button>
+                        <p v-else class="pc-nav-label">{{ group.label }}</p>
+                        <nav
+                            v-show="group.key !== 'content' || contentGroupOpen"
+                            class="pc-nav-list"
+                            :id="group.key === 'content' ? 'pc-nav-group-content' : undefined"
+                            :aria-label="group.label"
+                            :inert="group.key === 'content' && !contentGroupOpen ? true : undefined"
+                        >
                             <Link
                                 v-for="item in group.items"
                                 :key="item.key"
@@ -245,12 +290,6 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="pc-sidebar__foot">
-                    <div class="pc-sidebar__note">
-                        <UiIcon name="info" :size="15" />
-                        <span>{{ t('ui.dashboard_technical_note') }}</span>
-                    </div>
-                </div>
             </aside>
 
             <div class="pc-main">
@@ -278,7 +317,6 @@ onBeforeUnmount(() => {
                         </button>
                         <div class="pc-topbar__context">
                             <strong>{{ pageTitle }}</strong>
-                            <span>{{ workspaceLabel }}</span>
                         </div>
                     </div>
 
@@ -293,7 +331,7 @@ onBeforeUnmount(() => {
                                 class="pc-user__trigger"
                                 :aria-expanded="userMenuOpen ? 'true' : 'false'"
                                 aria-haspopup="menu"
-                                :aria-label="user.name || t('ui.dashboard_profile')"
+                                :aria-label="userTriggerLabel"
                                 @click="userMenuOpen = !userMenuOpen"
                             >
                                 <img v-if="user.avatar_url" :src="user.avatar_url" class="pc-avatar" alt="" aria-hidden="true">
@@ -308,6 +346,9 @@ onBeforeUnmount(() => {
                                 <div class="pc-menu__head">
                                     <strong>{{ user.name }}</strong>
                                     <span>{{ user.email }}</span>
+                                </div>
+                                <div class="pc-menu__theme">
+                                    <ThemeSelector compact in-menu persist />
                                 </div>
                                 <Link :href="hrefFor('dashboard/profile')" class="pc-menu__item" role="menuitem">
                                     <UiIcon name="users" :size="16" /> {{ t('ui.account_profile.manage_account') }}
@@ -332,9 +373,10 @@ onBeforeUnmount(() => {
                 <main id="pc-main" class="pc-content" tabindex="-1" :inert="mobileOpen && !isDesktop">
                     <AdminHintBox v-if="hint" :text="hint" class="pc-page-hint mb-4" />
                     <PageHeader
-                        :eyebrow="pageEyebrow"
-                        :title="pageTitle"
-                        :subtitle="pageSubtitle"
+                        v-if="showHeader && headerTitle"
+                        :eyebrow="headerEyebrow"
+                        :title="headerTitle"
+                        :subtitle="headerSubtitle"
                         :breadcrumb="props.breadcrumb"
                     >
                         <template v-if="$slots.actions" #actions>

@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @import './tokens.css';
+@import './pcdr-identity-tokens.css';
 @import './motion.css';
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme='dark'], [data-theme='dark'] *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -8,20 +11,20 @@
 @theme {
     --font-sans: 'IBM Plex Sans Arabic', 'Inter', 'Tajawal', 'Cairo', 'Noto Sans Arabic', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
 
-    --color-navy: #3E5172;
-    --color-navy-deep: #2B3A54;
-    --color-navy-soft: #EEF1F6;
-    --color-teal: #71BCB7;
-    --color-teal-deep: #2F6F6A;
-    --color-teal-soft: #E8F4F2;
-    --color-sand: #DAC3A3;
-    --color-wheat: #D7C5A1;
-    --color-ink: #1F2A3C;
-    --color-muted: #5C6B82;
-    --color-line: #D9DFE7;
-    --color-danger: #9B2C2C;
-    --color-success: #2F6F4E;
-    --color-warning: #8A6116;
+    --color-navy: var(--pcdr-primary);
+    --color-navy-deep: var(--pcdr-primary-hover);
+    --color-navy-soft: var(--pcdr-primary-soft);
+    --color-teal: var(--pcdr-secondary-bright);
+    --color-teal-deep: var(--pcdr-secondary);
+    --color-teal-soft: var(--pcdr-secondary-soft);
+    --color-sand: var(--pcdr-accent);
+    --color-wheat: var(--pcdr-accent);
+    --color-ink: var(--pcdr-text);
+    --color-muted: var(--pcdr-text-secondary);
+    --color-line: var(--pcdr-border-strong);
+    --color-danger: var(--pcdr-danger);
+    --color-success: var(--pcdr-success);
+    --color-warning: var(--pcdr-warning);
     --color-navy-900: var(--pcdr-navy-900);
     --color-navy-800: var(--pcdr-navy-800);
     --color-navy-700: var(--pcdr-navy-700);
@@ -37,22 +40,22 @@
 }
 
 :root {
-    --brand-navy: #3E5172;
-    --brand-navy-deep: #30415E;
-    --brand-navy-soft: #E9EDF2;
-    --brand-teal: #71BCB7;
-    --brand-teal-deep: #397F7B;
-    --brand-teal-soft: #EAF5F4;
-    --brand-sand: #DAC3A3;
-    --brand-wheat: #D7C5A1;
-    --ink: #1D2736;
-    --muted: #5C6B82;
-    --line: #D9DFE7;
-    --surface: #FFFFFF;
-    --surface-alt: #F7F2EA;
-    --danger: #9B2C2C;
-    --success: #2F6F4E;
-    --warning: #8A6116;
+    --brand-navy: var(--pcdr-primary);
+    --brand-navy-deep: var(--pcdr-primary-hover);
+    --brand-navy-soft: var(--pcdr-primary-soft);
+    --brand-teal: var(--pcdr-secondary-bright);
+    --brand-teal-deep: var(--pcdr-secondary);
+    --brand-teal-soft: var(--pcdr-secondary-soft);
+    --brand-sand: var(--pcdr-accent);
+    --brand-wheat: var(--pcdr-accent);
+    --ink: var(--pcdr-text);
+    --muted: var(--pcdr-text-secondary);
+    --line: var(--pcdr-border-strong);
+    --surface: var(--pcdr-surface);
+    --surface-alt: var(--pcdr-accent-soft);
+    --danger: var(--pcdr-danger);
+    --success: var(--pcdr-success);
+    --warning: var(--pcdr-warning);
 
     --motion-duration-instant: 90ms;
     --motion-duration-fast: 140ms;
@@ -65,6 +68,83 @@
     --motion-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
     --motion-distance-sm: 8px;
     --motion-distance-md: 16px;
+}
+
+html[data-theme='dark'] .pc-app,
+html.dark .pc-app,
+.dark .pc-app,
+html[data-theme='dark'] .pc-auth,
+html.dark .pc-auth,
+.dark .pc-auth,
+html[data-theme='dark'] .pc-modal-backdrop,
+html.dark .pc-modal-backdrop,
+.dark .pc-modal-backdrop,
+html[data-theme='dark'] .pc-modal,
+html.dark .pc-modal,
+.dark .pc-modal,
+html[data-theme='dark'] .pc-toast-viewport,
+html.dark .pc-toast-viewport,
+.dark .pc-toast-viewport,
+html[data-theme='dark'] .pc-toast-stack,
+html.dark .pc-toast-stack,
+.dark .pc-toast-stack,
+html[data-theme='dark'] .pc-toast,
+html.dark .pc-toast,
+.dark .pc-toast,
+html[data-theme='dark'] .pc-confirm,
+html.dark .pc-confirm,
+.dark .pc-confirm {
+    --color-navy: var(--pcdr-primary);
+    --color-navy-deep: var(--pcdr-primary-hover);
+    --color-navy-soft: var(--pcdr-primary-soft);
+    --color-teal: var(--pcdr-secondary-bright);
+    --color-teal-deep: var(--pcdr-secondary);
+    --color-teal-soft: var(--pcdr-secondary-soft);
+    --color-sand: var(--pcdr-accent);
+    --color-wheat: var(--pcdr-accent);
+    --color-ink: var(--pcdr-text);
+    --color-muted: var(--pcdr-text-secondary);
+    --color-line: var(--pcdr-border-strong);
+    --color-danger: var(--pcdr-danger);
+    --color-success: var(--pcdr-success);
+    --color-warning: var(--pcdr-warning);
+    --brand-navy: var(--pcdr-primary);
+    --brand-navy-deep: var(--pcdr-primary-hover);
+    --brand-navy-soft: var(--pcdr-primary-soft);
+    --brand-teal: var(--pcdr-secondary-bright);
+    --brand-teal-deep: var(--pcdr-secondary);
+    --brand-teal-soft: var(--pcdr-secondary-soft);
+    --brand-sand: var(--pcdr-accent);
+    --brand-wheat: var(--pcdr-accent);
+    --ink: var(--pcdr-text);
+    --muted: var(--pcdr-text-secondary);
+    --line: var(--pcdr-border-strong);
+    --surface: var(--pcdr-surface);
+    --surface-alt: var(--pcdr-accent-soft);
+    --danger: var(--pcdr-danger);
+    --success: var(--pcdr-success);
+    --warning: var(--pcdr-warning);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html.pcdr-theme-transition *,
+    html.pcdr-theme-transition *::before,
+    html.pcdr-theme-transition *::after {
+        transition: background-color var(--motion-duration-fast) var(--motion-ease-standard),
+            border-color var(--motion-duration-fast) var(--motion-ease-standard),
+            color var(--motion-duration-fast) var(--motion-ease-standard),
+            fill var(--motion-duration-fast) var(--motion-ease-standard),
+            stroke var(--motion-duration-fast) var(--motion-ease-standard),
+            box-shadow var(--motion-duration-fast) var(--motion-ease-standard) !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.pcdr-theme-transition *,
+    html.pcdr-theme-transition *::before,
+    html.pcdr-theme-transition *::after {
+        transition: none !important;
+    }
 }
 
 *,

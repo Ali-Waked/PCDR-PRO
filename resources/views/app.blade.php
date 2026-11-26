@@ -53,7 +53,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
-        <meta name="color-scheme" content="light">
+        <meta name="color-scheme" content="light dark">
         <meta name="theme-color" content="#3E5172">
         <link rel="icon" href="/favicon.ico?v={{ $iconV }}" sizes="48x48">
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v={{ $iconV }}">
@@ -73,6 +73,58 @@
             <link rel="alternate" inertia hreflang="{{ $alternateLocale }}" href="{{ $alternateUrl }}">
         @endforeach
         <link rel="alternate" inertia hreflang="x-default" href="{{ $alternateUrls[$defaultLocale] }}">
+        @php
+            $themePreference = 'system';
+
+            if (auth()->check()) {
+                $themePreference = auth()->user()?->theme ?: 'system';
+            }
+        @endphp
+        <script>
+            (function () {
+                var storageKey = 'pcdr-theme-preference';
+                var supported = ['light', 'dark', 'system'];
+                var serverPreference = @json($themePreference);
+                var isAuthenticated = @json(auth()->check());
+                var preference = serverPreference;
+
+                if (!isAuthenticated) {
+                    try {
+                        var stored = window.localStorage.getItem(storageKey);
+                        if (stored && supported.indexOf(stored) !== -1) {
+                            preference = stored;
+                        }
+                    } catch (error) {
+                        // Storage can be unavailable in private browsing modes.
+                    }
+                }
+
+                if (supported.indexOf(preference) === -1) {
+                    preference = 'system';
+                }
+
+                var resolved = preference === 'system'
+                    ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : preference;
+                var root = document.documentElement;
+
+                root.dataset.theme = resolved;
+                root.dataset.themePreference = preference;
+                root.classList.toggle('dark', resolved === 'dark');
+                root.classList.toggle('light', resolved === 'light');
+                root.style.colorScheme = resolved;
+
+                var colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+                if (colorSchemeMeta) {
+                    colorSchemeMeta.setAttribute('content', resolved);
+                }
+
+                var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+                if (themeColorMeta) {
+                    themeColorMeta.setAttribute('content', resolved === 'dark' ? '#111827' : '#3E5172');
+                }
+            })();
+        </script>
         <meta property="og:type" inertia content="website">
         <meta property="og:site_name" inertia content="PCDR">
         <meta property="og:locale" inertia content="{{ $seoLocale }}">

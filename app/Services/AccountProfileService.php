@@ -44,6 +44,7 @@ final class AccountProfileService
                 'name' => (string) $user->name,
                 'email' => (string) $user->email,
                 'locale' => (string) $user->locale,
+                'theme' => (string) ($user->theme ?: User::THEME_SYSTEM),
                 'status' => (string) $user->status,
                 'created_at' => $user->created_at?->toIso8601String(),
                 'last_login_at' => $user->last_login_at?->toIso8601String(),
@@ -71,22 +72,39 @@ final class AccountProfileService
         ];
     }
 
-    /** @param array{name: string, locale: string} $data */
+    /** @param array{name?: string, locale?: string, theme?: string|null} $data */
     public function update(User $user, array $data): void
     {
         $before = [
             'name' => (string) $user->name,
             'locale' => (string) $user->locale,
+            'theme' => (string) ($user->theme ?: User::THEME_SYSTEM),
         ];
 
-        $user->forceFill([
-            'name' => $data['name'],
-            'locale' => $data['locale'],
-        ])->save();
+        $changes = [];
+
+        if (array_key_exists('name', $data)) {
+            $changes['name'] = $data['name'];
+        }
+
+        if (array_key_exists('locale', $data)) {
+            $changes['locale'] = $data['locale'];
+        }
+
+        if (array_key_exists('theme', $data)) {
+            $changes['theme'] = $data['theme'] === User::THEME_SYSTEM || $data['theme'] === null
+                ? null
+                : $data['theme'];
+        }
+
+        if ($changes !== []) {
+            $user->forceFill($changes)->save();
+        }
 
         $this->audit->record('account.profile.updated', 'users', (string) $user->id, $before, [
             'name' => (string) $user->name,
             'locale' => (string) $user->locale,
+            'theme' => (string) ($user->theme ?: User::THEME_SYSTEM),
         ]);
     }
 }
