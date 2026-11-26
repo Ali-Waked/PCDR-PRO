@@ -156,8 +156,8 @@ final class HomepageContentSeeder extends Seeder
                         'type' => 'inline',
                         'order' => 1,
                         'translations' => [
-                            'ar' => ['label' => 'كن شريكاً في الأثر', 'url' => '/ar/partnerships'],
-                            'en' => ['label' => 'Be a partner in impact', 'url' => '/en/partnerships'],
+                            'ar' => ['label' => 'كن شريكاً في الأثر', 'url' => '/ar/partners'],
+                            'en' => ['label' => 'Be a partner in impact', 'url' => '/en/partners'],
                         ],
                     ],
                 ],
@@ -464,14 +464,14 @@ final class HomepageContentSeeder extends Seeder
                         'title' => 'معاً نحو استجابة إنسانية أكثر تكاملاً',
                         'body' => $sloganNote['ar'],
                         'cta_label' => null,
-                        'cta_link' => '/ar/partnerships',
+                        'cta_link' => '/ar/partners',
                     ],
                     'en' => [
                         'eyebrow' => 'Partnerships',
                         'title' => 'Together toward a more integrated humanitarian response',
                         'body' => $sloganNote['en'],
                         'cta_label' => null,
-                        'cta_link' => '/en/partnerships',
+                        'cta_link' => '/en/partners',
                     ],
                 ],
                 'items' => $this->inlineList([

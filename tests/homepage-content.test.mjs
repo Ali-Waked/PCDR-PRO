@@ -64,6 +64,12 @@ test('useHomepageContent groups prototype items by tab', () => {
 test('useHomepageContent keeps only prototype-approved destinations', () => {
     const content = useHomepageContent([])
 
+    assert.equal(content.safeUrl('/complaints'), '/complaints')
+    assert.equal(content.safeUrl('/ar/complaints'), '/ar/complaints')
+    assert.equal(content.safeUrl('/en/complaints'), '/en/complaints')
+    assert.equal(content.safeUrl('/partners'), '/partners')
+    assert.equal(content.safeUrl('/ar/partners'), '/ar/partners')
+    assert.equal(content.safeUrl('/en/partners'), '/en/partners')
     assert.equal(content.safeUrl('#news'), '#news')
     assert.equal(content.safeUrl('/ar'), '/ar')
     assert.equal(content.safeUrl('/ar/programs'), '')
@@ -77,4 +83,19 @@ test('useHomepageContent keeps only prototype-approved destinations', () => {
     assert.equal(content.safeUrl('/\\evil.example'), '')
     assert.equal(content.safeUrl('/%5Cevil.example'), '')
     assert.equal(content.safeUrl('/ar/page\nX-Evil: 1'), '')
+})
+
+test('useHomepageContent exposes visibility-aware ordered sections', () => {
+    const content = useHomepageContent([
+        { key: 'late', sort_order: 2, enabled: true },
+        { key: 'hidden', sortOrder: 1, enabled: false },
+        { key: 'draft', sortOrder: 3, published: false },
+        { key: 'early', sortOrder: 1, enabled: true },
+    ])
+
+    assert.deepEqual(content.visibleSections().map((section) => section.key), ['late', 'early'])
+    assert.deepEqual(content.orderedSections().map((section) => section.key), ['early', 'late'])
+    assert.equal(content.visibleSection('early')?.key, 'early')
+    assert.equal(content.visibleSection('hidden'), null)
+    assert.equal(content.isVisibleSection({ key: 'draft', published: false }), false)
 })

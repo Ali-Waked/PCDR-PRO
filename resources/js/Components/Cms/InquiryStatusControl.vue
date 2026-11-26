@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3'
 import CmsStatusBadge from '../Dashboard/CmsStatusBadge.vue'
 import UiIcon from '../Dashboard/UiIcon.vue'
 import StatusSelect from '../Selection/StatusSelect.vue'
+import { complaintStatusLabel } from '../../Support/complaintLabels'
 import { useI18n } from '../../composables/useI18n'
 
 const props = defineProps({
@@ -15,15 +16,8 @@ const props = defineProps({
 
 const { t } = useI18n()
 
-const statusLabels = {
-    new: 'cms_status_new',
-    in_progress: 'cms_status_in_progress',
-    resolved: 'cms_status_resolved',
-    closed: 'cms_status_closed',
-}
-
 function statusLabel(status) {
-    return statusLabels[status] ? t(statusLabels[status], status) : status
+    return complaintStatusLabel(t, status)
 }
 
 const statusOptions = computed(() => props.statuses.map((status) => ({

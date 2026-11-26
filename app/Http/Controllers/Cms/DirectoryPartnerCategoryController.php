@@ -19,45 +19,46 @@ use Inertia\Response;
 
 final class DirectoryPartnerCategoryController extends Controller
 {
+    private const SORT_COLUMNS = [
+        'display_order' => 'display_order',
+        'slug' => 'slug',
+    ];
+
+    private const PER_PAGE_OPTIONS = [10, 20, 50, 100];
+
     public function __construct(
         private AuditService $audit,
         private TranslationSaver $translations,
     ) {}
 
-    public function index(string $locale): Response
+    public function index(string $locale, Request $request): Response
     {
         $this->authorizeCms('directory_partners.view');
 
-        $categories = DirectoryPartnerCategory::query()
-            ->with(['translations', 'partners' => fn ($query) => $query->select('id', 'directory_partner_category_id', 'status')])
-            ->orderBy('display_order')->orderBy('id')
-            ->paginate(20);
-
-        return Inertia::render('Cms/PartnerDirectory/Index', [
-            'view' => 'categories',
-            'items' => $categories->through(fn (DirectoryPartnerCategory $category): array => $this->item($category, $locale))->items(),
-            'pagination' => $this->pagination($categories),
-            'categories' => [],
-            'media' => [],
-            'filters' => ['search' => ''],
-            'form' => $this->blankForm(),
-            'editing' => null,
-            'can' => $this->capabilities(),
-        ]);
+        return Inertia::render('Cms/PartnerDirectory/Index', $this->listProps($locale, $request));
     }
 
-    public function create(string $locale): Response
+    public function create(string $locale, Request $request): Response
     {
         $this->authorizeCms('directory_partners.create');
 
-        return $this->formResponse($locale, null);
+        return Inertia::render('Cms/PartnerDirectory/Index', [
+            ...$this->listProps($locale, $request),
+            'form' => $this->blankForm(),
+            'editing' => 'new',
+        ]);
     }
 
-    public function edit(string $locale, DirectoryPartnerCategory $category): Response
+    public function edit(string $locale, Request $request, DirectoryPartnerCategory $category): Response
     {
         $this->authorizeCms('directory_partners.view');
+        $category->load('translations');
 
-        return $this->formResponse($locale, $category);
+        return Inertia::render('Cms/PartnerDirectory/Index', [
+            ...$this->listProps($locale, $request),
+            'form' => $this->formData($category, $locale),
+            'editing' => $category->id,
+        ]);
     }
 
     public function store(string $locale, StoreDirectoryPartnerCategoryRequest $request): RedirectResponse
@@ -74,7 +75,7 @@ final class DirectoryPartnerCategoryController extends Controller
         $this->translations->sync($category, $data['translations'], ['name', 'description'], 'directory_partner_category_id', ['description']);
         $this->audit->record('directory_partners.category_created', 'directory_partner_categories', (string) $category->id, after: $this->auditable($category));
 
-        return to_route('cms.partner-directory.categories.index', ['locale' => $locale])
+        return $this->listRedirect($locale, $request)
             ->with('flash', ['success' => __('website.cms.saved', [], $locale)]);
     }
 
@@ -92,11 +93,11 @@ final class DirectoryPartnerCategoryController extends Controller
         $this->translations->sync($category, $data['translations'], ['name', 'description'], 'directory_partner_category_id', ['description']);
         $this->audit->record('directory_partners.category_updated', 'directory_partner_categories', (string) $category->id, $before, $this->auditable($category));
 
-        return to_route('cms.partner-directory.categories.index', ['locale' => $locale])
+        return $this->listRedirect($locale, $request)
             ->with('flash', ['success' => __('website.cms.saved', [], $locale)]);
     }
 
-    public function destroy(string $locale, DirectoryPartnerCategory $category): RedirectResponse
+    public function destroy(string $locale, Request $request, DirectoryPartnerCategory $category): RedirectResponse
     {
         $this->authorizeCms('directory_partners.delete');
 
@@ -110,7 +111,7 @@ final class DirectoryPartnerCategoryController extends Controller
         $category->delete();
         $this->audit->record('directory_partners.category_deleted', 'directory_partner_categories', (string) $category->id, $before);
 
-        return to_route('cms.partner-directory.categories.index', ['locale' => $locale])
+        return $this->listRedirect($locale, $request)
             ->with('flash', ['success' => __('website.cms.archived', [], $locale)]);
     }
 
@@ -160,21 +161,81 @@ final class DirectoryPartnerCategoryController extends Controller
         ];
     }
 
-    private function formResponse(string $locale, ?DirectoryPartnerCategory $category): Response
+    /**
+     * @return array<string, mixed>
+     */
+    private function listProps(string $locale, Request $request): array
     {
-        $category?->load('translations');
+        $search = mb_strcut(trim($request->string('search')->toString()), 0, 120);
+        $status = strtolower($request->string('status')->toString());
+        $status = in_array($status, ['all', 'active', 'inactive'], true) ? $status : 'all';
+        $sort = $request->string('sort')->toString();
+        $sort = array_key_exists($sort, self::SORT_COLUMNS) ? $sort : 'display_order';
+        $direction = strtolower($request->string('direction')->toString());
+        $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'asc';
+        $perPage = $request->integer('per_page');
+        $perPage = in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 20;
 
-        return Inertia::render('Cms/PartnerDirectory/Index', [
+        $query = DirectoryPartnerCategory::query()
+            ->with(['translations', 'partners' => fn ($query) => $query->select('id', 'directory_partner_category_id', 'status')]);
+
+        if ($search !== '') {
+            $query->where(static function ($query) use ($search): void {
+                $query->where('slug', 'like', '%'.$search.'%')
+                    ->orWhereHas('translations', static fn ($translationQuery) => $translationQuery
+                        ->where('name', 'like', '%'.$search.'%'));
+            });
+        }
+        if ($status !== 'all') {
+            $query->where('is_active', $status === 'active');
+        }
+
+        $query->orderBy(self::SORT_COLUMNS[$sort], $direction)->orderBy('id', $direction);
+        $categories = $query->paginate($perPage)->withQueryString();
+
+        return [
             'view' => 'categories',
-            'items' => [],
-            'pagination' => ['currentPage' => 1, 'lastPage' => 1, 'perPage' => 20, 'total' => 0, 'from' => 0, 'to' => 0],
+            'items' => $categories->through(fn (DirectoryPartnerCategory $category): array => $this->item($category, $locale))->items(),
+            'pagination' => $this->pagination($categories),
             'categories' => [],
             'media' => [],
-            'filters' => ['search' => ''],
-            'form' => $category === null ? $this->blankForm() : $this->formData($category, $locale),
-            'editing' => $category?->id ?? 'new',
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'sort' => $sort,
+                'direction' => $direction,
+                'per_page' => $perPage,
+            ],
+            'counts' => [
+                'all' => DirectoryPartnerCategory::query()->count(),
+                'active' => DirectoryPartnerCategory::query()->where('is_active', true)->count(),
+                'inactive' => DirectoryPartnerCategory::query()->where('is_active', false)->count(),
+            ],
+            'form' => $this->blankForm(),
+            'editing' => null,
             'can' => $this->capabilities(),
-        ]);
+        ];
+    }
+
+    /**
+     * @return array<string, scalar>
+     */
+    private function listQuery(Request $request): array
+    {
+        $query = [];
+        foreach (['search', 'status', 'sort', 'direction', 'per_page', 'page'] as $key) {
+            $value = $request->query($key);
+            if (is_scalar($value) && $value !== '') {
+                $query[$key] = $value;
+            }
+        }
+
+        return $query;
+    }
+
+    private function listRedirect(string $locale, Request $request): RedirectResponse
+    {
+        return to_route('cms.partner-directory.categories.index', ['locale' => $locale] + $this->listQuery($request));
     }
 
     /** @return array<string, mixed> */

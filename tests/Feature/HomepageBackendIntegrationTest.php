@@ -202,6 +202,60 @@ final class HomepageBackendIntegrationTest extends TestCase
             ->where('sections.0.title', 'الإنسان أولاً... والمجتمع شريك في التغيير'));
     }
 
+    public function test_homepage_service_orders_sections_and_filters_visibility_and_status(): void
+    {
+        HomepageSection::query()->create([
+            'key' => 'hidden', 'type' => 'inline', 'status' => 'published',
+            'published_at' => now(), 'is_enabled' => false, 'display_order' => 0,
+        ]);
+        HomepageSection::query()->create([
+            'key' => 'draft', 'type' => 'inline', 'status' => 'draft',
+            'is_enabled' => true, 'display_order' => 1,
+        ]);
+        HomepageSection::query()->create([
+            'key' => 'visible-second', 'type' => 'inline', 'status' => 'published',
+            'published_at' => now(), 'is_enabled' => true, 'display_order' => 3,
+        ]);
+        HomepageSection::query()->create([
+            'key' => 'visible-first', 'type' => 'inline', 'status' => 'published',
+            'published_at' => now(), 'is_enabled' => true, 'display_order' => 2,
+        ]);
+
+        $service = app(HomepageService::class);
+        $this->assertSame(
+            ['visible-first', 'visible-second'],
+            array_column($service->sections('ar'), 'key'),
+        );
+        $this->assertSame(
+            ['hidden', 'draft', 'visible-first', 'visible-second'],
+            array_column($service->sections('ar', false, true), 'key'),
+        );
+    }
+
+    public function test_partners_links_survive_public_homepage_link_filtering(): void
+    {
+        $section = HomepageSection::query()->create([
+            'key' => 'hero', 'type' => 'hero', 'status' => 'published',
+            'published_at' => now(), 'is_enabled' => true, 'display_order' => 0,
+        ]);
+        $section->translations()->create([
+            'locale' => 'en', 'title' => 'Partners', 'cta_link' => '/en/partners',
+        ]);
+        $item = $section->items()->create([
+            'item_type' => 'inline', 'item_key' => 'partner-link',
+            'is_published' => true, 'sort_order' => 1,
+        ]);
+        $item->translations()->create(['locale' => 'en', 'label' => 'Partners', 'url' => '/partners']);
+
+        $sections = app(HomepageService::class)->sections('en');
+        $this->assertSame('/en/partners', $sections[0]['ctaLink']);
+        $this->assertSame('/partners', $sections[0]['items'][0]['url']);
+
+        $this->get('/en')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('sections.0.ctaLink', '/en/partners')
+            ->where('sections.0.items.0.url', '/partners'));
+    }
+
     public function test_unpublished_inline_items_are_excluded_from_public_home_content(): void
     {
         $this->seedHomepage();

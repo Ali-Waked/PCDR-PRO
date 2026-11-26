@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\ContentStatus;
 use App\Enums\MediaType;
 use App\Services\CmsAccess;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,8 +14,19 @@ final class StoreDirectoryPartnerRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null
-            && app(CmsAccess::class)->allows($this->user(), 'directory_partners.create');
+        $user = $this->user();
+        $access = app(CmsAccess::class);
+
+        if ($user === null || ! $access->allows($user, 'directory_partners.create')) {
+            return false;
+        }
+
+        if ($this->string('status')->toString() === ContentStatus::Published->value
+            && ! $access->allows($user, 'directory_partners.publish')) {
+            return false;
+        }
+
+        return true;
     }
 
     /** @return array<string, mixed> */
@@ -28,7 +40,7 @@ final class StoreDirectoryPartnerRequest extends FormRequest
                     ->where('type', MediaType::Image->value)
                     ->where('is_restricted', false)),
             ],
-            'website_url' => ['nullable', 'url', 'max:500'],
+            'website_url' => ['nullable', 'string', 'max:500', 'regex:/^https?:\/\/[^\s\\\\]+$/i', 'url'],
             'partnership_year' => ['nullable', 'integer', 'between:1900,'.((int) date('Y') + 1)],
             'status' => ['required', 'string', Rule::in(['draft', 'published', 'archived'])],
             'published_at' => ['nullable', 'date'],
@@ -61,6 +73,10 @@ final class StoreDirectoryPartnerRequest extends FormRequest
             }
         }
 
-        $this->merge(['translations' => $translations]);
+        $website = $this->input('website_url');
+        $this->merge([
+            'translations' => $translations,
+            'website_url' => is_string($website) && trim($website) !== '' ? trim($website) : null,
+        ]);
     }
 }

@@ -19,14 +19,14 @@ final class RemovedPublicRoutesTest extends TestCase
         'about', 'about/vision', 'strategic-areas', 'strategic-areas/health',
         'programs', 'programs/relief', 'projects/relief-project', 'news', 'news/activity',
         'publications', 'publications/report', 'publications/report/download',
-        'transparency', 'partners', 'partnerships', 'get-involved', 'contact',
+        'transparency', 'partnerships', 'get-involved', 'contact',
         'complaints', 'pages/institutional',
     ];
 
     private const REMOVED_ROUTE_NAMES = [
         'public.about', 'public.about.focus', 'public.complaints', 'public.contact',
         'public.inquiry.contact', 'public.inquiry.volunteer', 'public.involve',
-        'public.news.index', 'public.news.show', 'public.page', 'public.partners',
+        'public.news.index', 'public.news.show', 'public.page',
         'public.partnerships', 'public.programs.index', 'public.programs.show',
         'public.projects.show', 'public.publications.download', 'public.publications.index',
         'public.publications.show', 'public.pillars.index', 'public.pillars.show',
@@ -109,7 +109,7 @@ final class RemovedPublicRoutesTest extends TestCase
             'resources/css/public-site.css', 'resources/css/complaints-box.css',
             'resources/js/Layouts/PublicLayout.vue', 'resources/js/Components/Public/SiteHeader.vue',
             'resources/js/Components/Public/SiteFooter.vue', 'resources/js/Pages/Public/About.vue',
-            'resources/js/Pages/Public/Contact.vue', 'resources/js/Pages/Public/Complaints.vue',
+            'resources/js/Pages/Public/Contact.vue',
             'resources/js/Pages/Public/News/Index.vue', 'resources/js/Pages/Public/Programs/Index.vue',
             'resources/js/Pages/Public/Pillars/Index.vue', 'resources/js/Pages/Public/Publications/Index.vue',
             'resources/js/composables/usePublicNavigation.js', 'resources/js/Support/complaintsEmail.js',

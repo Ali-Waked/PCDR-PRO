@@ -1,10 +1,20 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { Link } from '@inertiajs/vue3'
 import { useI18n } from '../../composables/useI18n'
 
-const { locale, alternateUrl } = useI18n()
+const props = defineProps({
+    brandUrl: { type: String, default: '#top' },
+    anchorBase: { type: String, default: '' },
+    partnersUrl: { type: String, default: null },
+})
+
+const { locale, alternateUrl, localPath, page } = useI18n()
+const complaintsUrl = computed(() => page.props.publicRoutes?.complaints || '')
 
 const logo = '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg'
+const anchor = (id) => `${props.anchorBase}#${id}`
+const partnersHref = computed(() => props.partnersUrl || localPath('partners'))
 
 const copy = computed(() => (locale.value === 'ar' ? {
     brand: 'جمعية العمل التشاركي',
@@ -24,6 +34,7 @@ const copy = computed(() => (locale.value === 'ar' ? {
     stories: 'قصص نجاح',
     partners: 'شركاؤنا',
     contact: 'اتصل بنا',
+    complaints: 'صندوق الشكاوى',
     tenders: 'العطاءات',
     jobs: 'الوظائف',
     arabic: 'العربية',
@@ -46,6 +57,7 @@ const copy = computed(() => (locale.value === 'ar' ? {
     stories: 'Success stories',
     partners: 'Our partners',
     contact: 'Contact us',
+    complaints: 'Complaints',
     tenders: 'Tenders',
     jobs: 'Jobs',
     arabic: 'العربية',
@@ -110,7 +122,7 @@ onBeforeUnmount(() => {
         <div class="wrap">
             <div class="head-in">
                 <div class="pill">
-                    <a class="brand" href="#top" :aria-label="copy.brandLabel" @click="closeMenu">
+                    <a class="brand" :href="brandUrl" :aria-label="copy.brandLabel" @click="closeMenu">
                         <span class="logo">
                             <img :src="logo" alt="" width="76" height="76">
                         </span>
@@ -154,23 +166,23 @@ onBeforeUnmount(() => {
                         <ul class="sub" id="sub-about">
                             <li>
                                 <a
-                                    href="#about"
+                                    :href="anchor('about')"
                                     :class="{ on: activeSub === 'vision' }"
                                     @click="openTab('vision', 'vision')"
                                 >{{ copy.vision }}</a>
                             </li>
                             <li>
                                 <a
-                                    href="#about"
+                                    :href="anchor('about')"
                                     :class="{ on: activeSub === 'objectives' }"
                                     @click="openTab('objectives', 'objectives')"
                                 >{{ copy.goals }}</a>
                             </li>
-                            <li><a href="#targets" @click="closeMenu">{{ copy.achievements }}</a></li>
+                            <li><a :href="anchor('targets')" @click="closeMenu">{{ copy.achievements }}</a></li>
                             <li><span class="sub-inert">{{ copy.board }}</span></li>
                         </ul>
                     </div>
-                    <div class="mi"><a class="mi-h" href="#programs" @click="closeMenu">{{ copy.programs }}</a></div>
+                    <div class="mi"><a class="mi-h" :href="anchor('programs')" @click="closeMenu">{{ copy.programs }}</a></div>
                     <div class="mi" :class="{ open: openGroups.media }">
                         <button
                             class="mi-h"
@@ -183,20 +195,24 @@ onBeforeUnmount(() => {
                             <svg class="ico" aria-hidden="true"><use href="#i-chev" /></svg>
                         </button>
                         <ul class="sub" id="sub-media">
-                            <li><a href="#news" @click="closeMenu">{{ copy.news }}</a></li>
+                            <li><a :href="anchor('news')" @click="closeMenu">{{ copy.news }}</a></li>
                             <li>
                                 <a
-                                    href="#news"
+                                    :href="anchor('news')"
                                     :class="{ on: activeSub === 'publications' }"
                                     @click="openTab('publications', 'publications')"
                                 >{{ copy.publications }}</a>
                             </li>
-                            <li><a href="#albums" @click="closeMenu">{{ copy.albums }}</a></li>
-                            <li><a href="#stories" @click="closeMenu">{{ copy.stories }}</a></li>
+                            <li><a :href="anchor('albums')" @click="closeMenu">{{ copy.albums }}</a></li>
+                            <li><a :href="anchor('stories')" @click="closeMenu">{{ copy.stories }}</a></li>
                         </ul>
                     </div>
-                    <div class="mi"><span class="mi-h mi-inert">{{ copy.partners }}</span></div>
-                    <div class="mi"><a class="mi-h" href="#contact" @click="closeMenu">{{ copy.contact }}</a></div>
+                    <div class="mi"><a class="mi-h" :href="partnersHref" @click="closeMenu">{{ copy.partners }}</a></div>
+                    <div class="mi"><a class="mi-h" :href="anchor('contact')" @click="closeMenu">{{ copy.contact }}</a></div>
+                    <div class="mi">
+                        <Link v-if="complaintsUrl" class="mi-h" :href="complaintsUrl" @click="closeMenu">{{ copy.complaints }}</Link>
+                        <span v-else class="mi-h mi-inert">{{ copy.complaints }}</span>
+                    </div>
                     <div class="menu-foot">
                         <div class="mi"><span class="mi-h mi-inert">{{ copy.tenders }}</span></div>
                         <div class="mi"><span class="mi-h mi-inert">{{ copy.jobs }}</span></div>

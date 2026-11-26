@@ -228,7 +228,7 @@ final class LocalizedUrlFallbackTest extends TestCase
         }
     }
 
-    public function test_only_the_home_public_page_has_an_unprefixed_path(): void
+    public function test_only_the_home_and_partners_public_pages_have_unprefixed_paths(): void
     {
         $paths = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($route): bool => in_array('GET', $route->methods(), true)
@@ -239,9 +239,10 @@ final class LocalizedUrlFallbackTest extends TestCase
             ->map(fn (string $uri): string => $uri === '{locale}' ? '/' : '/'.substr($uri, strlen('{locale}/')))
             ->values();
 
-        $this->assertSame(['/'], $paths->all());
+        $this->assertSame(['/', '/partners'], $paths->all());
 
         $this->followToOk('/', 'en')->assertOk();
+        $this->followToOk('/partners', 'en')->assertOk();
     }
 
     public function test_root_and_localized_home_do_not_gain_extra_redirects(): void

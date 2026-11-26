@@ -18,6 +18,7 @@ use App\Services\AccessManagementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -217,6 +218,64 @@ final class PartnerDirectoryTest extends TestCase
                 ->where('items.0.name', 'Partner 21'));
     }
 
+    public function test_cms_partner_index_supports_sorting_per_page_and_query_preserving_redirects(): void
+    {
+        $editor = $this->bootstrapUser();
+        $category = $this->category('sorted-category', true, 1, 'Sorted', 'مرتب');
+
+        $this->partner($category, 'Early year', 'سنة مبكرة', 'early-year', 5, 2023);
+        $late = $this->partner($category, 'Late year', 'سنة متأخرة', 'late-year', 9, 2026);
+        $this->partner($category, 'Middle year', 'سنة متوسطة', 'middle-year', 1, 2025);
+
+        $sortQuery = ['sort' => 'year', 'direction' => 'desc', 'per_page' => 10];
+        $this->actingAs($editor)->get($this->cmsRoute('index', $sortQuery))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.sort', 'year')
+                ->where('filters.direction', 'desc')
+                ->where('filters.per_page', 10)
+                ->where('pagination.perPage', 10)
+                ->where('items.0.name', 'Late year')
+                ->where('items.1.name', 'Middle year')
+                ->where('items.2.name', 'Early year'));
+
+        $this->actingAs($editor)->get($this->cmsRoute('index', ['sort' => 'display_order', 'direction' => 'desc']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('items.0.name', 'Late year')
+                ->where('items.2.name', 'Middle year'));
+
+        $partnerQuery = [
+            'search' => 'year',
+            'status' => 'published',
+            'category' => 'sorted-category',
+            'sort' => 'year',
+            'direction' => 'desc',
+            'per_page' => 10,
+            'page' => 1,
+        ];
+        $this->actingAs($editor)->put(
+            $this->cmsRoute('partners.update', $late->id, $partnerQuery),
+            $this->partnerPayload([
+                'directory_partner_category_id' => $category->id,
+                'display_order' => 9,
+            ]),
+        )->assertRedirect($this->cmsRoute('index', $partnerQuery));
+
+        $categoryQuery = [
+            'search' => 'sorted',
+            'status' => 'active',
+            'sort' => 'slug',
+            'direction' => 'desc',
+            'per_page' => 10,
+            'page' => 1,
+        ];
+        $this->actingAs($editor)->put(
+            $this->cmsRoute('categories.update', $category->id, $categoryQuery),
+            $this->categoryPayload(['slug' => 'sorted-category']),
+        )->assertRedirect($this->cmsRoute('categories.index', $categoryQuery));
+    }
+
     public function test_cms_categories_can_be_created_updated_reordered_deactivated_and_safely_deleted(): void
     {
         $editor = $this->bootstrapUser();
@@ -317,6 +376,153 @@ final class PartnerDirectoryTest extends TestCase
         $this->assertSame(1, DirectoryPartnerCategory::query()->count());
     }
 
+    public function test_public_directory_only_exposes_published_partners_from_active_categories(): void
+    {
+        $active = $this->category('active-category', true, 1, 'Active category', 'فئة نشطة');
+        $inactive = $this->category('inactive-category', false, 2, 'Inactive category', 'فئة غير نشطة');
+        $publicLogo = $this->media('public-logo.png');
+        $privateLogo = $this->media('private-logo.png', true);
+
+        $first = $this->partner($active, 'First partner', 'الشريك الأول', 'first-public', 5, 2025, $publicLogo->id);
+        $first->update(['website_url' => 'javascript:alert(1)']);
+        $this->partner($active, 'Second partner', 'الشريك الثاني', 'second-public', 2);
+        $this->partner(null, 'Other partner', 'شريك آخر', 'other-public', 1);
+        $privateLogoPartner = $this->partner($active, 'Restricted logo partner', 'شريك بشعار خاص', 'private-logo', 8, null, $privateLogo->id);
+        $privateLogoPartner->update(['logo_media_id' => $privateLogo->id]);
+
+        foreach (['Draft partner', 'Archived partner', 'Future partner', 'Hidden category partner', 'Deleted partner'] as $name) {
+            $hidden = $this->partner($name === 'Hidden category partner' ? $inactive : $active, $name, 'مخفي', Str::slug($name), 0);
+            $status = match ($name) {
+                'Draft partner' => ContentStatus::Draft,
+                'Archived partner' => ContentStatus::Archived,
+                default => ContentStatus::Published,
+            };
+            $hidden->forceFill([
+                'status' => $status,
+                'published_at' => $name === 'Future partner' ? now()->addDay() : now()->subDay(),
+            ])->save();
+            if ($name === 'Deleted partner') {
+                $hidden->delete();
+            }
+        }
+
+        $props = $this->inertiaProps($this->get('/en/partners'));
+        $directory = (array) ($props['directory'] ?? []);
+        $names = $this->publicPartnerNames($directory);
+
+        $this->assertSame(4, $directory['total'] ?? null);
+        $this->assertTrue($directory['hasPartners'] ?? false);
+        $this->assertSame('all', $directory['activeCategory'] ?? null);
+        $this->assertContains('First partner', $names);
+        $this->assertContains('Other partner', $names);
+        foreach (['Draft partner', 'Archived partner', 'Future partner', 'Hidden category partner', 'Deleted partner'] as $name) {
+            $this->assertNotContains($name, $names);
+        }
+
+        $partners = $this->flattenPublicPartners($directory);
+        $firstPublic = collect($partners)->firstWhere('name', 'First partner');
+        $this->assertIsArray($firstPublic);
+        $this->assertNull($firstPublic['website'], 'Unsafe website schemes must not be exposed.');
+        $this->assertIsArray($firstPublic['logo']);
+        $this->assertStringContainsString('public-logo.png', (string) $firstPublic['logo']['url']);
+
+        $restricted = collect($partners)->firstWhere('name', 'Restricted logo partner');
+        $this->assertIsArray($restricted);
+        $this->assertNull($restricted['logo'], 'Restricted media must not be exposed publicly.');
+
+        $this->assertStringNotContainsString('status', json_encode($directory, JSON_THROW_ON_ERROR));
+        $this->assertStringNotContainsString('published_at', json_encode($directory, JSON_THROW_ON_ERROR));
+        $this->assertStringNotContainsString('logo_media_id', json_encode($directory, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_public_directory_groups_partners_by_display_order_and_honours_category_filters(): void
+    {
+        $active = $this->category('active-category', true, 1, 'Active category', 'فئة نشطة');
+        $this->partner($active, 'Later partner', 'شريك لاحق', 'later', 9);
+        $this->partner($active, 'Earlier partner', 'شريك سابق', 'earlier', 1);
+        $this->partner(null, 'Other partner', 'شريك آخر', 'other', 2);
+
+        $allProps = $this->inertiaProps($this->get('/ar/partners'));
+        $all = (array) ($allProps['directory'] ?? []);
+        $activeGroup = collect($all['groups'] ?? [])->firstWhere('slug', 'active-category');
+        $this->assertIsArray($activeGroup);
+        $this->assertSame(['شريك سابق', 'شريك لاحق'], array_column($activeGroup['partners'], 'name'));
+
+        $filteredProps = $this->inertiaProps($this->get('/ar/partners?category=active-category'));
+        $filtered = (array) ($filteredProps['directory'] ?? []);
+        $this->assertSame('active-category', $filtered['activeCategory'] ?? null);
+        $this->assertSame(['active-category'], array_column($filtered['groups'], 'slug'));
+
+        $invalidProps = $this->inertiaProps($this->get('/ar/partners?category=does-not-exist'));
+        $this->assertSame('all', ((array) ($invalidProps['directory'] ?? []))['activeCategory'] ?? null);
+
+        $props = $this->inertiaProps($this->get('/en/partners'));
+        $this->assertSame('Institutional Partners Directory', $props['meta']['title'] ?? null);
+    }
+
+    public function test_public_directory_tracks_the_cms_publication_workflow(): void
+    {
+        $editor = $this->bootstrapUser();
+        $this->actingAs($editor)->post($this->cmsRoute('partners.store'), $this->partnerPayload([
+            'translations' => [
+                'ar' => ['name' => 'شريك تجريبي', 'slug' => '', 'description' => null],
+                'en' => ['name' => 'Workflow partner', 'slug' => '', 'description' => null],
+            ],
+        ]))->assertRedirect();
+
+        $partner = DirectoryPartner::query()->firstOrFail();
+        $this->assertNotContains('Workflow partner', $this->publicPartnerNames(
+            (array) ($this->inertiaProps($this->get('/en/partners'))['directory'] ?? []),
+        ));
+
+        $this->actingAs($editor)->post($this->cmsRoute('partners.status', $partner->id), ['status' => 'published'])->assertRedirect();
+        $this->assertContains('Workflow partner', $this->publicPartnerNames(
+            (array) ($this->inertiaProps($this->get('/en/partners'))['directory'] ?? []),
+        ));
+
+        $this->actingAs($editor)->post($this->cmsRoute('partners.status', $partner->id), ['status' => 'draft'])->assertRedirect();
+        $this->assertNotContains('Workflow partner', $this->publicPartnerNames(
+            (array) ($this->inertiaProps($this->get('/en/partners'))['directory'] ?? []),
+        ));
+
+        $this->actingAs($editor)->post($this->cmsRoute('partners.status', $partner->id), ['status' => 'published'])->assertRedirect();
+        $this->actingAs($editor)->post($this->cmsRoute('partners.status', $partner->id), ['status' => 'archived'])->assertRedirect();
+        $this->assertNotContains('Workflow partner', $this->publicPartnerNames(
+            (array) ($this->inertiaProps($this->get('/en/partners'))['directory'] ?? []),
+        ));
+
+        $this->actingAs($editor)->delete($this->cmsRoute('partners.destroy', $partner->id))->assertRedirect();
+        $this->assertSoftDeleted('directory_partners', ['id' => $partner->id]);
+    }
+
+    public function test_publication_cannot_be_granted_through_a_create_or_update_payload(): void
+    {
+        $editor = $this->bootstrapUser();
+        $limited = $this->userWith(['directory_partners.create', 'directory_partners.update']);
+        $published = $this->partner(null, 'Published partner', 'شريك منشور', 'published', 1);
+
+        $this->actingAs($limited)->post($this->cmsRoute('partners.store'), $this->partnerPayload([
+            'status' => 'published',
+            'translations' => [
+                'ar' => ['name' => 'محاولة نشر', 'slug' => '', 'description' => null],
+                'en' => ['name' => 'Publish attempt', 'slug' => '', 'description' => null],
+            ],
+        ]))->assertForbidden();
+        $this->assertSame(1, DirectoryPartner::query()->count());
+
+        $draft = $this->partner(null, 'Draft partner', 'شريك مسودة', 'draft-bypass', 2);
+        $draft->forceFill(['status' => ContentStatus::Draft, 'published_at' => null])->save();
+        $this->actingAs($limited)->put($this->cmsRoute('partners.update', $draft->id), $this->partnerPayload([
+            'status' => 'published',
+        ]))->assertForbidden();
+        $this->assertSame(ContentStatus::Draft->value, ContentStatus::valueOf($draft->fresh()->status));
+
+        $this->actingAs($limited)->put($this->cmsRoute('partners.update', $published->id), $this->partnerPayload([
+            'status' => 'draft',
+        ]))->assertForbidden();
+        $this->assertSame(ContentStatus::Published->value, ContentStatus::valueOf($published->fresh()->status));
+    }
+
     /** @param array<string, mixed> $overrides @return array<string, mixed> */
     private function partnerPayload(array $overrides = []): array
     {
@@ -411,6 +617,50 @@ final class PartnerDirectoryTest extends TestCase
         );
 
         return $partner;
+    }
+
+    /** @return array<string, mixed> */
+    private function inertiaProps(TestResponse $response): array
+    {
+        $html = (string) $response->getContent();
+        $this->assertSame(
+            1,
+            preg_match('/<script data-page="app" type="application\/json">(.*?)<\/script>/s', $html, $matches),
+            'Inertia page payload was not found in the HTML response.',
+        );
+
+        $page = json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR);
+        $this->assertIsArray($page);
+
+        return (array) ($page['props'] ?? []);
+    }
+
+    /**
+     * @param  array<string, mixed>  $directory
+     * @return list<array<string, mixed>>
+     */
+    private function flattenPublicPartners(array $directory): array
+    {
+        $partners = [];
+        foreach (($directory['groups'] ?? []) as $group) {
+            foreach (($group['partners'] ?? []) as $partner) {
+                $partners[] = (array) $partner;
+            }
+        }
+
+        return $partners;
+    }
+
+    /**
+     * @param  array<string, mixed>  $directory
+     * @return list<string>
+     */
+    private function publicPartnerNames(array $directory): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (array $partner): string => (string) ($partner['name'] ?? ''),
+            $this->flattenPublicPartners($directory),
+        )));
     }
 
     private function media(string $name, bool $restricted = false): Media

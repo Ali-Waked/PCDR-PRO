@@ -35,6 +35,7 @@ use App\Http\Controllers\Phase5\WebhookController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\HomepageApiController;
 use App\Http\Controllers\Public\MediaController;
+use App\Http\Controllers\Public\PartnersController;
 use App\Http\Controllers\Public\RobotsController;
 use App\Http\Controllers\Public\SitemapController;
 use App\Http\Middleware\EnsureDashboardFeatureAvailable;
@@ -81,6 +82,8 @@ Route::prefix('{locale}')
         Route::get('/', HomeController::class)->name('public.home');
 
         Route::get('/media/{uuid}/download', [MediaController::class, 'download'])->name('public.media.download');
+
+        Route::get('/partners', PartnersController::class)->name('public.partners');
 
         Route::prefix('cms')->name('cms.')->group(function (): void {
             Route::middleware('throttle:10,5')->group(function (): void {

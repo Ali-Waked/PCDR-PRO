@@ -24,7 +24,7 @@ const props = defineProps({
     can: { type: Object, default: () => ({}) },
 })
 
-const { t, localPath } = useI18n()
+const { t, localPath, page } = useI18n()
 const { confirm, finishConfirmation, setConfirmationBusy } = useAdminNotifications()
 
 function clone(value) {
@@ -46,6 +46,13 @@ const basePath = computed(() => localPath('cms/partner-directory'))
 const categoriesPath = computed(() => `${basePath.value}/categories`)
 const isCategories = computed(() => props.view === 'categories')
 const isEditing = computed(() => props.editing !== null && props.editing !== 'new')
+const currentQuery = computed(() => {
+    const url = String(page.url ?? '')
+    const index = url.indexOf('?')
+
+    return index >= 0 ? url.slice(index) : ''
+})
+const withQuery = (url) => `${url}${currentQuery.value}`
 
 const breadcrumb = computed(() => [
     { label: t('ui.cms_dashboard'), href: localPath('cms') },
@@ -80,12 +87,40 @@ const categoryFilterOptions = computed(() => [
     ...props.categories.map((category) => ({ value: category.slug, label: category.label })),
 ])
 
+const sortOptions = computed(() => [
+    { value: 'display_order', label: t('ui.partner_directory.sort_display_order') },
+    { value: 'status', label: t('ui.partner_directory.sort_status') },
+    { value: 'year', label: t('ui.partner_directory.sort_year') },
+    { value: 'updated_at', label: t('ui.partner_directory.sort_updated') },
+])
+
+const formStatusOptions = computed(() => statusOptions.value.slice(1).filter((option) => {
+    if (option.value === 'draft') {
+        return true
+    }
+    if (option.value === 'published') {
+        return props.editing !== null && props.editing !== 'new'
+            ? (Boolean(props.form.status === 'published') || Boolean(props.can.publish))
+            : Boolean(props.can.publish)
+    }
+    return Boolean(props.can.unpublish) || props.form.status !== 'published'
+}))
+
 const statusChips = computed(() => [
     { key: 'all', label: t('ui.all'), value: props.counts?.all ?? 0 },
     { key: 'published', label: t('published'), value: props.counts?.published ?? 0 },
     { key: 'draft', label: t('draft'), value: props.counts?.draft ?? 0 },
     { key: 'archived', label: t('archived'), value: props.counts?.archived ?? 0 },
 ])
+
+const hasActiveFilters = computed(() => Boolean(
+    searchTerm.value
+    || (!isCategories.value && statusFilter.value !== 'all')
+    || (!isCategories.value && categoryFilter.value)
+    || (!isCategories.value && sort.value !== 'display_order')
+    || (!isCategories.value && direction.value !== 'asc')
+    || Number(perPage.value) !== 20,
+))
 
 const summary = computed(() => {
     let value = String(t('ui.cms_content_page.showing') ?? '')
@@ -103,6 +138,9 @@ const summary = computed(() => {
 const searchTerm = ref(props.filters?.search ?? '')
 const statusFilter = ref(props.filters?.status ?? 'all')
 const categoryFilter = ref(props.filters?.category ?? '')
+const sort = ref(props.filters?.sort ?? 'display_order')
+const direction = ref(props.filters?.direction ?? 'asc')
+const perPage = ref(Number(props.filters?.per_page ?? props.pagination?.perPage ?? 20))
 const processing = ref(false)
 const actionBusy = ref(false)
 const formOpen = ref(props.editing !== null)
@@ -110,7 +148,10 @@ const reorderDrafts = ref({})
 let debounceTimer = null
 
 watch(() => props.form, (value) => {
-    Object.assign(form, formState(value))
+    const values = formState(value)
+    form.defaults(values)
+    form.reset()
+    form.clearErrors()
 }, { deep: true })
 
 watch(() => props.editing, (value) => {
@@ -121,6 +162,9 @@ watch(() => props.filters, (filters) => {
     searchTerm.value = filters?.search ?? ''
     statusFilter.value = filters?.status ?? 'all'
     categoryFilter.value = filters?.category ?? ''
+    sort.value = filters?.sort ?? 'display_order'
+    direction.value = filters?.direction ?? 'asc'
+    perPage.value = Number(filters?.per_page ?? props.pagination?.perPage ?? 20)
 }, { deep: true })
 
 watch(() => props.items, (items) => {
@@ -145,10 +189,6 @@ function translate(key, replacements = {}) {
 }
 
 function applyFilters() {
-    if (isCategories.value) {
-        return
-    }
-
     window.clearTimeout(debounceTimer)
 
     const query = {}
@@ -156,11 +196,37 @@ function applyFilters() {
     if (search !== '') {
         query.search = search
     }
+
+    if (isCategories.value) {
+        if (Number(perPage.value) !== 20) {
+            query.per_page = Number(perPage.value)
+        }
+
+        router.get(categoriesPath.value, query, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onStart: () => { processing.value = true },
+            onFinish: () => { processing.value = false },
+        })
+
+        return
+    }
+
     if (statusFilter.value && statusFilter.value !== 'all') {
         query.status = statusFilter.value
     }
     if (categoryFilter.value) {
         query.category = categoryFilter.value
+    }
+    if (sort.value !== 'display_order') {
+        query.sort = sort.value
+    }
+    if (direction.value !== 'asc') {
+        query.direction = direction.value
+    }
+    if (Number(perPage.value) !== 20) {
+        query.per_page = Number(perPage.value)
     }
 
     router.get(basePath.value, query, {
@@ -181,53 +247,105 @@ function clearFilters() {
     searchTerm.value = ''
     statusFilter.value = 'all'
     categoryFilter.value = ''
+    sort.value = 'display_order'
+    direction.value = 'asc'
+    perPage.value = 20
+    applyFilters()
+}
+
+function setStatusFilter(status) {
+    statusFilter.value = status
+    applyFilters()
+}
+
+function toggleDirection() {
+    direction.value = direction.value === 'asc' ? 'desc' : 'asc'
     applyFilters()
 }
 
 function submitForm() {
-    if (isCategories.value) {
-        const url = isEditing.value
+    const url = isCategories.value
+        ? (isEditing.value
             ? `${basePath.value}/categories/${props.editing}`
-            : `${basePath.value}/categories`
-        form[isEditing.value ? 'put' : 'post'](url, {
-            preserveScroll: true,
-            onSuccess: () => { formOpen.value = false },
-        })
+            : `${basePath.value}/categories`)
+        : (isEditing.value
+            ? `${basePath.value}/partners/${props.editing}`
+            : `${basePath.value}/partners`)
 
-        return
-    }
-
-    const url = isEditing.value
-        ? `${basePath.value}/partners/${props.editing}`
-        : `${basePath.value}/partners`
-    form[isEditing.value ? 'put' : 'post'](url, {
+    form[isEditing.value ? 'put' : 'post'](withQuery(url), {
         preserveScroll: true,
         onSuccess: () => { formOpen.value = false },
     })
 }
 
-function setPartnerStatus(row, status) {
+function finishAction() {
+    actionBusy.value = false
+    setConfirmationBusy(false)
+    finishConfirmation()
+}
+
+function submitPartnerStatus(row, status) {
     actionBusy.value = true
-    router.post(`${basePath.value}/partners/${row.id}/status`, { status }, {
+    router.post(withQuery(`${basePath.value}/partners/${row.id}/status`), { status }, {
         preserveScroll: true,
-        onFinish: () => { actionBusy.value = false },
+        onFinish: finishAction,
     })
 }
 
-function setCategoryStatus(row) {
+function requestPartnerStatus(row, status) {
+    const messageKey = status === 'archived'
+        ? 'confirm_archive_partner'
+        : status === 'draft' && row.status === 'published'
+            ? 'confirm_unpublish_partner'
+            : null
+
+    if (! messageKey) {
+        submitPartnerStatus(row, status)
+
+        return
+    }
+
+    confirm({ message: t(`ui.partner_directory.${messageKey}`), danger: status === 'archived' }).then((accepted) => {
+        if (! accepted) {
+            return
+        }
+
+        setConfirmationBusy(true)
+        submitPartnerStatus(row, status)
+    })
+}
+
+function requestCategoryStatus(row) {
+    if (row.isActive) {
+        confirm({ message: t('ui.partner_directory.confirm_deactivate_category') }).then((accepted) => {
+            if (! accepted) {
+                return
+            }
+
+            setConfirmationBusy(true)
+            submitCategoryStatus(row)
+        })
+
+        return
+    }
+
+    submitCategoryStatus(row)
+}
+
+function submitCategoryStatus(row) {
     actionBusy.value = true
-    router.post(`${basePath.value}/categories/${row.id}/status`, {
+    router.post(withQuery(`${basePath.value}/categories/${row.id}/status`), {
         is_active: ! row.isActive,
     }, {
         preserveScroll: true,
-        onFinish: () => { actionBusy.value = false },
+        onFinish: finishAction,
     })
 }
 
 function updateOrder(row) {
     const segment = isCategories.value ? 'categories' : 'partners'
     actionBusy.value = true
-    router.post(`${basePath.value}/${segment}/reorder`, {
+    router.post(withQuery(`${basePath.value}/${segment}/reorder`), {
         id: row.id,
         display_order: Number(reorderDrafts.value[row.id] ?? row.displayOrder),
     }, {
@@ -249,7 +367,7 @@ function requestDelete(row) {
         setConfirmationBusy(true)
         actionBusy.value = true
         const segment = isCategories.value ? 'categories' : 'partners'
-        router.delete(`${basePath.value}/${segment}/${row.id}`, {
+        router.delete(withQuery(`${basePath.value}/${segment}/${row.id}`), {
             preserveScroll: true,
             onFinish: () => {
                 actionBusy.value = false
@@ -278,7 +396,10 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                 <p>{{ t('ui.partner_directory.cms_disclaimer') }}</p>
             </section>
 
-            <section class="pc-card">
+            <section
+                class="pc-card"
+                :aria-busy="processing || actionBusy || form.processing ? 'true' : undefined"
+            >
                 <div class="pc-card__head pdd-head">
                     <div>
                         <h2 class="pc-card__title">{{ t('ui.partner_directory.cms_page_title') }}</h2>
@@ -288,7 +409,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                     <div class="pdd-head__actions">
                         <Link
                             v-if="can.create"
-                            :href="`${basePath}/partners/create`"
+                            :href="withQuery(`${basePath}/partners/create`)"
                             class="pc-btn pc-btn--primary pc-btn--sm"
                         >
                             <UiIcon name="plus" :size="14" />
@@ -296,7 +417,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                         </Link>
                         <Link
                             v-if="can.create"
-                            :href="`${basePath}/categories/create`"
+                            :href="withQuery(`${basePath}/categories/create`)"
                             class="pc-btn pc-btn--secondary pc-btn--sm"
                         >
                             <UiIcon name="layers" :size="14" />
@@ -307,7 +428,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
 
                 <div class="pdd-tabs" role="tablist" :aria-label="t('ui.partner_directory.cms_page_title')">
                     <Link
-                        :href="basePath"
+                        :href="withQuery(basePath)"
                         class="pdd-tab"
                         :class="{ 'is-active': !isCategories }"
                         :aria-current="!isCategories ? 'page' : undefined"
@@ -317,7 +438,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                         {{ t('ui.partner_directory.partners_tab') }}
                     </Link>
                     <Link
-                        :href="categoriesPath"
+                        :href="withQuery(categoriesPath)"
                         class="pdd-tab"
                         :class="{ 'is-active': isCategories }"
                         :aria-current="isCategories ? 'page' : undefined"
@@ -328,21 +449,21 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                     </Link>
                 </div>
 
-                <template v-if="!isCategories">
-                    <div class="pc-toolbar pdd-toolbar">
-                        <label class="pc-search">
-                            <span class="sr-only">{{ t('ui.partner_directory.search') }}</span>
-                            <UiIcon name="search" :size="16" />
-                            <input
-                                v-model="searchTerm"
-                                type="search"
-                                autocomplete="off"
-                                :placeholder="t('ui.partner_directory.search')"
-                                :disabled="processing || actionBusy || form.processing"
-                                @input="queueSearch"
-                            >
-                        </label>
+                <div class="pc-toolbar pdd-toolbar">
+                    <label class="pc-search">
+                        <span class="sr-only">{{ t('ui.partner_directory.search') }}</span>
+                        <UiIcon name="search" :size="16" />
+                        <input
+                            v-model="searchTerm"
+                            type="search"
+                            autocomplete="off"
+                            :placeholder="t('ui.partner_directory.search')"
+                            :disabled="processing || actionBusy || form.processing"
+                            @input="queueSearch"
+                        >
+                    </label>
 
+                    <template v-if="!isCategories">
                         <label class="pc-field">
                             <span class="pc-label">{{ t('ui.partner_directory.status') }}</span>
                             <select
@@ -371,29 +492,70 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                             </select>
                         </label>
 
+                        <label class="pc-field">
+                            <span class="pc-label">{{ t('ui.partner_directory.sort') }}</span>
+                            <select
+                                v-model="sort"
+                                class="pc-select pc-select--sm"
+                                :disabled="processing || actionBusy || form.processing"
+                                @change="applyFilters"
+                            >
+                                <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                        </label>
+
                         <button
-                            v-if="searchTerm || statusFilter !== 'all' || categoryFilter"
-                            class="pc-btn pc-btn--ghost pc-btn--sm"
+                            class="pc-btn pc-btn--ghost pc-btn--sm pdd-direction"
                             type="button"
                             :disabled="processing || actionBusy || form.processing"
-                            @click="clearFilters"
+                            :aria-label="direction === 'asc' ? t('ui.partner_directory.descending') : t('ui.partner_directory.ascending')"
+                            @click="toggleDirection"
                         >
-                            <UiIcon name="refresh" :size="14" />
-                            {{ t('ui.clear') }}
+                            {{ direction === 'asc' ? '↑' : '↓' }}
+                            <span class="pdd-action-label">{{ direction === 'asc' ? t('ui.partner_directory.ascending') : t('ui.partner_directory.descending') }}</span>
                         </button>
-                    </div>
+                    </template>
 
-                    <div class="pdd-chips" :aria-label="t('ui.partner_directory.status')">
-                        <span
-                            v-for="chip in statusChips"
-                            :key="chip.key"
-                            class="pc-badge"
-                            :class="{ 'pc-badge--teal': chip.key === 'published' }"
+                    <label class="pc-field pdd-per-page">
+                        <span class="pc-label">{{ t('ui.partner_directory.per_page') }}</span>
+                        <select
+                            v-model.number="perPage"
+                            class="pc-select pc-select--sm"
+                            :disabled="processing || actionBusy || form.processing"
+                            @change="applyFilters"
                         >
-                            {{ chip.label }} · {{ chip.value }}
-                        </span>
-                    </div>
-                </template>
+                            <option v-for="size in [10, 20, 50]" :key="size" :value="size">{{ size }}</option>
+                        </select>
+                    </label>
+
+                    <button
+                        v-if="hasActiveFilters"
+                        class="pc-btn pc-btn--ghost pc-btn--sm"
+                        type="button"
+                        :disabled="processing || actionBusy || form.processing"
+                        @click="clearFilters"
+                    >
+                        <UiIcon name="refresh" :size="14" />
+                        {{ t('ui.clear') }}
+                    </button>
+                </div>
+
+                <div v-if="!isCategories" class="pdd-chips" role="group" :aria-label="t('ui.partner_directory.status')">
+                    <button
+                        v-for="chip in statusChips"
+                        :key="chip.key"
+                        type="button"
+                        class="pc-badge pdd-chip"
+                        :class="{ 'pc-badge--teal': chip.key === 'published' }"
+                        :aria-pressed="statusFilter === chip.key ? 'true' : 'false'"
+                        :disabled="processing || actionBusy || form.processing"
+                        @click="setStatusFilter(chip.key)"
+                    >
+                        {{ chip.label }} · {{ chip.value }}
+                    </button>
+                </div>
 
                 <div v-if="processing || actionBusy || form.processing" class="pdd-loading" role="status">
                     <span class="pc-btn__spinner" aria-hidden="true" />
@@ -426,7 +588,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                                 <div class="pc-table__actions pdd-actions">
                                     <Link
                                         v-if="can.update"
-                                        :href="`${basePath}/partners/${row.id}/edit`"
+                                        :href="withQuery(`${basePath}/partners/${row.id}/edit`)"
                                         class="pc-btn pc-btn--secondary pc-btn--sm"
                                     >
                                         <UiIcon name="edit" :size="14" />
@@ -437,7 +599,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                                         class="pc-btn pc-btn--ghost pc-btn--sm"
                                         type="button"
                                         :disabled="actionBusy"
-                                        @click="setPartnerStatus(row, 'published')"
+                                        @click="requestPartnerStatus(row, 'published')"
                                     >
                                         <UiIcon name="eye" :size="14" />
                                         {{ t('ui.partner_directory.publish') }}
@@ -447,10 +609,20 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                                         class="pc-btn pc-btn--ghost pc-btn--sm"
                                         type="button"
                                         :disabled="actionBusy"
-                                        @click="setPartnerStatus(row, 'draft')"
+                                        @click="requestPartnerStatus(row, 'draft')"
                                     >
                                         <UiIcon name="eyeOff" :size="14" />
                                         {{ t('ui.partner_directory.unpublish') }}
+                                    </button>
+                                    <button
+                                        v-if="can.update && row.status !== 'archived' && (row.status !== 'published' || can.unpublish)"
+                                        class="pc-btn pc-btn--ghost pc-btn--sm"
+                                        type="button"
+                                        :disabled="actionBusy"
+                                        @click="requestPartnerStatus(row, 'archived')"
+                                    >
+                                        <UiIcon name="inbox" :size="14" />
+                                        {{ t('ui.partner_directory.archive') }}
                                     </button>
                                     <form class="pdd-order" @submit.prevent="updateOrder(row)">
                                         <label class="sr-only" :for="`partner-order-${row.id}`">
@@ -490,7 +662,9 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                     <EmptyState
                         v-else
                         :title="t('ui.partner_directory.no_partners')"
-                        :message="t('ui.partner_directory.search')"
+                        :message="hasActiveFilters
+                            ? t('ui.partner_directory.no_partners_hint')
+                            : t('ui.partner_directory.cms_page_description')"
                         icon="image"
                     />
                 </template>
@@ -518,7 +692,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                                 <div class="pc-table__actions pdd-actions">
                                     <Link
                                         v-if="can.update"
-                                        :href="`${basePath}/categories/${row.id}/edit`"
+                                        :href="withQuery(`${basePath}/categories/${row.id}/edit`)"
                                         class="pc-btn pc-btn--secondary pc-btn--sm"
                                     >
                                         <UiIcon name="edit" :size="14" />
@@ -529,7 +703,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                                         class="pc-btn pc-btn--ghost pc-btn--sm"
                                         type="button"
                                         :disabled="actionBusy"
-                                        @click="setCategoryStatus(row)"
+                                        @click="requestCategoryStatus(row)"
                                     >
                                         <UiIcon :name="row.isActive ? 'eyeOff' : 'eye'" :size="14" />
                                         {{ row.isActive ? t('ui.partner_directory.deactivate') : t('ui.partner_directory.activate') }}
@@ -622,7 +796,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                             <label class="pc-field">
                                 <span class="pc-label">{{ t('ui.partner_directory.status') }}</span>
                                 <select v-model="form.status" class="pc-select">
-                                    <option v-for="option in statusOptions.slice(1)" :key="option.value" :value="option.value">
+                                    <option v-for="option in formStatusOptions" :key="option.value" :value="option.value">
                                         {{ option.label }}
                                     </option>
                                 </select>

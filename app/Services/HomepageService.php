@@ -277,7 +277,7 @@ final class HomepageService
         $path = preg_replace('#^/(ar|en)(?=/)#', '', $path) ?: '/';
 
         foreach (['about', 'strategic-areas', 'programs', 'projects', 'news',
-            'publications', 'transparency', 'partners', 'partnerships',
+            'publications', 'transparency', 'partnerships',
             'get-involved', 'contact', 'complaints', 'pages'] as $prefix) {
             if ($path === '/'.$prefix || str_starts_with($path, '/'.$prefix.'/')) {
                 return true;

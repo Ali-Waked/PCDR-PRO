@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\ContentStatus;
 use App\Enums\MediaType;
 use App\Models\DirectoryPartner;
 use App\Services\CmsAccess;
@@ -14,8 +15,31 @@ final class UpdateDirectoryPartnerRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null
-            && app(CmsAccess::class)->allows($this->user(), 'directory_partners.update');
+        $user = $this->user();
+        $access = app(CmsAccess::class);
+
+        if ($user === null || ! $access->allows($user, 'directory_partners.update')) {
+            return false;
+        }
+
+        /** @var DirectoryPartner $partner */
+        $partner = $this->route('partner');
+        $target = $this->string('status')->toString();
+        $currentlyPublished = ContentStatus::valueOf($partner->status) === ContentStatus::Published->value;
+
+        if ($target === ContentStatus::Published->value
+            && ! $currentlyPublished
+            && ! $access->allows($user, 'directory_partners.publish')) {
+            return false;
+        }
+
+        if ($target !== ContentStatus::Published->value
+            && $currentlyPublished
+            && ! $access->allows($user, 'directory_partners.unpublish')) {
+            return false;
+        }
+
+        return true;
     }
 
     /** @return array<string, mixed> */
@@ -32,7 +56,7 @@ final class UpdateDirectoryPartnerRequest extends FormRequest
                     ->where('type', MediaType::Image->value)
                     ->where('is_restricted', false)),
             ],
-            'website_url' => ['nullable', 'url', 'max:500'],
+            'website_url' => ['nullable', 'string', 'max:500', 'regex:/^https?:\/\/[^\s\\\\]+$/i', 'url'],
             'partnership_year' => ['nullable', 'integer', 'between:1900,'.((int) date('Y') + 1)],
             'status' => ['required', 'string', Rule::in(['draft', 'published', 'archived'])],
             'published_at' => ['nullable', 'date'],
@@ -67,6 +91,10 @@ final class UpdateDirectoryPartnerRequest extends FormRequest
             }
         }
 
-        $this->merge(['translations' => $translations]);
+        $website = $this->input('website_url');
+        $this->merge([
+            'translations' => $translations,
+            'website_url' => is_string($website) && trim($website) !== '' ? trim($website) : null,
+        ]);
     }
 }

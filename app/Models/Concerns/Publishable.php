@@ -25,7 +25,7 @@ trait Publishable
 
     public function isPublished(): bool
     {
-        return $this->status === ContentStatus::Published
+        return ContentStatus::valueOf($this->status) === ContentStatus::Published->value
             && ($this->published_at === null || $this->published_at->lessThanOrEqualTo(now()));
     }
 

@@ -1,13 +1,17 @@
 <script setup>
 import { computed } from 'vue'
+import { Link } from '@inertiajs/vue3'
 import { useHomepageContent } from '../../composables/useHomepageContent'
 import { useI18n } from '../../composables/useI18n'
 
 const props = defineProps({
     sections: { type: Array, default: () => [] },
+    anchorBase: { type: String, default: '' },
 })
 
-const { locale } = useI18n()
+const { locale, page } = useI18n()
+const complaintsUrl = computed(() => page.props.publicRoutes?.complaints || '')
+const anchor = (id) => `${props.anchorBase}#${id}`
 const content = useHomepageContent(() => props.sections)
 
 const FALLBACK = {
@@ -83,12 +87,13 @@ function photoStyle() {
             <section>
                 <h3>{{ label(FALLBACK.aboutTitle) }}</h3>
                 <p>{{ aboutBody }}</p>
-                <a class="link" href="#about">{{ label(FALLBACK.readMore) }}</a>
+                <a class="link" :href="anchor('about')">{{ label(FALLBACK.readMore) }}</a>
             </section>
             <section>
                 <h3>{{ label(FALLBACK.complaintsTitle) }}</h3>
                 <p>{{ complaintsBody }}</p>
-                <a class="link" href="#contact">{{ label(FALLBACK.complaintsLink) }}</a>
+                <Link v-if="complaintsUrl" class="link" :href="complaintsUrl">{{ label(FALLBACK.complaintsLink) }}</Link>
+                <a v-else class="link" :href="anchor('contact')">{{ label(FALLBACK.complaintsLink) }}</a>
                 <div class="social">
                     <template v-for="item in social" :key="item.key">
                         <a v-if="item.url" :href="item.url" :aria-label="item.label">
@@ -122,6 +127,7 @@ function photoStyle() {
             <span v-else><b>Partnership</b> · <b>Human dignity</b> · <b>Justice</b> · <b>Sustainability</b></span>
         </div>
     </footer>
-    <a class="fab" href="#contact"><svg aria-hidden="true"><use href="#i-mail" /></svg>{{ label(FALLBACK.fab) }}</a>
+    <Link v-if="complaintsUrl" class="fab" :href="complaintsUrl"><svg aria-hidden="true"><use href="#i-mail" /></svg>{{ label(FALLBACK.fab) }}</Link>
+    <a v-else class="fab" :href="anchor('contact')"><svg aria-hidden="true"><use href="#i-mail" /></svg>{{ label(FALLBACK.fab) }}</a>
     </div>
 </template>

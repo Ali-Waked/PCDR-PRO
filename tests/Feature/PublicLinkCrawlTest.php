@@ -20,7 +20,7 @@ final class PublicLinkCrawlTest extends TestCase
 
     private const REMOVED_PREFIXES = [
         'about', 'strategic-areas', 'programs', 'projects', 'news', 'publications',
-        'transparency', 'partners', 'partnerships', 'get-involved', 'contact',
+        'transparency', 'partnerships', 'get-involved', 'contact',
         'complaints', 'pages',
     ];
 
@@ -45,6 +45,49 @@ final class PublicLinkCrawlTest extends TestCase
                 $this->assertFalse($this->isRemovedPath($link), $link.' points to a removed page.');
             }
         }
+    }
+
+    public function test_seeded_partner_links_point_to_the_public_directory(): void
+    {
+        $this->seed(SiteSettingsSeeder::class);
+        $this->seed(WebsiteSeeder::class);
+        $this->seed(HomepageContentSeeder::class);
+
+        foreach (['ar', 'en'] as $locale) {
+            $links = $this->collectLinkValues($this->inertiaProps($this->get('/'.$locale))['sections'] ?? []);
+
+            $this->assertContains('/'.$locale.'/partners', $links);
+            $this->assertFalse($this->isRemovedPath('/'.$locale.'/partners'));
+        }
+    }
+
+    public function test_new_stored_partner_links_are_preserved_before_rendering(): void
+    {
+        $this->seed(SiteSettingsSeeder::class);
+        $this->seed(WebsiteSeeder::class);
+        $this->seed(HomepageContentSeeder::class);
+
+        $section = HomepageSection::query()->create([
+            'key' => 'partner-link-probe',
+            'type' => 'intro',
+            'status' => ContentStatus::Published->value,
+            'published_at' => now()->subDay(),
+            'is_enabled' => true,
+            'display_order' => 99,
+        ]);
+        $section->translations()->create([
+            'locale' => 'ar',
+            'title' => 'رابط الشركاء',
+            'cta_link' => '/ar/partners',
+        ]);
+        app(HomepageService::class)->flush();
+
+        $props = $this->inertiaProps($this->get('/ar'));
+        $probe = collect($props['sections'])->firstWhere('key', 'partner-link-probe');
+
+        $this->assertIsArray($probe);
+        $this->assertSame('/ar/partners', $section->fresh()->t('cta_link', 'ar'));
+        $this->assertSame('/ar/partners', $probe['ctaLink']);
     }
 
     public function test_new_stored_dead_links_are_neutralized_before_rendering(): void

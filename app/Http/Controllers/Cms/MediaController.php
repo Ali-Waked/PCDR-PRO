@@ -12,6 +12,7 @@ use App\Http\Requests\UploadMediaRequest;
 use App\Models\Media;
 use App\Services\AuditService;
 use App\Services\CmsAccess;
+use App\Services\HomepageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,10 @@ use Inertia\Response;
 
 final class MediaController extends Controller
 {
-    public function __construct(private readonly AuditService $audit) {}
+    public function __construct(
+        private readonly AuditService $audit,
+        private readonly HomepageService $homepage,
+    ) {}
 
     private function authorize(string $permission): void
     {
@@ -162,6 +166,7 @@ final class MediaController extends Controller
             $record->translations()->updateOrCreate(['locale' => $code], $values);
         }
         $record->unsetRelation('translations');
+        $this->homepage->flush();
         $this->audit->record('media.updated', 'media', (string) $record->id, null, [
             'locales' => array_keys($validated['translations']),
         ]);

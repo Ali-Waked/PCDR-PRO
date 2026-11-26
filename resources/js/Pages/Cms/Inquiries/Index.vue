@@ -10,15 +10,27 @@ import MetricCard from '../../../Components/Dashboard/MetricCard.vue'
 import PcSelect from '../../../Components/Dashboard/PcSelect.vue'
 import StatusSelect from '../../../Components/Selection/StatusSelect.vue'
 import UiIcon from '../../../Components/Dashboard/UiIcon.vue'
+import StatusBadge from '../../../Components/Dashboard/StatusBadge.vue'
 import InquiryStatusControl from '../../../Components/Cms/InquiryStatusControl.vue'
 import { useI18n } from '../../../composables/useI18n'
+import {
+    COMPLAINT_PRIORITIES,
+    COMPLAINT_STATUSES,
+    complaintPriorityLabel,
+    complaintPriorityTone,
+    complaintStatusLabel,
+} from '../../../Support/complaintLabels'
 
 const props = defineProps({
     inquiries: { type: Object, default: () => ({}) },
     pagination: { type: Object, default: () => ({}) },
-    filters: { type: Object, default: () => ({ status: '', search: '', assigned: '' }) },
+    filters: { type: Object, default: () => ({ status: '', search: '', assigned: '', from: '', to: '', sort: '' }) },
     statuses: { type: Array, default: () => ['new', 'in_progress', 'resolved', 'closed'] },
     canonicalStatuses: { type: Array, default: () => [] },
+    complaintStatuses: { type: Array, default: () => COMPLAINT_STATUSES },
+    complaintPriorities: { type: Array, default: () => COMPLAINT_PRIORITIES },
+    complaintCategories: { type: Array, default: () => [] },
+    statusesByType: { type: Object, default: () => ({}) },
     counts: { type: Object, default: () => ({}) },
     can: { type: Object, default: () => ({}) },
 })
@@ -44,6 +56,12 @@ const groups = computed(() => [
         icon: 'users',
         total: Number(props.pagination?.volunteer?.total ?? 0),
     },
+    {
+        key: 'complaints',
+        label: t('ui.cms_inquiries_complaints', t('cms_inquiries_complaints')),
+        icon: 'shield',
+        total: Number(props.pagination?.complaints?.total ?? 0),
+    },
 ])
 
 const activeType = ref('contact')
@@ -59,16 +77,32 @@ const totalResults = computed(() => groups.value.reduce((sum, group) => sum + gr
 const searchTerm = ref(props.filters?.search || '')
 const statusFilter = ref(props.filters?.status || '')
 const assignedFilter = ref(props.filters?.assigned || '')
+const fromFilter = ref(props.filters?.from || '')
+const toFilter = ref(props.filters?.to || '')
+const sortFilter = ref(props.filters?.sort || '')
 const processing = ref(false)
 let debounceTimer = null
 
+const isComplaintTab = computed(() => activeType.value === 'complaints')
+
 const hasFilters = computed(() => Boolean(searchTerm.value.trim())
     || statusFilter.value !== ''
-    || assignedFilter.value !== '')
+    || assignedFilter.value !== ''
+    || fromFilter.value !== ''
+    || toFilter.value !== ''
+    || sortFilter.value !== '')
 
-const availableStatuses = computed(() => props.canonicalStatuses.length
-    ? props.canonicalStatuses
-    : props.statuses)
+const availableStatuses = computed(() => {
+    const byType = props.statusesByType?.[isComplaintTab.value ? 'complaint' : activeType.value] || []
+    if (byType.length) {
+        return byType
+    }
+    if (isComplaintTab.value && props.complaintStatuses.length) {
+        return props.complaintStatuses
+    }
+
+    return props.canonicalStatuses.length ? props.canonicalStatuses : props.statuses
+})
 
 const statusOptions = computed(() => [
     { value: '', label: t('ui.all'), tone: 'slate' },
@@ -81,6 +115,13 @@ const assignedOptions = computed(() => [
     { value: 'unassigned', label: t('cms_unassigned') },
 ])
 
+const sortOptions = computed(() => [
+    { value: '', label: t('ui.all') },
+    { value: 'newest', label: t('cms_sort_newest') },
+    { value: 'oldest', label: t('cms_sort_oldest') },
+    { value: 'priority', label: t('cms_sort_priority') },
+])
+
 const metrics = computed(() => [
     { key: 'total', label: t('ui.cms_inquiries_page.metrics_total'), value: props.counts?.total ?? 0, icon: 'inbox', tone: '' },
     { key: 'new', label: t('cms_status_new'), value: props.counts?.new ?? 0, icon: 'mail', tone: 'teal' },
@@ -88,7 +129,16 @@ const metrics = computed(() => [
     { key: 'unassigned', label: t('ui.cms_inquiries_page.metrics_unassigned'), value: props.counts?.unassigned ?? 0, icon: 'users', tone: 'navy' },
 ])
 
-const columns = computed(() => [
+const columns = computed(() => isComplaintTab.value ? [
+    { key: 'reference', label: t('cms_reference') },
+    { key: 'subject', label: t('ui.complaints.subject') },
+    { key: 'category', label: t('cms_complaint_category') },
+    { key: 'priority', label: t('cms_priority') },
+    { key: 'assigned', label: t('cms_assigned_to') },
+    { key: 'status', label: t('cms_status') },
+    { key: 'created', label: t('cms_created_at') },
+    { key: 'actions', label: t('cms_actions'), align: 'end' },
+] : [
     { key: 'reference', label: t('cms_reference') },
     { key: 'sender', label: t('cms_name') },
     { key: 'subject', label: t('subject') },
@@ -106,15 +156,36 @@ const emptyMessage = computed(() => hasFilters.value
     ? t('ui.cms_inquiries_page.empty_filtered_message')
     : t('ui.cms_inquiries_page.empty_message'))
 
-const statusLabels = {
-    new: 'cms_status_new',
-    in_progress: 'cms_status_in_progress',
-    resolved: 'cms_status_resolved',
-    closed: 'cms_status_closed',
+function statusLabel(status) {
+    return complaintStatusLabel(t, status)
 }
 
-function statusLabel(status) {
-    return statusLabels[status] ? t(statusLabels[status], status) : status
+function priorityLabel(priority) {
+    return complaintPriorityLabel(t, priority)
+}
+
+function categoryLabel(row) {
+    if (row?.categoryLabel) {
+        return row.categoryLabel
+    }
+    const category = props.complaintCategories.find((option) => option.value === row?.category)
+
+    return category?.label || row?.category || '—'
+}
+
+function canUpdateRow() {
+    return isComplaintTab.value ? Boolean(props.can?.complaintUpdate) : Boolean(props.can?.update)
+}
+
+function canViewRow() {
+    if (!isComplaintTab.value) {
+        return true
+    }
+
+    return Boolean(props.can?.complaintView
+        || props.can?.complaintViewAll
+        || props.can?.complaintViewAssigned
+        || props.can?.complaintViewContact)
 }
 
 function translate(key, replacements = {}) {
@@ -150,6 +221,15 @@ function applyFilters() {
     if (assignedFilter.value !== '') {
         query.assigned = assignedFilter.value
     }
+    if (fromFilter.value) {
+        query.from = fromFilter.value
+    }
+    if (toFilter.value) {
+        query.to = toFilter.value
+    }
+    if (sortFilter.value) {
+        query.sort = sortFilter.value
+    }
 
     router.get(inquiriesPath, query, {
         preserveState: true,
@@ -179,6 +259,9 @@ function clearFilters() {
     searchTerm.value = ''
     statusFilter.value = ''
     assignedFilter.value = ''
+    fromFilter.value = ''
+    toFilter.value = ''
+    sortFilter.value = ''
     applyFilters()
 }
 
@@ -186,6 +269,9 @@ watch(() => props.filters, (filters) => {
     searchTerm.value = filters?.search || ''
     statusFilter.value = filters?.status || ''
     assignedFilter.value = filters?.assigned || ''
+    fromFilter.value = filters?.from || ''
+    toFilter.value = filters?.to || ''
+    sortFilter.value = filters?.sort || ''
 }, { deep: true })
 
 onBeforeUnmount(() => window.clearTimeout(debounceTimer))
@@ -259,6 +345,29 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                         @update:model-value="changeAssignedFilter"
                     />
 
+                    <label class="pc-field iq-date">
+                        <span class="pc-label">{{ t('cms_date_from') }}</span>
+                        <input v-model="fromFilter" class="pc-input" type="date" :disabled="processing || page.processing">
+                    </label>
+
+                    <label class="pc-field iq-date">
+                        <span class="pc-label">{{ t('cms_date_to') }}</span>
+                        <input v-model="toFilter" class="pc-input" type="date" :disabled="processing || page.processing">
+                    </label>
+
+                    <PcSelect
+                        :model-value="sortFilter"
+                        :label="t('cms_sort')"
+                        :options="sortOptions"
+                        :placeholder="t('ui.all')"
+                        :empty-text="t('ui.no_results')"
+                        :searchable="false"
+                        :clearable="false"
+                        :loading="processing"
+                        :disabled="page.processing"
+                        @update:model-value="(value) => { sortFilter = value || ''; applyFilters() }"
+                    />
+
                     <button class="pc-btn pc-btn--secondary pc-btn--sm" type="submit" :disabled="processing || page.processing">
                         <UiIcon name="search" :size="14" />
                         {{ t('ui.filter') }}
@@ -302,92 +411,180 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
                     <template v-if="rows.length">
                         <div class="iq-desktop-list">
                             <DataTable :columns="columns">
-                                <tr v-for="row in rows" :key="row.id">
-                                    <td class="pc-directional" dir="ltr">
-                                        <span class="iq-reference">{{ row.reference }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="iq-person">
-                                            <span class="iq-avatar" aria-hidden="true">{{ initials(row.senderName || row.label) }}</span>
-                                            <span class="iq-person__text">
-                                                <span class="pc-table__primary">{{ row.senderName || row.label }}</span>
-                                                <span class="pc-table__secondary pc-directional" dir="ltr">{{ row.email }}</span>
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="pc-table__primary">{{ row.subject || row.label }}</span>
-                                        <span v-if="row.context" class="pc-table__secondary">{{ row.context }}</span>
-                                    </td>
-                                    <td>{{ row.assignedTo || t('cms_unassigned') }}</td>
-                                    <td>
-                                        <InquiryStatusControl
-                                            v-if="can.update"
-                                            :inquiry="row"
-                                            :statuses="availableStatuses"
-                                            :inquiries-path="inquiriesPath"
-                                            compact
-                                        />
-                                        <CmsStatusBadge v-else :status="row.status" :label="statusLabel(row.status)" />
-                                    </td>
-                                    <td class="pc-table__secondary">{{ formatDate(row.createdAt) }}</td>
-                                    <td>
-                                        <div class="pc-table__actions">
-                                            <Link :href="`${inquiriesPath}/${row.type}/${row.id}`" class="pc-btn pc-btn--secondary pc-btn--sm">
-                                                <UiIcon name="eye" :size="14" />
-                                                <span class="iq-action-label">{{ t('ui.view') }}</span>
-                                            </Link>
-                                        </div>
-                                    </td>
-                                </tr>
+                                <template v-for="row in rows" :key="row.id">
+                                    <tr v-if="isComplaintTab">
+                                        <td class="pc-directional" dir="ltr">
+                                            <span class="iq-reference">{{ row.reference }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="pc-table__primary">{{ row.subject || '—' }}</span>
+                                        </td>
+                                        <td>{{ categoryLabel(row) }}</td>
+                                        <td>
+                                            <StatusBadge :label="priorityLabel(row.priority)" :tone="complaintPriorityTone(row.priority)" />
+                                        </td>
+                                        <td>{{ row.assignedTo || t('cms_unassigned') }}</td>
+                                        <td>
+                                            <InquiryStatusControl
+                                                v-if="canUpdateRow()"
+                                                :inquiry="row"
+                                                :statuses="availableStatuses"
+                                                :inquiries-path="inquiriesPath"
+                                                compact
+                                            />
+                                            <CmsStatusBadge v-else :status="row.status" :label="statusLabel(row.status)" />
+                                        </td>
+                                        <td class="pc-table__secondary">{{ formatDate(row.createdAt) }}</td>
+                                        <td>
+                                            <div class="pc-table__actions">
+                                                <Link
+                                                    v-if="canViewRow()"
+                                                    :href="`${inquiriesPath}/complaint/${row.id}`"
+                                                    class="pc-btn pc-btn--secondary pc-btn--sm"
+                                                >
+                                                    <UiIcon name="eye" :size="14" />
+                                                    <span class="iq-action-label">{{ t('ui.view') }}</span>
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-else>
+                                        <td class="pc-directional" dir="ltr">
+                                            <span class="iq-reference">{{ row.reference }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="iq-person">
+                                                <span class="iq-avatar" aria-hidden="true">{{ initials(row.senderName || row.label) }}</span>
+                                                <span class="iq-person__text">
+                                                    <span class="pc-table__primary">{{ row.senderName || row.label }}</span>
+                                                    <span class="pc-table__secondary pc-directional" dir="ltr">{{ row.email }}</span>
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pc-table__primary">{{ row.subject || row.label }}</span>
+                                            <span v-if="row.context" class="pc-table__secondary">{{ row.context }}</span>
+                                        </td>
+                                        <td>{{ row.assignedTo || t('cms_unassigned') }}</td>
+                                        <td>
+                                            <InquiryStatusControl
+                                                v-if="canUpdateRow()"
+                                                :inquiry="row"
+                                                :statuses="availableStatuses"
+                                                :inquiries-path="inquiriesPath"
+                                                compact
+                                            />
+                                            <CmsStatusBadge v-else :status="row.status" :label="statusLabel(row.status)" />
+                                        </td>
+                                        <td class="pc-table__secondary">{{ formatDate(row.createdAt) }}</td>
+                                        <td>
+                                            <div class="pc-table__actions">
+                                                <Link :href="`${inquiriesPath}/${row.type}/${row.id}`" class="pc-btn pc-btn--secondary pc-btn--sm">
+                                                    <UiIcon name="eye" :size="14" />
+                                                    <span class="iq-action-label">{{ t('ui.view') }}</span>
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
                             </DataTable>
                         </div>
 
                         <div class="iq-mobile-list">
-                            <article v-for="row in rows" :key="row.id" class="iq-card">
-                                <div class="iq-card__head">
-                                    <div class="iq-card__identity">
-                                        <span class="iq-avatar" aria-hidden="true">{{ initials(row.senderName || row.label) }}</span>
-                                        <div>
-                                            <strong>{{ row.subject || row.label }}</strong>
-                                            <span class="pc-table__secondary pc-directional" dir="ltr">{{ row.reference }}</span>
+                            <template v-for="row in rows" :key="row.id">
+                                <article v-if="isComplaintTab" class="iq-card">
+                                    <div class="iq-card__head">
+                                        <div class="iq-card__identity">
+                                            <span class="iq-avatar" aria-hidden="true"><UiIcon name="shield" :size="16" /></span>
+                                            <div>
+                                                <strong>{{ row.subject || '—' }}</strong>
+                                                <span class="pc-table__secondary pc-directional" dir="ltr">{{ row.reference }}</span>
+                                            </div>
                                         </div>
+                                        <CmsStatusBadge :status="row.status" :label="statusLabel(row.status)" />
                                     </div>
-                                    <CmsStatusBadge :status="row.status" :label="statusLabel(row.status)" />
-                                </div>
 
-                                <dl class="iq-card__meta">
-                                    <div>
-                                        <dt>{{ t('cms_name') }}</dt>
-                                        <dd>{{ row.senderName || '—' }}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>{{ t('ui.email') }}</dt>
-                                        <dd class="pc-directional" dir="ltr">{{ row.email }}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>{{ t('cms_assigned_to') }}</dt>
-                                        <dd>{{ row.assignedTo || t('cms_unassigned') }}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>{{ t('cms_created_at') }}</dt>
-                                        <dd>{{ formatDate(row.createdAt) }}</dd>
-                                    </div>
-                                </dl>
+                                    <dl class="iq-card__meta">
+                                        <div>
+                                            <dt>{{ t('cms_complaint_category') }}</dt>
+                                            <dd>{{ categoryLabel(row) }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>{{ t('cms_priority') }}</dt>
+                                            <dd><StatusBadge :label="priorityLabel(row.priority)" :tone="complaintPriorityTone(row.priority)" /></dd>
+                                        </div>
+                                        <div>
+                                            <dt>{{ t('cms_assigned_to') }}</dt>
+                                            <dd>{{ row.assignedTo || t('cms_unassigned') }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>{{ t('cms_created_at') }}</dt>
+                                            <dd>{{ formatDate(row.createdAt) }}</dd>
+                                        </div>
+                                    </dl>
 
-                                <div class="iq-card__actions">
-                                    <InquiryStatusControl
-                                        v-if="can.update"
-                                        :inquiry="row"
-                                        :statuses="availableStatuses"
-                                        :inquiries-path="inquiriesPath"
-                                    />
-                                    <Link :href="`${inquiriesPath}/${row.type}/${row.id}`" class="pc-btn pc-btn--secondary pc-btn--sm">
-                                        <UiIcon name="eye" :size="14" />
-                                        {{ t('ui.view') }}
-                                    </Link>
-                                </div>
-                            </article>
+                                    <div class="iq-card__actions">
+                                        <InquiryStatusControl
+                                            v-if="canUpdateRow()"
+                                            :inquiry="row"
+                                            :statuses="availableStatuses"
+                                            :inquiries-path="inquiriesPath"
+                                        />
+                                        <Link
+                                            v-if="canViewRow()"
+                                            :href="`${inquiriesPath}/complaint/${row.id}`"
+                                            class="pc-btn pc-btn--secondary pc-btn--sm"
+                                        >
+                                            <UiIcon name="eye" :size="14" />
+                                            {{ t('ui.view') }}
+                                        </Link>
+                                    </div>
+                                </article>
+                                <article v-else class="iq-card">
+                                    <div class="iq-card__head">
+                                        <div class="iq-card__identity">
+                                            <span class="iq-avatar" aria-hidden="true">{{ initials(row.senderName || row.label) }}</span>
+                                            <div>
+                                                <strong>{{ row.subject || row.label }}</strong>
+                                                <span class="pc-table__secondary pc-directional" dir="ltr">{{ row.reference }}</span>
+                                            </div>
+                                        </div>
+                                        <CmsStatusBadge :status="row.status" :label="statusLabel(row.status)" />
+                                    </div>
+
+                                    <dl class="iq-card__meta">
+                                        <div>
+                                            <dt>{{ t('cms_name') }}</dt>
+                                            <dd>{{ row.senderName || '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>{{ t('ui.email') }}</dt>
+                                            <dd class="pc-directional" dir="ltr">{{ row.email }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>{{ t('cms_assigned_to') }}</dt>
+                                            <dd>{{ row.assignedTo || t('cms_unassigned') }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>{{ t('cms_created_at') }}</dt>
+                                            <dd>{{ formatDate(row.createdAt) }}</dd>
+                                        </div>
+                                    </dl>
+
+                                    <div class="iq-card__actions">
+                                        <InquiryStatusControl
+                                            v-if="canUpdateRow()"
+                                            :inquiry="row"
+                                            :statuses="availableStatuses"
+                                            :inquiries-path="inquiriesPath"
+                                        />
+                                        <Link :href="`${inquiriesPath}/${row.type}/${row.id}`" class="pc-btn pc-btn--secondary pc-btn--sm">
+                                            <UiIcon name="eye" :size="14" />
+                                            {{ t('ui.view') }}
+                                        </Link>
+                                    </div>
+                                </article>
+                            </template>
                         </div>
 
                         <CmsPagination
@@ -434,6 +631,11 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
 .iq-toolbar .pc-selection {
     flex: 0 1 190px;
     min-inline-size: 170px;
+}
+
+.iq-toolbar .iq-date {
+    flex: 0 1 160px;
+    min-inline-size: 140px;
 }
 
 .iq-search {
@@ -657,7 +859,8 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .iq-toolbar .pc-selection {
+    .iq-toolbar .pc-selection,
+    .iq-toolbar .iq-date {
         flex: 1 1 140px;
         min-inline-size: 0;
     }

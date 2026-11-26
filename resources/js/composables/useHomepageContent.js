@@ -30,11 +30,32 @@ export function useHomepageContent(sectionsSource) {
             : (value !== null && value !== undefined && value !== '' ? String(value) : fallback)
     }
 
+    function sortOrder(record) {
+        return Number(record?.sortOrder ?? record?.sort_order ?? 0)
+    }
+
+    function isVisibleSection(value) {
+        return Boolean(value) && value.enabled !== false && value.is_enabled !== false && value.published !== false
+    }
+
+    function visibleSections() {
+        return sections.value.filter(isVisibleSection)
+    }
+
+    function visibleSection(key) {
+        const found = section(key)
+        return isVisibleSection(found) ? found : null
+    }
+
+    function orderedSections() {
+        return [...visibleSections()].sort((first, second) => sortOrder(first) - sortOrder(second))
+    }
+
     function items(key, prefix = '') {
         return [...(section(key)?.items || [])]
             .filter((item) => item && item.published !== false)
             .filter((item) => prefix === '' || String(item.key || '').startsWith(prefix))
-            .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0))
+            .sort((first, second) => sortOrder(first) - sortOrder(second))
     }
 
     function itemsByTab(sectionKey, tab) {
@@ -67,7 +88,7 @@ export function useHomepageContent(sectionsSource) {
         return ''
     }
 
-    /** Public inner pages no longer exist, so stored links to them stay inert. */
+    /** Removed public inner pages stay inert in stored homepage content. */
     function isRemovedPublicPath(url) {
         let path = url.split('?')[0].split('#')[0]
         if (!path.startsWith('/')) {
@@ -79,8 +100,8 @@ export function useHomepageContent(sectionsSource) {
         path = path.replace(/^\/(ar|en)(?=\/)/, '')
 
         return ['about', 'strategic-areas', 'programs', 'projects', 'news',
-            'publications', 'transparency', 'partners', 'partnerships',
-            'get-involved', 'contact', 'complaints', 'pages']
+            'publications', 'transparency', 'partnerships',
+            'get-involved', 'contact', 'pages']
             .some((prefix) => path === `/${prefix}` || path.startsWith(`/${prefix}/`))
     }
 
@@ -92,5 +113,18 @@ export function useHomepageContent(sectionsSource) {
         return typeof item?.media?.alt === 'string' ? item.media.alt : ''
     }
 
-    return { sectionsByKey, section, text, items, itemsByTab, safeUrl, mediaUrl, mediaAlt }
+    return {
+        sectionsByKey,
+        section,
+        visibleSections,
+        visibleSection,
+        isVisibleSection,
+        orderedSections,
+        text,
+        items,
+        itemsByTab,
+        safeUrl,
+        mediaUrl,
+        mediaAlt,
+    }
 }

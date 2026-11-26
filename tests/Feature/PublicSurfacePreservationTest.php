@@ -23,10 +23,10 @@ final class PublicSurfacePreservationTest extends TestCase
         ];
     }
 
-    public function test_the_public_surface_keeps_home_and_asset_routes_only(): void
+    public function test_the_public_surface_keeps_home_partners_and_asset_routes_only(): void
     {
         foreach ([
-            'public.home', 'api.public.homepage', 'public.media.download',
+            'public.home', 'public.partners', 'api.public.homepage', 'public.media.download',
             'public.operational-documents.download',
         ] as $name) {
             $this->assertTrue(Route::has($name), $name.' is missing.');
@@ -41,6 +41,7 @@ final class PublicSurfacePreservationTest extends TestCase
 
         $this->assertSame([
             'public.home', 'public.media.download', 'public.operational-documents.download',
+            'public.partners',
         ], $publicRoutes);
     }
 
@@ -53,6 +54,21 @@ final class PublicSurfacePreservationTest extends TestCase
                 ->component('Public/Home')
                 ->where('locale', $locale)
                 ->where('meta.locale', $locale));
+    }
+
+    #[DataProvider('localeProvider')]
+    public function test_partners_directory_renders_in_both_locales(string $locale, string $direction): void
+    {
+        $response = $this->get('/'.$locale.'/partners')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Public/Partners')
+                ->where('locale', $locale)
+                ->where('meta.locale', $locale)
+                ->where('directory.activeCategory', 'all')
+                ->has('directory.categories'));
+
+        $this->assertStringContainsString('<html lang="'.$locale.'" dir="'.$direction.'"', (string) $response->getContent());
     }
 
     public function test_root_still_redirects_to_the_default_locale(): void
