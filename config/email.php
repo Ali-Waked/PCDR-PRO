@@ -142,18 +142,23 @@ return [
     |--------------------------------------------------------------------------
     | Institutional email brand
     |--------------------------------------------------------------------------
-    | The static logo is shipped in the public directory. Email clients need an
-    | absolute HTTPS URL, so EMAIL_LOGO_URL must be set in production unless the
-    | configured application URL is itself a public HTTPS URL. When neither is
-    | available the logo is omitted rather than pointing at localhost.
+    | The dedicated PNG is embedded as an inline CID attachment by default so
+    | recipients do not need to load remote images. MAIL_LOGO_MODE=url is for
+    | explicit CDN use and requires a public HTTPS MAIL_ASSET_URL or APP_URL.
+    | EMAIL_LOGO_URL remains as a legacy absolute-URL override.
     |
     */
     'brand' => [
+        'logo_mode' => env('MAIL_LOGO_MODE', 'cid'),
+        'asset_url' => env('MAIL_ASSET_URL'),
         'logo_path' => 'assets/pcdr-homepage/logo/pcdr-logo.png',
+        'public_logo_path' => 'assets/email/email-logo.png',
+        'embedded_logo_path' => 'mail/email-logo.png',
+        'logo_cid' => 'pcdr-email-logo@pcdr.local',
         'logo_url' => env('EMAIL_LOGO_URL'),
         'website_url' => env('EMAIL_WEBSITE_URL'),
-        'logo_width' => 72,
-        'logo_height' => 72,
+        'logo_width' => 120,
+        'logo_height' => 120,
     ],
 
     'colors' => [

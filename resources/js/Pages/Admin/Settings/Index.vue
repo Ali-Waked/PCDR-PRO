@@ -4,13 +4,21 @@ import { Head, Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '../../../Layouts/AppLayout.vue'
 import Button from '../../../Components/Ui/Button.vue'
 import MultiSelect from '../../../Components/Selection/MultiSelect.vue'
+import PageHeader from '../../../Components/Dashboard/PageHeader.vue'
 import SelectField from '../../../Components/Ui/SelectField.vue'
 import TextField from '../../../Components/Ui/TextField.vue'
 import UiIcon from '../../../Components/Dashboard/UiIcon.vue'
 import { useLocale } from '../../../Composables/useLocale'
 import { useI18n } from '../../../composables/useI18n'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'settings_page.title',
+        subtitleKey: 'settings_page.subtitle',
+        eyebrowKey: 'settings_page.eyebrow',
+        showHeader: false,
+    }, () => page),
+})
 
 const props = defineProps({
     definitions: { type: Array, default: () => [] },
@@ -137,154 +145,154 @@ function submit() {
 </script>
 
 <template>
-    <AppLayout
-        :title="t('settings_page.title')"
-        :subtitle="t('settings_page.subtitle')"
-        :eyebrow="t('settings_page.eyebrow')"
-    >
-        <template #actions>
-            <Link :href="localePath('/cms/settings')" class="pc-btn pc-btn--ghost">
-                <UiIcon name="settings" :size="16" />
-                {{ t('admin_nav.cms_settings') }}
-            </Link>
-        </template>
+    <div class="pc-stack pcdr-enter">
+        <Head :title="t('settings_page.title')" />
 
-        <div class="pc-stack pcdr-enter">
-            <Head :title="t('settings_page.title')" />
+        <PageHeader
+            :eyebrow="t('settings_page.eyebrow')"
+            :title="t('settings_page.title')"
+            :subtitle="t('settings_page.subtitle')"
+        >
+            <template #actions>
+                <Link :href="localePath('/cms/settings')" class="pc-btn pc-btn--ghost">
+                    <UiIcon name="settings" :size="16" />
+                    {{ t('admin_nav.cms_settings') }}
+                </Link>
+            </template>
+        </PageHeader>
 
-            <div class="pc-callout" role="note">
-                <UiIcon name="info" :size="17" />
-                <p>{{ t('settings_page.distinction') }}</p>
-            </div>
-
-            <div v-if="!canUpdate" class="pc-callout pc-callout--warning" role="status">
-                <UiIcon name="lock" :size="17" />
-                <p>{{ t('settings_page.read_only') }}</p>
-            </div>
-
-            <form class="pc-stack" @submit.prevent="submit">
-                <section
-                    v-for="group in visibleGroups"
-                    :key="group.key"
-                    class="pc-card"
-                    :aria-labelledby="`settings-group-${group.key}`"
-                >
-                    <div class="pc-card__head">
-                        <div>
-                            <h2 :id="`settings-group-${group.key}`" class="pc-card__title">{{ group.label }}</h2>
-                            <p class="pc-card__subtitle">{{ t('settings_page.group_summary') }}</p>
-                        </div>
-                        <span class="pc-badge pc-badge--teal">{{ group.definitions.length }}</span>
-                    </div>
-                    <div class="pc-card__body pc-form-grid pc-form-grid--2">
-                        <div
-                            v-for="definition in group.definitions"
-                            :key="definition.key"
-                            class="pc-field"
-                            :class="{ 'pc-field--full': fieldKind(definition) === 'json' }"
-                        >
-                            <div class="pc-table__actions">
-                                <span
-                                    class="pc-badge"
-                                    :class="definition.public ? 'pc-badge--teal' : 'pc-badge--slate'"
-                                >
-                                    {{ definition.public ? t('settings_page.public_badge') : t('settings_page.private_badge') }}
-                                </span>
-                                <span class="pc-hint">{{ typeLabel(definition) }}</span>
-                            </div>
-
-                            <SelectField
-                                v-if="fieldKind(definition) === 'locale'"
-                                v-model="draft[definition.key]"
-                                :name="definition.key"
-                                :label="definition.label"
-                                :options="localeOptions"
-                                :error="form.errors[definition.key] || ''"
-                                :disabled="!canUpdate"
-                                :searchable="false"
-                            />
-
-                            <MultiSelect
-                                v-else-if="fieldKind(definition) === 'locales'"
-                                v-model="draft[definition.key]"
-                                :label="definition.label"
-                                :options="localeOptions"
-                                :error="form.errors[definition.key] || ''"
-                                :disabled="!canUpdate"
-                                :empty-text="tWebsite('ui.no_results')"
-                                :searchable="false"
-                                :clearable="false"
-                            />
-
-                            <label v-else-if="fieldKind(definition) === 'boolean'" class="pc-checkbox pc-field--action">
-                                <input v-model="draft[definition.key]" type="checkbox" :disabled="!canUpdate">
-                                <span>{{ definition.label }}</span>
-                            </label>
-
-                            <TextField
-                                v-else-if="fieldKind(definition) === 'integer'"
-                                v-model="draft[definition.key]"
-                                :name="definition.key"
-                                :label="definition.label"
-                                type="number"
-                                inputmode="numeric"
-                                dir="ltr"
-                                :error="form.errors[definition.key] || ''"
-                                :disabled="!canUpdate"
-                            />
-
-                            <label v-else-if="fieldKind(definition) === 'json'" class="pc-field">
-                                <span class="pc-label">{{ definition.label }}</span>
-                                <textarea
-                                    v-model="draft[definition.key]"
-                                    class="pc-textarea"
-                                    :name="definition.key"
-                                    rows="4"
-                                    dir="ltr"
-                                    :disabled="!canUpdate"
-                                    :aria-invalid="jsonErrors[definition.key] || form.errors[definition.key] ? 'true' : 'false'"
-                                    @input="clearJsonError(definition.key)"
-                                />
-                                <span v-if="jsonErrors[definition.key] || form.errors[definition.key]" class="pc-error" role="alert">
-                                    {{ jsonErrors[definition.key] || form.errors[definition.key] }}
-                                </span>
-                            </label>
-
-                            <TextField
-                                v-else
-                                v-model="draft[definition.key]"
-                                :name="definition.key"
-                                :label="definition.label"
-                                :type="definition.key === 'branding.logo_url' ? 'url' : 'text'"
-                                dir="auto"
-                                :error="form.errors[definition.key] || ''"
-                                :disabled="!canUpdate"
-                            />
-                        </div>
-                    </div>
-                </section>
-
-                <section v-if="secretReferences.length" class="pc-card" aria-labelledby="settings-secrets-title">
-                    <div class="pc-card__head">
-                        <h2 id="settings-secrets-title" class="pc-card__title">{{ t('settings_page.secret_references') }}</h2>
-                        <span class="pc-badge pc-badge--sand">{{ secretReferences.length }}</span>
-                    </div>
-                    <div class="pc-card__body pc-stack">
-                        <p class="pc-hint">{{ t('settings_page.secret_notice') }}</p>
-                        <ul class="pc-list">
-                            <li v-for="reference in secretReferences" :key="reference" class="pc-list__item">
-                                <code class="pc-list__meta" dir="ltr">{{ reference }}</code>
-                            </li>
-                        </ul>
-                    </div>
-                </section>
-
-                <div v-if="canUpdate" class="pc-form-actions">
-                    <Button type="submit" :processing="form.processing">{{ t('settings_page.save') }}</Button>
-                </div>
-            </form>
-
-            <p class="pc-hint">{{ t('settings_page.localized_note') }}</p>
+        <div class="pc-callout" role="note">
+            <UiIcon name="info" :size="17" />
+            <p>{{ t('settings_page.distinction') }}</p>
         </div>
-    </AppLayout>
+
+        <div v-if="!canUpdate" class="pc-callout pc-callout--warning" role="status">
+            <UiIcon name="lock" :size="17" />
+            <p>{{ t('settings_page.read_only') }}</p>
+        </div>
+
+        <form class="pc-stack" @submit.prevent="submit">
+            <section
+                v-for="group in visibleGroups"
+                :key="group.key"
+                class="pc-card"
+                :aria-labelledby="`settings-group-${group.key}`"
+            >
+                <div class="pc-card__head">
+                    <div>
+                        <h2 :id="`settings-group-${group.key}`" class="pc-card__title">{{ group.label }}</h2>
+                        <p class="pc-card__subtitle">{{ t('settings_page.group_summary') }}</p>
+                    </div>
+                    <span class="pc-badge pc-badge--teal">{{ group.definitions.length }}</span>
+                </div>
+                <div class="pc-card__body pc-form-grid pc-form-grid--2">
+                    <div
+                        v-for="definition in group.definitions"
+                        :key="definition.key"
+                        class="pc-field"
+                        :class="{ 'pc-field--full': fieldKind(definition) === 'json' }"
+                    >
+                        <div class="pc-table__actions">
+                            <span
+                                class="pc-badge"
+                                :class="definition.public ? 'pc-badge--teal' : 'pc-badge--slate'"
+                            >
+                                {{ definition.public ? t('settings_page.public_badge') : t('settings_page.private_badge') }}
+                            </span>
+                            <span class="pc-hint">{{ typeLabel(definition) }}</span>
+                        </div>
+
+                        <SelectField
+                            v-if="fieldKind(definition) === 'locale'"
+                            v-model="draft[definition.key]"
+                            :name="definition.key"
+                            :label="definition.label"
+                            :options="localeOptions"
+                            :error="form.errors[definition.key] || ''"
+                            :disabled="!canUpdate"
+                            :searchable="false"
+                        />
+
+                        <MultiSelect
+                            v-else-if="fieldKind(definition) === 'locales'"
+                            v-model="draft[definition.key]"
+                            :label="definition.label"
+                            :options="localeOptions"
+                            :error="form.errors[definition.key] || ''"
+                            :disabled="!canUpdate"
+                            :empty-text="tWebsite('ui.no_results')"
+                            :searchable="false"
+                            :clearable="false"
+                        />
+
+                        <label v-else-if="fieldKind(definition) === 'boolean'" class="pc-checkbox pc-field--action">
+                            <input v-model="draft[definition.key]" type="checkbox" :disabled="!canUpdate">
+                            <span>{{ definition.label }}</span>
+                        </label>
+
+                        <TextField
+                            v-else-if="fieldKind(definition) === 'integer'"
+                            v-model="draft[definition.key]"
+                            :name="definition.key"
+                            :label="definition.label"
+                            type="number"
+                            inputmode="numeric"
+                            dir="ltr"
+                            :error="form.errors[definition.key] || ''"
+                            :disabled="!canUpdate"
+                        />
+
+                        <label v-else-if="fieldKind(definition) === 'json'" class="pc-field">
+                            <span class="pc-label">{{ definition.label }}</span>
+                            <textarea
+                                v-model="draft[definition.key]"
+                                class="pc-textarea"
+                                :name="definition.key"
+                                rows="4"
+                                dir="ltr"
+                                :disabled="!canUpdate"
+                                :aria-invalid="jsonErrors[definition.key] || form.errors[definition.key] ? 'true' : 'false'"
+                                @input="clearJsonError(definition.key)"
+                            />
+                            <span v-if="jsonErrors[definition.key] || form.errors[definition.key]" class="pc-error" role="alert">
+                                {{ jsonErrors[definition.key] || form.errors[definition.key] }}
+                            </span>
+                        </label>
+
+                        <TextField
+                            v-else
+                            v-model="draft[definition.key]"
+                            :name="definition.key"
+                            :label="definition.label"
+                            :type="definition.key === 'branding.logo_url' ? 'url' : 'text'"
+                            dir="auto"
+                            :error="form.errors[definition.key] || ''"
+                            :disabled="!canUpdate"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="secretReferences.length" class="pc-card" aria-labelledby="settings-secrets-title">
+                <div class="pc-card__head">
+                    <h2 id="settings-secrets-title" class="pc-card__title">{{ t('settings_page.secret_references') }}</h2>
+                    <span class="pc-badge pc-badge--sand">{{ secretReferences.length }}</span>
+                </div>
+                <div class="pc-card__body pc-stack">
+                    <p class="pc-hint">{{ t('settings_page.secret_notice') }}</p>
+                    <ul class="pc-list">
+                        <li v-for="reference in secretReferences" :key="reference" class="pc-list__item">
+                            <code class="pc-list__meta" dir="ltr">{{ reference }}</code>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <div v-if="canUpdate" class="pc-form-actions">
+                <Button type="submit" :processing="form.processing">{{ t('settings_page.save') }}</Button>
+            </div>
+        </form>
+
+        <p class="pc-hint">{{ t('settings_page.localized_note') }}</p>
+    </div>
 </template>

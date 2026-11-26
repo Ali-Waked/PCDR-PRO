@@ -128,11 +128,11 @@ defineExpose({ insertText, focus: () => editor.value?.focus() })
     align-items: center;
     gap: 4px;
     padding: 8px;
-    border: 1px solid var(--pc-border-strong, #d9dfe7);
+    border: 1px solid var(--pc-border-strong);
     border-block-end: 0;
     border-start-start-radius: var(--pc-radius-sm, 9px);
     border-start-end-radius: var(--pc-radius-sm, 9px);
-    background: var(--pc-surface-2, #f8fafb);
+    background: var(--pc-surface-2);
 }
 .et-editor__toolbar button {
     display: grid;
@@ -143,20 +143,20 @@ defineExpose({ insertText, focus: () => editor.value?.focus() })
     border: 1px solid transparent;
     border-radius: 7px;
     background: transparent;
-    color: var(--pc-text, #25334b);
+    color: var(--pc-text);
     font: inherit;
     font-size: 0.8rem;
     cursor: pointer;
 }
 .et-editor__toolbar button:hover:not(:disabled) {
-    border-color: var(--pc-border, #e9edf2);
-    background: var(--pc-surface, #fff);
+    border-color: var(--pc-border);
+    background: var(--pc-surface);
 }
 .et-editor__toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
-.et-editor__divider { inline-size: 1px; block-size: 20px; margin-inline: 3px; background: var(--pc-border, #e9edf2); }
+.et-editor__divider { inline-size: 1px; block-size: 20px; margin-inline: 3px; background: var(--pc-border); }
 .et-editor__direction {
     margin-inline-start: auto;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     font-size: 0.7rem;
     font-weight: 700;
 }
@@ -165,10 +165,10 @@ defineExpose({ insertText, focus: () => editor.value?.focus() })
     max-block-size: 48vh;
     overflow: auto;
     padding: 16px;
-    border: 1px solid var(--pc-border-strong, #d9dfe7);
+    border: 1px solid var(--pc-border-strong);
     border-radius: 0 0 var(--pc-radius-sm, 9px) var(--pc-radius-sm, 9px);
-    background: var(--pc-surface, #fff);
-    color: var(--pc-text, #25334b);
+    background: var(--pc-surface);
+    color: var(--pc-text);
     font: inherit;
     font-size: 0.9rem;
     line-height: 1.8;
@@ -176,20 +176,20 @@ defineExpose({ insertText, focus: () => editor.value?.focus() })
 }
 .et-editor__area:empty::before {
     content: attr(data-placeholder);
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     opacity: 0.65;
 }
-.et-editor__area.is-disabled { background: var(--pc-surface-2, #f8fafb); }
+.et-editor__area.is-disabled { background: var(--pc-surface-2); }
 .et-editor__area :deep(h2) { font-size: 1.35rem; font-weight: 700; }
 .et-editor__area :deep(h3) { font-size: 1.15rem; font-weight: 700; }
-.et-editor__area :deep(a) { color: var(--pc-teal, #397f7b); text-decoration: underline; }
+.et-editor__area :deep(a) { color: var(--pc-teal); text-decoration: underline; }
 .et-editor__area :deep(ul), .et-editor__area :deep(ol) { padding-inline-start: 22px; }
 .et-editor__foot {
     display: flex;
     justify-content: space-between;
     gap: 12px;
     margin-block-start: 6px;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     font-size: 0.72rem;
 }
 </style>

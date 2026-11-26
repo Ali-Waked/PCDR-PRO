@@ -471,7 +471,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
 }
 
 .iq-tab.is-active {
-    border-color: color-mix(in srgb, var(--pc-teal-bright) 45%, white);
+    border-color: var(--pc-teal);
     background: var(--pc-teal-soft);
     color: var(--pc-teal);
     font-weight: 700;
@@ -489,7 +489,7 @@ onBeforeUnmount(() => window.clearTimeout(debounceTimer))
 
 .iq-tab.is-active .iq-tabs__count {
     background: var(--pc-teal);
-    color: #fff;
+    color: var(--pc-on-secondary);
 }
 
 .iq-loading {

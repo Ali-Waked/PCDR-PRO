@@ -87,9 +87,9 @@ async function copyExample() {
     gap: 12px;
     min-inline-size: 0;
     padding: 16px;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: var(--pc-radius, 14px);
-    background: var(--pc-surface, #fff);
+    background: var(--pc-surface);
 }
 .guide-step__number {
     display: grid;
@@ -98,28 +98,28 @@ async function copyExample() {
     block-size: 30px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: var(--pc-teal-soft, #eaf5f4);
-    color: var(--pc-teal, #397f7b);
+    background: var(--pc-teal-soft);
+    color: var(--pc-teal);
     font-weight: 700;
 }
 .guide-step__content { min-inline-size: 0; }
 .guide-step h3 {
     margin: 0 0 6px;
     font-size: 0.92rem;
-    color: var(--pc-text, #25334b);
+    color: var(--pc-text);
 }
 .guide-step p {
     margin: 0;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     font-size: 0.82rem;
     line-height: 1.75;
     overflow-wrap: anywhere;
 }
 .guide-example {
     padding: 16px;
-    border: 1px solid var(--pc-sand, #dac3a3);
+    border: 1px solid var(--pc-sand);
     border-radius: var(--pc-radius, 14px);
-    background: var(--pc-sand-soft, #f7f2ea);
+    background: var(--pc-sand-soft);
 }
 .guide-example__head {
     display: flex;
@@ -130,7 +130,7 @@ async function copyExample() {
     margin-block-end: 12px;
 }
 .guide-example h3 { margin: 0; font-size: 0.95rem; }
-.guide-example p { margin: 4px 0 0; color: var(--pc-muted, #5c6b82); font-size: 0.8rem; }
+.guide-example p { margin: 4px 0 0; color: var(--pc-muted); font-size: 0.8rem; }
 .guide-example__code {
     margin: 0;
     padding: 14px;
@@ -139,8 +139,8 @@ async function copyExample() {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     border-radius: var(--pc-radius-sm, 9px);
-    background: var(--pc-surface, #fff);
-    color: var(--pc-text, #25334b);
+    background: var(--pc-surface);
+    color: var(--pc-text);
     font: inherit;
     font-size: 0.82rem;
     line-height: 1.8;

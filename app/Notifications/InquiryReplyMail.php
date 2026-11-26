@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Services\EmailMessagePresenter;
 use Illuminate\Mail\Mailable;
+use Illuminate\Support\HtmlString;
 
 /**
  * Synchronous so the CMS can report the real delivery result. Content is
@@ -29,10 +30,12 @@ final class InquiryReplyMail extends Mailable
 
         return $this
             ->subject($this->emailSubject)
-            ->html($presenter->document($this->renderedBody, $locale, [
-                'title' => $this->emailSubject,
-                'reference' => $this->reference,
-            ]))
-            ->text($presenter->plainText($this->renderedBody));
+            ->view([
+                'html' => new HtmlString($presenter->document($this->renderedBody, $locale, [
+                    'title' => $this->emailSubject,
+                    'reference' => $this->reference,
+                ])),
+                'text' => new HtmlString($presenter->plainText($this->renderedBody)),
+            ]);
     }
 }

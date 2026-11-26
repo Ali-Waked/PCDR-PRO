@@ -101,6 +101,7 @@ final class EmailTemplatePreviewService
         string $locale,
         ?string $subject = null,
         ?string $body = null,
+        bool $imagesBlocked = false,
     ): array {
         $variables = $this->sampleVariables($locale);
         $renderedSubject = $subject !== null
@@ -127,6 +128,7 @@ final class EmailTemplatePreviewService
                 $sender,
                 $recipient,
                 $templateKey,
+                $imagesBlocked,
             ),
             'plainBody' => $this->presenter->plainText($renderedBody),
             'direction' => $locale === 'ar' ? 'rtl' : 'ltr',

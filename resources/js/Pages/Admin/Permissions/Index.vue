@@ -10,7 +10,12 @@ import EmptyState from '../../../Components/Dashboard/EmptyState.vue'
 import { useLocale } from '../../../Composables/useLocale'
 import { usePermission } from '../../../Composables/usePermission'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'permissions_page.title',
+        subtitleKey: 'permissions_page.subtitle',
+    }, () => page),
+})
 
 const props = defineProps({
     permissions: { type: Object, required: true },

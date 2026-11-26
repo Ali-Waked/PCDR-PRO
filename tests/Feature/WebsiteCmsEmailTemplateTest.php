@@ -12,9 +12,12 @@ use App\Notifications\InquiryReplyMail;
 use App\Services\AccessManagementService;
 use App\Services\TemplateRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
+use Symfony\Component\Mime\Email as SymfonyEmail;
 use Tests\TestCase;
 
 final class WebsiteCmsEmailTemplateTest extends TestCase
@@ -212,6 +215,71 @@ final class WebsiteCmsEmailTemplateTest extends TestCase
         $this->assertStringContainsString((string) __('website.cms.preview_sender_name', [], 'en'), $response->json('body'));
 
         Mail::assertNothingSent();
+    }
+
+    public function test_preview_can_simulate_blocked_images_without_sending_mail(): void
+    {
+        Mail::fake();
+
+        $response = $this->actingAs($this->bootstrapUser())->postJson(
+            route('cms.email-templates.preview', ['locale' => self::LOCALE]),
+            [
+                'locale' => self::LOCALE,
+                'subject' => 'Subject {{ inquiry_reference }}',
+                'body' => 'Body',
+                'images_blocked' => true,
+            ],
+        )->assertOk();
+
+        $html = (string) $response->json('html');
+
+        $this->assertStringContainsString('data-email-logo-fallback="true"', $html);
+        $this->assertStringContainsString('شعار', $html);
+        $this->assertStringNotContainsString('<img', $html);
+        $this->assertStringNotContainsString('data:image', $html);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_send_test_delivers_through_the_real_cid_path(): void
+    {
+        config()->set('email.brand.logo_mode', 'cid');
+
+        $sent = [];
+        Event::listen(MessageSending::class, function (MessageSending $event) use (&$sent): void {
+            $sent[] = $event->message;
+        });
+
+        $editor = $this->bootstrapUser();
+
+        $response = $this->actingAs($editor)->postJson(
+            route('cms.email-templates.send-test', ['locale' => self::LOCALE]),
+            [
+                'locale' => self::LOCALE,
+                'subject' => 'Test {{ inquiry_reference }}',
+                'body' => 'Test body',
+            ],
+        )->assertOk();
+
+        $this->assertTrue((bool) $response->json('success'));
+        $this->assertSame($editor->email, $response->json('recipient'));
+        $this->assertSame(self::LOCALE, $response->json('locale'));
+        $this->assertCount(1, $sent);
+
+        $message = $sent[0];
+        $this->assertInstanceOf(SymfonyEmail::class, $message);
+
+        $html = (string) $message->getHtmlBody();
+
+        $this->assertStringContainsString('data-pcdr-email="layout-v1"', $html);
+        $this->assertStringContainsString('<html lang="ar" dir="rtl">', $html);
+        $this->assertStringContainsString('cid:', $html);
+        $this->assertStringNotContainsString('cid:pcdr-email-logo@pcdr.local', $html);
+        $this->assertStringNotContainsString('data:image', $html);
+        $this->assertStringNotContainsString('data-email-preview="true"', $html);
+        $this->assertCount(1, $message->getAttachments());
+        $this->assertSame('email-logo.png', $message->getAttachments()[0]->getFilename());
+        $this->assertStringContainsString('Test body', (string) $message->getTextBody());
     }
 
     public function test_preview_supports_arabic_direction_and_saved_or_draft_sources(): void

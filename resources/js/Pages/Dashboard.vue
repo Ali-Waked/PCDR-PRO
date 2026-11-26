@@ -3,12 +3,18 @@ import { computed } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '../Layouts/AppLayout.vue'
 import MetricCard from '../Components/Dashboard/MetricCard.vue'
+import AccountActivityWidget from '../Components/Dashboard/AccountActivityWidget.vue'
 import AdminHintBox from '../Components/Dashboard/AdminHintBox.vue'
 import EmptyState from '../Components/Dashboard/EmptyState.vue'
 import UiIcon from '../Components/Dashboard/UiIcon.vue'
 import { useLocale } from '../Composables/useLocale'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'ui.dashboard',
+        subtitleKey: 'dashboard.subtitle',
+    }, () => page),
+})
 
 const props = defineProps({
     statistics: { type: Object, required: true },

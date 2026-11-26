@@ -7,7 +7,12 @@ import Button from '../../../Components/Ui/Button.vue'
 import FormSection from '../../../Components/Dashboard/FormSection.vue'
 import { useLocale } from '../../../Composables/useLocale'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'permissions_page.new',
+        subtitleKey: 'permissions_page.subtitle',
+    }, () => page),
+})
 
 const { t, localePath } = useLocale()
 const form = useForm({ key: '', name: '', module: '', description: '' })

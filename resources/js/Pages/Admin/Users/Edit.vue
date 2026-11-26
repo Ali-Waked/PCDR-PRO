@@ -12,7 +12,13 @@ import { useLocale } from '../../../Composables/useLocale'
 import { useI18n } from '../../../composables/useI18n'
 import { useAdminNotifications } from '../../../composables/useAdminNotifications'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'users_page.edit',
+        subtitle: page.props.target?.name || '',
+        eyebrowKey: 'users_page.eyebrow',
+    }, () => page),
+})
 
 const props = defineProps({
     target: { type: Object, required: true },
@@ -81,79 +87,77 @@ function saveRoles() {
 </script>
 
 <template>
-    <AppLayout :title="t('users_page.edit')" :subtitle="form.name" :eyebrow="t('users_page.eyebrow')">
-        <div class="pc-stack pcdr-enter">
-            <Head :title="t('users_page.edit')" />
+    <div class="pc-stack pcdr-enter">
+        <Head :title="t('users_page.edit')" />
 
-            <div v-if="isProtected || isSelf" class="pc-callout pc-callout--warning" role="status">
-                <UiIcon name="lock" :size="17" />
-                <span>{{ protectedMessage }}</span>
-            </div>
-
-            <form class="pc-stack" @submit.prevent="saveProfile">
-                <section class="pc-card">
-                    <div class="pc-card__head">
-                        <div>
-                            <h2 class="pc-card__title">{{ t('users_page.account_details') }}</h2>
-                            <p class="pc-card__subtitle">{{ target.email }}</p>
-                        </div>
-                        <span class="pc-badge pc-badge--slate">#{{ target.id }}</span>
-                    </div>
-                    <div class="pc-card__body pc-form-grid">
-                        <TextField v-model="form.name" name="name" :label="t('users_page.name')" required :disabled="profileLocked" :error="form.errors.name" />
-                        <TextField v-model="form.email" name="email" :label="t('users_page.email')" type="email" required :disabled="profileLocked" :error="form.errors.email" />
-                        <SelectField
-                            v-model="form.locale"
-                            name="locale"
-                            :label="t('users_page.locale')"
-                            :options="localeOptions"
-                            :disabled="profileLocked"
-                            :error="form.errors.locale"
-                        />
-                        <StatusSelect
-                            v-model="form.status"
-                            name="status"
-                            :label="t('users_page.status')"
-                            :options="statusOptions"
-                            :disabled="profileLocked"
-                            :error="form.errors.status || ''"
-                            :searchable="false"
-                        />
-                    </div>
-                    <div class="pc-card__body pc-form-actions">
-                        <Button type="submit" :processing="form.processing" :disabled="profileLocked || !form.isDirty">{{ t('save') }}</Button>
-                        <Link :href="localePath('/admin/users')" class="pc-btn pc-btn--ghost">{{ t('users_page.back_to_list') }}</Link>
-                    </div>
-                </section>
-            </form>
-
-            <form class="pc-stack" @submit.prevent="saveRoles">
-                <section class="pc-card">
-                    <div class="pc-card__head">
-                        <div>
-                            <h2 class="pc-card__title">{{ t('users_page.access_details') }}</h2>
-                            <p class="pc-card__subtitle">{{ t('users_page.technical_note') }}</p>
-                        </div>
-                        <span class="pc-badge pc-badge--teal">{{ roles.roles.length }}</span>
-                    </div>
-                    <div class="pc-card__body pc-form-grid">
-                        <MultiSelect
-                            v-model="roles.roles"
-                            :label="t('users_page.roles')"
-                            :options="roleOptions"
-                            :disabled="rolesLocked"
-                            :error="roles.errors.roles || ''"
-                            :empty-text="tWebsite('ui.no_results')"
-                            clearable
-                        />
-                    </div>
-                    <div class="pc-card__body pc-form-actions">
-                        <Button type="submit" variant="secondary" :processing="roles.processing" :disabled="rolesLocked || !roles.isDirty">
-                            {{ t('users_page.assign_roles') }}
-                        </Button>
-                    </div>
-                </section>
-            </form>
+        <div v-if="isProtected || isSelf" class="pc-callout pc-callout--warning" role="status">
+            <UiIcon name="lock" :size="17" />
+            <span>{{ protectedMessage }}</span>
         </div>
-    </AppLayout>
+
+        <form class="pc-stack" @submit.prevent="saveProfile">
+            <section class="pc-card">
+                <div class="pc-card__head">
+                    <div>
+                        <h2 class="pc-card__title">{{ t('users_page.account_details') }}</h2>
+                        <p class="pc-card__subtitle">{{ target.email }}</p>
+                    </div>
+                    <span class="pc-badge pc-badge--slate">#{{ target.id }}</span>
+                </div>
+                <div class="pc-card__body pc-form-grid">
+                    <TextField v-model="form.name" name="name" :label="t('users_page.name')" required :disabled="profileLocked" :error="form.errors.name" />
+                    <TextField v-model="form.email" name="email" :label="t('users_page.email')" type="email" required :disabled="profileLocked" :error="form.errors.email" />
+                    <SelectField
+                        v-model="form.locale"
+                        name="locale"
+                        :label="t('users_page.locale')"
+                        :options="localeOptions"
+                        :disabled="profileLocked"
+                        :error="form.errors.locale"
+                    />
+                    <StatusSelect
+                        v-model="form.status"
+                        name="status"
+                        :label="t('users_page.status')"
+                        :options="statusOptions"
+                        :disabled="profileLocked"
+                        :error="form.errors.status || ''"
+                        :searchable="false"
+                    />
+                </div>
+                <div class="pc-card__body pc-form-actions">
+                    <Button type="submit" :processing="form.processing" :disabled="profileLocked || !form.isDirty">{{ t('save') }}</Button>
+                    <Link :href="localePath('/admin/users')" class="pc-btn pc-btn--ghost">{{ t('users_page.back_to_list') }}</Link>
+                </div>
+            </section>
+        </form>
+
+        <form class="pc-stack" @submit.prevent="saveRoles">
+            <section class="pc-card">
+                <div class="pc-card__head">
+                    <div>
+                        <h2 class="pc-card__title">{{ t('users_page.access_details') }}</h2>
+                        <p class="pc-card__subtitle">{{ t('users_page.technical_note') }}</p>
+                    </div>
+                    <span class="pc-badge pc-badge--teal">{{ roles.roles.length }}</span>
+                </div>
+                <div class="pc-card__body pc-form-grid">
+                    <MultiSelect
+                        v-model="roles.roles"
+                        :label="t('users_page.roles')"
+                        :options="roleOptions"
+                        :disabled="rolesLocked"
+                        :error="roles.errors.roles || ''"
+                        :empty-text="tWebsite('ui.no_results')"
+                        clearable
+                    />
+                </div>
+                <div class="pc-card__body pc-form-actions">
+                    <Button type="submit" variant="secondary" :processing="roles.processing" :disabled="rolesLocked || !roles.isDirty">
+                        {{ t('users_page.assign_roles') }}
+                    </Button>
+                </div>
+            </section>
+        </form>
+    </div>
 </template>

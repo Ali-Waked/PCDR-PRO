@@ -9,6 +9,7 @@ use App\Http\Requests\Cms\PreviewEmailTemplateRequest;
 use App\Http\Requests\Cms\StoreEmailTemplateRequest;
 use App\Http\Requests\Cms\UpdateEmailTemplateRequest;
 use App\Models\EmailTemplate;
+use App\Notifications\CmsEmailTemplateTestMail;
 use App\Services\AuditService;
 use App\Services\CmsAccess;
 use App\Services\EmailHtmlSanitizer;
@@ -19,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -247,8 +249,39 @@ final class EmailTemplateController extends Controller
         $key = $template?->key ?: ($template === null ? 'draft' : 'inquiry_reply');
         $subject = $request->exists('subject') ? (string) ($validated['subject'] ?? '') : null;
         $body = $request->exists('body') ? (string) ($validated['body'] ?? '') : null;
+        $imagesBlocked = (bool) ($validated['images_blocked'] ?? false);
 
-        return response()->json($this->previews->build($template, $key, $locale, $subject, $body));
+        return response()->json($this->previews->build($template, $key, $locale, $subject, $body, $imagesBlocked));
+    }
+
+    public function sendTest(string $locale, PreviewEmailTemplateRequest $request): JsonResponse
+    {
+        $this->authorize('email_templates.view');
+
+        $validated = $request->validated();
+        $locale = (string) ($validated['locale'] ?? $locale);
+        $template = isset($validated['template_id'])
+            ? EmailTemplate::query()->with('translations')->findOrFail((int) $validated['template_id'])
+            : null;
+        $key = $template?->key ?: ($template === null ? 'draft' : 'inquiry_reply');
+        $subject = $request->exists('subject') ? (string) ($validated['subject'] ?? '') : null;
+        $body = $request->exists('body') ? (string) ($validated['body'] ?? '') : null;
+        $preview = $this->previews->build($template, $key, $locale, $subject, $body);
+        $recipient = trim((string) (auth()->user()?->email ?? ''));
+
+        abort_if($recipient === '', 422, 'The signed-in administrator has no email address.');
+
+        Mail::to($recipient)->send(new CmsEmailTemplateTestMail(
+            (string) $preview['subject'],
+            (string) $preview['body'],
+            $locale,
+        ));
+
+        return response()->json([
+            'success' => true,
+            'recipient' => $recipient,
+            'locale' => $locale,
+        ]);
     }
 
     /** @return array<string, mixed> */

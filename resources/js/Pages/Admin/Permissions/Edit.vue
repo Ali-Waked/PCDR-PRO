@@ -8,7 +8,12 @@ import Badge from '../../../Components/Ui/Badge.vue'
 import FormSection from '../../../Components/Dashboard/FormSection.vue'
 import { useLocale } from '../../../Composables/useLocale'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        title: page.props.permission?.name || '',
+        subtitleKey: 'permissions_page.subtitle',
+    }, () => page),
+})
 
 const props = defineProps({ permission: { type: Object, required: true } })
 const { t, localePath } = useLocale()

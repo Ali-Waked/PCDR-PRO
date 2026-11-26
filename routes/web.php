@@ -251,6 +251,7 @@ Route::prefix('{locale}')
                 Route::middleware('cms:email_templates.view')->group(function (): void {
                     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
                     Route::post('/email-templates/preview', [EmailTemplateController::class, 'preview'])->name('email-templates.preview');
+                    Route::post('/email-templates/send-test', [EmailTemplateController::class, 'sendTest'])->name('email-templates.send-test');
                 });
                 Route::post('/email-templates', [EmailTemplateController::class, 'store'])->middleware('cms:email_templates.create')->name('email-templates.store');
                 Route::post('/email-templates/{template}/duplicate', [EmailTemplateController::class, 'duplicate'])->middleware('cms:email_templates.create')->name('email-templates.duplicate');

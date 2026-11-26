@@ -24,4 +24,13 @@ return [
         'reset_expiry' => 'This password reset link will expire in :count minutes.',
         'reset_outro' => 'If you did not request a password reset, no further action is required.',
     ],
+    'account' => [
+        'change_subject' => 'Confirm your new email address',
+        'change_intro' => 'An email address change was requested for your account. Confirm the new address using the button below.',
+        'change_action' => 'Confirm new email address',
+        'change_outro' => 'This link expires in :count minutes. If you did not request this change, no further action is required.',
+        'notice_subject' => 'Email address change requested',
+        'notice_intro' => 'A request was made to change the email address associated with your account.',
+        'notice_outro' => 'Your current email address remains active and verified until the change is confirmed. If you did not request this change, please contact an administrator.',
+    ],
 ];

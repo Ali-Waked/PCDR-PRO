@@ -18,7 +18,10 @@ final class EmailMessagePresenter
 {
     private const HTML_PATTERN = '/<\s*\/?\s*(?:p|div|br|h[1-6]|table|ul|ol|li|blockquote|a|span|strong|b|em|i|img|hr)\b/i';
 
-    public function __construct(private EmailHtmlSanitizer $sanitizer) {}
+    public function __construct(
+        private EmailHtmlSanitizer $sanitizer,
+        private EmailLogoService $logo,
+    ) {}
 
     public function isHtml(string $body): bool
     {
@@ -91,6 +94,7 @@ final class EmailMessagePresenter
      *     reference?: string|null,
      *     organizationName?: string|null,
      *     preview?: bool,
+     *     imagesBlocked?: bool,
      *     previewSender?: array{name: string, address: string}|null,
      *     previewRecipient?: string|null,
      *     previewTemplateKey?: string|null
@@ -102,7 +106,9 @@ final class EmailMessagePresenter
         $direction = $locale === 'ar' ? 'rtl' : 'ltr';
         $alignStart = $direction === 'rtl' ? 'right' : 'left';
         $colors = $this->colors();
-        $font = "font-family:'Segoe UI',Tahoma,Arial,sans-serif";
+        $font = "font-family:'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif";
+        $preview = ($options['preview'] ?? false) === true;
+        $imagesBlocked = ($options['imagesBlocked'] ?? false) === true;
 
         $title = trim((string) ($options['title'] ?? ''));
         $reference = trim((string) ($options['reference'] ?? ''));
@@ -110,36 +116,40 @@ final class EmailMessagePresenter
             ?: $this->organizationName($locale);
         $shortName = $this->shortName($locale);
         $fullName = $this->organizationName($locale);
-        $logoUrl = $this->logoUrl();
         $websiteUrl = $this->websiteUrl();
         $body = $this->bodyHtml($renderedBody);
 
-        $logoWidth = max(1, (int) config('email.brand.logo_width', 72));
-        $logoHeight = max(1, (int) config('email.brand.logo_height', 72));
-        $headerLogo = '';
-        if ($logoUrl !== null) {
-            $headerLogo = '<img src="'.e($logoUrl).'" width="'.$logoWidth.'" height="'.$logoHeight.'" '
-                .'alt="'.e($this->logoAlt($locale, $organization)).'" '
-                .'style="display:block;width:'.$logoWidth.'px;height:'.$logoHeight.'px;max-width:'.$logoWidth.'px;'
-                .'border:0;outline:none;text-decoration:none;">';
+        $logoWidth = max(1, (int) config('email.brand.logo_width', 120));
+        $logoHeight = max(1, (int) config('email.brand.logo_height', 120));
+        $logoAlt = $this->logoAlt($locale, $organization);
+        $logoSource = $this->logo->source($preview);
+
+        if ($imagesBlocked) {
+            $headerLogo = '<div data-email-logo-fallback="true" style="width:'.$logoWidth.'px;'
+                .'height:'.$logoHeight.'px;border-radius:60px;background-color:'.$colors['white'].';'
+                .'color:'.$colors['navy_900'].';font-size:13px;font-weight:700;line-height:1.3;'
+                .'text-align:center;padding:0 4px;box-sizing:border-box;">'
+                .e($logoAlt).'</div>';
+        } else {
+            $headerLogo = '<img data-pcdr-email-logo="true" src="'.e($logoSource).'" '
+                .'width="'.$logoWidth.'" height="'.$logoHeight.'" alt="'.e($logoAlt).'" '
+                .'style="display:block;border:0;outline:none;text-decoration:none;border-radius:60px;">';
         }
 
-        $headerText = '<div style="margin:0;color:'.$colors['teal_700'].';font-size:10px;'
+        $headerText = '<div style="margin:0;color:'.$colors['teal_100'].';font-size:10px;'
             .'font-weight:700;letter-spacing:.09em;line-height:1.4;text-transform:uppercase;">'
             .e((string) __('email.layout.eyebrow', [], $locale)).'</div>'
-            .'<div style="margin:5px 0 0;color:'.$colors['navy_900'].';font-size:19px;'
+            .'<div style="margin:5px 0 0;color:'.$colors['white'].';font-size:19px;'
             .'font-weight:700;line-height:1.25;">'.e($shortName).'</div>';
 
         if ($fullName !== '' && $fullName !== $shortName) {
-            $headerText .= '<div style="margin:4px 0 0;color:'.$colors['navy_800'].';font-size:12px;'
-                .'line-height:1.5;">'.e($fullName).'</div>';
+            $headerText .= '<div dir="'.$direction.'" style="margin:4px 0 0;color:'.$colors['teal_100'].';'
+                .'font-size:13px;line-height:1.5;text-align:'.$alignStart.';">'.e($fullName).'</div>';
         }
 
-        $headerGap = $headerLogo === ''
-            ? '0'
-            : ($direction === 'rtl' ? '0 16px 0 0' : '0 0 0 16px');
+        $headerGap = $direction === 'rtl' ? '0 16px 0 0' : '0 0 0 16px';
         $header = '<tr><td class="pc-email-pad" dir="'.$direction.'" style="padding:26px 32px 22px;'
-            .'border-bottom:1px solid '.$colors['navy_100'].';background-color:'.$colors['white'].';">'
+            .'background-color:'.$colors['navy_900'].';">'
             .'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" dir="'.$direction.'">'
             .'<tr>'
             .'<td align="'.$alignStart.'" valign="middle" style="width:'.$logoWidth.'px;padding:0;">'.$headerLogo.'</td>'
@@ -257,10 +267,12 @@ final class EmailMessagePresenter
         array $sender,
         string $recipient,
         string $templateKey,
+        bool $imagesBlocked = false,
     ): string {
         return $this->document($renderedBody, $locale, [
             'title' => $renderedSubject,
             'preview' => true,
+            'imagesBlocked' => $imagesBlocked,
             'previewSender' => $sender,
             'previewRecipient' => $recipient,
             'previewTemplateKey' => $templateKey,
@@ -315,6 +327,11 @@ final class EmailMessagePresenter
 
         $body = implode('', $before).$button.implode('', $after);
         $plain = implode("\n\n", array_merge($plainBefore, $plainAfter));
+        $organization = $this->organizationName($locale);
+
+        if ($organization !== '' && ! str_contains($plain, $organization)) {
+            $plain = trim($plain."\n\n".$organization);
+        }
 
         return $message->view([
             'html' => 'emails.unified',
@@ -341,7 +358,7 @@ final class EmailMessagePresenter
             .'<tr><td align="center" bgcolor="'.$colors['teal'].'" '
             .'style="border-radius:4px;background-color:'.$colors['teal'].';">'
             .'<a href="'.e($url).'" style="display:inline-block;padding:12px 22px;'
-            .'font-family:\'Segoe UI\',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;'
+            .'font-family:\'IBM Plex Sans Arabic\',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;'
             .'line-height:1.2;color:'.$colors['navy_900'].';text-decoration:none;'
             .'border:1px solid '.$colors['teal_700'].';border-radius:4px;">'
             .e($label).'</a></td></tr></table>';
@@ -382,26 +399,6 @@ final class EmailMessagePresenter
             'teal_100' => (string) ($configured['teal_100'] ?? '#EAF5F4'),
             'sand_100' => (string) ($configured['sand_100'] ?? '#F7F2EA'),
         ];
-    }
-
-    private function logoUrl(): ?string
-    {
-        $configured = config('email.brand.logo_url');
-        if (is_string($configured) && $this->isPublicHttpsUrl($configured)) {
-            return $configured;
-        }
-
-        $appUrl = config('app.url');
-        if (! is_string($appUrl) || ! $this->isPublicHttpsUrl($appUrl)) {
-            return null;
-        }
-
-        $path = trim((string) config('email.brand.logo_path', ''));
-        if ($path === '' || str_starts_with($path, '/') || preg_match('/^[a-z][a-z0-9+.-]*:/i', $path)) {
-            return null;
-        }
-
-        return rtrim($appUrl, '/').'/'.$path;
     }
 
     private function websiteUrl(): ?string

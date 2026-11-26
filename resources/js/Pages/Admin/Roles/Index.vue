@@ -7,7 +7,12 @@ import EmptyState from '../../../Components/Dashboard/EmptyState.vue'
 import { useLocale } from '../../../Composables/useLocale'
 import { usePermission } from '../../../Composables/usePermission'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'roles_page.title',
+        subtitleKey: 'roles_page.subtitle',
+    }, () => page),
+})
 
 defineProps({ roles: { type: Array, required: true } })
 

@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\HtmlString;
 
 /** Queued, content-free mail: subjects and bodies are fixed localized notices. */
 final class Phase5Mail extends Mailable implements ShouldQueue
@@ -44,7 +45,9 @@ final class Phase5Mail extends Mailable implements ShouldQueue
 
         return $this
             ->subject($subject)
-            ->html($presenter->document($bodyHtml, $locale, ['title' => $subject]))
-            ->text($subject."\n\n".$body);
+            ->view([
+                'html' => new HtmlString($presenter->document($bodyHtml, $locale, ['title' => $subject])),
+                'text' => new HtmlString($subject."\n\n".$body),
+            ]);
     }
 }

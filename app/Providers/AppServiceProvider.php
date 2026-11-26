@@ -14,9 +14,11 @@ use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SettingPolicy;
 use App\Policies\UserPolicy;
+use App\Services\EmailLogoService;
 use App\Services\RbacService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
@@ -45,6 +47,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Event::listen(MessageSending::class, function (MessageSending $event): void {
+            app(EmailLogoService::class)->attachTo($event->message);
+        });
+
         if (app()->environment('production')) {
             URL::forceScheme('https');
         }

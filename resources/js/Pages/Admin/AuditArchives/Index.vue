@@ -12,7 +12,13 @@ import StatusSelect from '../../../Components/Selection/StatusSelect.vue'
 import { statusTone } from '../../../Support/selectionStatuses'
 import { useLocale } from '../../../Composables/useLocale'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'audit_archives_page.title',
+        subtitleKey: 'audit_archives_page.subtitle',
+        showHeader: false,
+    }, () => page),
+})
 
 const props = defineProps({
     archives: { type: Object, required: true },

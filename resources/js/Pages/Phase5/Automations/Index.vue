@@ -208,7 +208,7 @@ function submit() {
                     </div>
                 </div>
 
-                <fieldset style="margin: 1.25rem 0 0; border: 1px solid var(--pcdr-border, #d9dfe7); border-radius: 0.5rem; padding: 1rem">
+                <fieldset style="margin: 1.25rem 0 0; border: 1px solid var(--pcdr-border); border-radius: 0.5rem; padding: 1rem">
                     <legend>{{ label('conditions', locale) }}</legend>
                     <div class="phase5-form__grid">
                         <div class="field">
@@ -236,7 +236,7 @@ function submit() {
                     </div>
                 </fieldset>
 
-                <fieldset style="margin: 1.25rem 0 0; border: 1px solid var(--pcdr-border, #d9dfe7); border-radius: 0.5rem; padding: 1rem">
+                <fieldset style="margin: 1.25rem 0 0; border: 1px solid var(--pcdr-border); border-radius: 0.5rem; padding: 1rem">
                     <legend>{{ label('actions', locale) }}</legend>
                     <div class="phase5-form__grid">
                         <div class="field">

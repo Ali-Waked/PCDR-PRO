@@ -131,6 +131,11 @@ return [
     'preview_footer_note' => 'Preview only · no email sent · sample data',
     'preview_failed' => 'The preview could not be generated. Check the required fields and try again.',
     'preview_loading' => 'Rendering preview…',
+    'preview_images_blocked' => 'Simulate blocked images',
+    'preview_images_on' => 'Show images',
+    'preview_send_test' => 'Send a test to me',
+    'preview_test_sent' => 'The test email was sent to your inbox.',
+    'preview_test_failed' => 'The test email could not be sent. Please try again.',
 
     'review_name' => 'Template name',
     'review_key' => 'Identifier',

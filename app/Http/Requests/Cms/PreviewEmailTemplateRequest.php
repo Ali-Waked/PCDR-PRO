@@ -22,6 +22,7 @@ final class PreviewEmailTemplateRequest extends FormRequest
             'template_id' => ['nullable', 'integer', 'exists:email_templates,id'],
             'subject' => ['required_without:template_id', 'nullable', 'string', 'max:255'],
             'body' => ['required_without:template_id', 'nullable', 'string', 'max:10000'],
+            'images_blocked' => ['sometimes', 'boolean'],
         ];
     }
 }

@@ -15,7 +15,14 @@ import { useLocale } from '../../../Composables/useLocale'
 import { usePermission } from '../../../Composables/usePermission'
 import { useAdminNotifications } from '../../../composables/useAdminNotifications'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'access_page.title',
+        subtitleKey: 'access_page.subtitle',
+        eyebrowKey: 'access_page.eyebrow',
+        showHeader: false,
+    }, () => page),
+})
 
 const props = defineProps({
     roles: { type: Array, required: true },
@@ -638,7 +645,7 @@ onBeforeUnmount(() => {
 .pc-access-tabs button.is-active {
     background: var(--pc-surface);
     color: var(--pc-text);
-    box-shadow: 0 2px 8px rgba(24, 34, 50, 0.08);
+    box-shadow: var(--pc-shadow-sm);
 }
 
 .pc-access-section-head {

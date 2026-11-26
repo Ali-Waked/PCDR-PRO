@@ -31,6 +31,7 @@ const { locale, localPath, formatDate } = useI18n()
 
 const templatesPath = localPath('cms/email-templates')
 const previewPath = `${templatesPath}/preview`
+const sendTestPath = `${templatesPath}/send-test`
 
 const search = ref(props.filters?.q || '')
 const statusFilter = ref(props.filters?.status || '')
@@ -46,11 +47,15 @@ const previewError = ref('')
 const previewLocale = ref('')
 const previewDraft = ref(null)
 const previewTemplateId = ref(null)
+const imagesBlocked = ref(false)
+const testBusy = ref(false)
+const testNotice = ref('')
 const deleting = ref(null)
 const busyAction = ref('')
 
-const savedPreviewHttp = useHttp({ template_id: null, locale: '' })
-const draftPreviewHttp = useHttp({ subject: '', body: '', locale: '' })
+const savedPreviewHttp = useHttp({ template_id: null, locale: '', images_blocked: false })
+const draftPreviewHttp = useHttp({ subject: '', body: '', locale: '', images_blocked: false })
+const testHttp = useHttp({ template_id: null, subject: '', body: '', locale: '' })
 
 function s(key, fallback = '') {
     return props.strings?.[key] ?? fallback
@@ -217,6 +222,7 @@ async function loadSavedPreview() {
     Object.assign(savedPreviewHttp, {
         template_id: previewTemplateId.value,
         locale: previewLocale.value || defaultLocale.value,
+        images_blocked: imagesBlocked.value,
     })
 
     try {
@@ -240,6 +246,7 @@ async function loadDraftPreview() {
         subject: previewDraft.value.subject,
         body: previewDraft.value.body,
         locale: previewLocale.value || defaultLocale.value,
+        images_blocked: imagesBlocked.value,
     })
 
     try {
@@ -265,6 +272,7 @@ function openTemplatePreview(template) {
     previewLocale.value = props.locales.includes(locale.value) ? locale.value : defaultLocale.value
     previewData.value = null
     previewError.value = ''
+    testNotice.value = ''
     previewOpen.value = true
     loadSavedPreview()
 }
@@ -278,12 +286,41 @@ function openWizardPreview(payload) {
     previewLocale.value = payload?.locale || defaultLocale.value
     previewData.value = payload?.preview || null
     previewError.value = ''
+    testNotice.value = ''
     previewOpen.value = true
 }
 
 function changePreviewLocale(value) {
     previewLocale.value = value
     refreshPreview()
+}
+
+function toggleImagesBlocked(value) {
+    imagesBlocked.value = value
+    refreshPreview()
+}
+
+async function sendTestEmail() {
+    const payload = {
+        locale: previewLocale.value || defaultLocale.value,
+        template_id: previewDraft.value ? null : (previewTemplateId.value || null),
+        subject: previewDraft.value?.subject || '',
+        body: previewDraft.value?.body || '',
+    }
+
+    testBusy.value = true
+    testNotice.value = ''
+
+    Object.assign(testHttp, payload)
+
+    try {
+        await testHttp.post(sendTestPath)
+        testNotice.value = s('preview_test_sent')
+    } catch {
+        testNotice.value = s('preview_test_failed')
+    } finally {
+        testBusy.value = false
+    }
 }
 </script>
 
@@ -492,9 +529,14 @@ function changePreviewLocale(value) {
             :error="previewError"
             :locales="locales"
             :active-locale="previewLocale"
+            :images-blocked="imagesBlocked"
+            :test-busy="testBusy"
+            :test-notice="testNotice"
             @close="previewOpen = false"
             @refresh="refreshPreview"
             @change-locale="changePreviewLocale"
+            @toggle-images-blocked="toggleImagesBlocked"
+            @send-test="sendTestEmail"
         />
 
         <TemplateGuideDialog :open="guideOpen" :strings="strings" :example="guideExample" @close="guideOpen = false" />
@@ -536,20 +578,20 @@ function changePreviewLocale(value) {
     block-size: 32px;
     flex-shrink: 0;
     border-radius: 9px;
-    background: var(--pc-teal-soft, #eaf5f4);
-    color: var(--pc-teal, #397f7b);
+    background: var(--pc-teal-soft);
+    color: var(--pc-teal);
 }
 .et-template-cell__text { display: grid; gap: 2px; min-inline-size: 0; }
-.et-template-description { color: var(--pc-muted, #5c6b82); font-size: 0.72rem; line-height: 1.5; overflow-wrap: anywhere; }
+.et-template-description { color: var(--pc-muted); font-size: 0.72rem; line-height: 1.5; overflow-wrap: anywhere; }
 .et-locale-badges { display: flex; flex-wrap: wrap; gap: 5px; }
 .et-desktop-list { display: block; }
 .et-mobile-list { display: none; }
-.et-mobile-card { display: grid; gap: 10px; padding: 16px; border-block-end: 1px solid var(--pc-border, #e9edf2); }
+.et-mobile-card { display: grid; gap: 10px; padding: 16px; border-block-end: 1px solid var(--pc-border); }
 .et-mobile-card:last-child { border-block-end: 0; }
 .et-mobile-card__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .et-mobile-card__head strong { display: block; font-size: 0.9rem; }
-.et-mobile-card__description { margin: 0; color: var(--pc-muted, #5c6b82); font-size: 0.78rem; line-height: 1.6; }
-.et-mobile-card__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--pc-muted, #5c6b82); font-size: 0.72rem; }
+.et-mobile-card__description { margin: 0; color: var(--pc-muted); font-size: 0.78rem; line-height: 1.6; }
+.et-mobile-card__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--pc-muted); font-size: 0.72rem; }
 .et-mobile-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .et-pagination { gap: 10px; }
 .et-pagination__pages { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -557,15 +599,15 @@ function changePreviewLocale(value) {
     min-inline-size: 32px;
     block-size: 32px;
     padding-inline: 9px;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: 8px;
-    background: var(--pc-surface, #fff);
-    color: var(--pc-text-soft, #4b5a70);
+    background: var(--pc-surface);
+    color: var(--pc-text-soft);
     font: inherit;
     font-size: 0.76rem;
     cursor: pointer;
 }
-.et-page-link.is-active { background: var(--pc-teal, #397f7b); border-color: var(--pc-teal, #397f7b); color: #fff; font-weight: 700; }
+.et-page-link.is-active { background: var(--pc-teal); border-color: var(--pc-teal); color: var(--pc-on-secondary); font-weight: 700; }
 
 @media (max-width: 1180px) {
     .et-action-label { display: none; }

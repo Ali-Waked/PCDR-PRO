@@ -131,6 +131,11 @@ return [
     'preview_footer_note' => 'معاينة فقط · لم يُرسل بريد · بيانات تجريبية',
     'preview_failed' => 'تعذر إنشاء المعاينة. تحقق من الحقول المطلوبة وحاول مجدداً.',
     'preview_loading' => 'جارٍ تجهيز المعاينة…',
+    'preview_images_blocked' => 'محاكاة حجب الصور',
+    'preview_images_on' => 'إظهار الصور',
+    'preview_send_test' => 'إرسال نسخة تجريبية إليّ',
+    'preview_test_sent' => 'أُرسلت النسخة التجريبية إلى بريدك.',
+    'preview_test_failed' => 'تعذّر إرسال النسخة التجريبية. حاول مجدداً.',
 
     'review_name' => 'اسم القالب',
     'review_key' => 'المعرّف',

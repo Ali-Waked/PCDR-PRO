@@ -11,7 +11,13 @@ import SelectionControl from '../../../Components/Selection/SelectionControl.vue
 import { statusTone } from '../../../Support/selectionStatuses'
 import { useLocale } from '../../../Composables/useLocale'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        titleKey: 'audit_page.title',
+        subtitleKey: 'audit_page.subtitle',
+        showHeader: false,
+    }, () => page),
+})
 
 const props = defineProps({
     logs: { type: Object, required: true },

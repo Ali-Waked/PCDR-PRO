@@ -136,7 +136,7 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: rgba(24, 34, 51, 0.58);
+    background: var(--pc-overlay);
     backdrop-filter: blur(3px);
 }
 
@@ -148,10 +148,10 @@ onBeforeUnmount(() => {
     inline-size: min(100%, var(--et-width));
     max-block-size: min(92vh, 900px);
     overflow: hidden;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: 16px;
-    background: var(--pc-surface, #ffffff);
-    box-shadow: 0 24px 70px rgba(24, 34, 51, 0.24);
+    background: var(--pc-surface);
+    box-shadow: var(--pcdr-shadow-strong);
 }
 
 .et-dialog--wide { --et-width: 860px; }
@@ -164,8 +164,8 @@ onBeforeUnmount(() => {
     justify-content: space-between;
     gap: 16px;
     padding: 18px 22px;
-    border-block-end: 1px solid var(--pc-border, #e9edf2);
-    background: var(--pc-surface, #ffffff);
+    border-block-end: 1px solid var(--pc-border);
+    background: var(--pc-surface);
 }
 
 .et-head__text { min-inline-size: 0; }
@@ -174,13 +174,13 @@ onBeforeUnmount(() => {
     margin: 0;
     font-size: 1.08rem;
     font-weight: 700;
-    color: var(--pc-text, #25334b);
+    color: var(--pc-text);
     overflow-wrap: anywhere;
 }
 
 .et-head__subtitle {
     margin: 4px 0 0;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     font-size: 0.82rem;
     line-height: 1.6;
 }
@@ -196,13 +196,13 @@ onBeforeUnmount(() => {
     min-block-size: 0;
     overflow: auto;
     padding: 22px;
-    background: var(--pc-surface-2, #f8fafb);
+    background: var(--pc-surface-2);
 }
 
 .et-foot {
     padding: 14px 22px;
-    border-block-start: 1px solid var(--pc-border, #e9edf2);
-    background: var(--pc-surface, #ffffff);
+    border-block-start: 1px solid var(--pc-border);
+    background: var(--pc-surface);
 }
 
 @media (max-width: 640px) {

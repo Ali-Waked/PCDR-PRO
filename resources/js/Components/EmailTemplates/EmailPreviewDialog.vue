@@ -12,9 +12,12 @@ const props = defineProps({
     error: { type: String, default: '' },
     locales: { type: Array, default: () => [] },
     activeLocale: { type: String, default: '' },
+    imagesBlocked: { type: Boolean, default: false },
+    testBusy: { type: Boolean, default: false },
+    testNotice: { type: String, default: '' },
 })
 
-const emit = defineEmits(['close', 'refresh', 'change-locale'])
+const emit = defineEmits(['close', 'refresh', 'change-locale', 'toggle-images-blocked', 'send-test'])
 const localeOptions = computed(() => props.locales.map((locale) => ({
     value: locale,
     label: locale.toUpperCase(),
@@ -102,6 +105,15 @@ function refresh() {
                         {{ strings.preview_text }}
                     </button>
                 </div>
+                <button
+                    type="button"
+                    class="pc-btn pc-btn--secondary pc-btn--sm"
+                    :aria-pressed="imagesBlocked ? 'true' : 'false'"
+                    @click="emit('toggle-images-blocked', !imagesBlocked)"
+                >
+                    <UiIcon name="eyeOff" :size="15" />
+                    {{ imagesBlocked ? strings.preview_images_on : strings.preview_images_blocked }}
+                </button>
                 <button type="button" class="pc-btn pc-btn--secondary pc-btn--sm" :disabled="busy" @click="refresh">
                     <UiIcon name="refresh" :size="15" />
                     {{ strings.preview_refresh }}
@@ -133,6 +145,16 @@ function refresh() {
 
         <template #footer>
             <div class="et-footer-actions">
+                <span v-if="testNotice" class="preview-test-notice" role="status">{{ testNotice }}</span>
+                <button
+                    type="button"
+                    class="pc-btn pc-btn--secondary"
+                    :disabled="testBusy"
+                    @click="emit('send-test')"
+                >
+                    <UiIcon name="mail" :size="15" />
+                    {{ testBusy ? strings.preview_loading : strings.preview_send_test }}
+                </button>
                 <button type="button" class="pc-btn pc-btn--primary" @click="emit('close')">{{ strings.close }}</button>
             </div>
         </template>
@@ -141,6 +163,7 @@ function refresh() {
 
 <style scoped>
 .preview-shell { min-inline-size: 0; }
+.preview-test-notice { margin-inline-end: auto; color: var(--pc-teal); font-size: 0.8rem; }
 .preview-locale { display: inline-flex; align-items: center; }
 .preview-locale__label {
     position: absolute;
@@ -161,9 +184,9 @@ function refresh() {
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: var(--pc-radius-sm, 9px);
-    background: var(--pc-surface, #fff);
+    background: var(--pc-surface);
 }
 .preview-meta__subject { display: grid; gap: 4px; min-inline-size: 0; }
 .preview-meta__subject strong { font-size: 1rem; overflow-wrap: anywhere; }
@@ -171,12 +194,12 @@ function refresh() {
 .preview-chip {
     padding: 3px 9px;
     border-radius: 999px;
-    background: var(--pc-teal-soft, #eaf5f4);
-    color: var(--pc-teal, #397f7b);
+    background: var(--pc-teal-soft);
+    color: var(--pc-teal);
     font-size: 0.72rem;
     font-weight: 700;
 }
-.preview-chip--soft { background: var(--pc-sand-soft, #f7f2ea); color: var(--pc-warning, #8a6116); }
+.preview-chip--soft { background: var(--pc-sand-soft); color: var(--pc-warning); }
 .preview-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -189,9 +212,9 @@ function refresh() {
     display: inline-flex;
     gap: 3px;
     padding: 3px;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: 999px;
-    background: var(--pc-surface, #fff);
+    background: var(--pc-surface);
 }
 .et-tabs button, .et-segmented button {
     display: inline-flex;
@@ -201,25 +224,25 @@ function refresh() {
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     font: inherit;
     font-size: 0.78rem;
     cursor: pointer;
 }
 .et-tabs button.is-active, .et-segmented button.is-active {
-    background: var(--pc-navy, var(--pc-text, #25334b));
-    color: #fff;
+    background: var(--pc-navy);
+    color: var(--pc-on-primary);
 }
 .preview-stage {
     display: flex;
     justify-content: center;
     min-inline-size: 0;
     padding: 14px;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: var(--pc-radius, 14px);
     background:
-        linear-gradient(45deg, rgba(57, 127, 123, 0.035) 25%, transparent 25%, transparent 75%, rgba(57, 127, 123, 0.035) 75%),
-        var(--pc-surface-2, #f8fafb);
+        linear-gradient(45deg, color-mix(in srgb, var(--pc-teal) 3.5%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--pc-teal) 3.5%, transparent) 75%),
+        var(--pc-surface-2);
     background-size: 18px 18px;
 }
 .preview-frame {
@@ -228,13 +251,13 @@ function refresh() {
     block-size: clamp(360px, 56vh, 620px);
     border: 0;
     border-radius: 10px;
-    background: #fff;
+    background: var(--pcdr-white);
 }
 .preview-stage--mobile .preview-frame {
     inline-size: min(390px, 100%);
     block-size: clamp(420px, 66vh, 720px);
     border-radius: 22px;
-    box-shadow: 0 18px 44px rgba(37, 51, 75, 0.16);
+    box-shadow: var(--pcdr-shadow-strong);
 }
 .preview-text {
     margin: 0;
@@ -243,25 +266,25 @@ function refresh() {
     overflow: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    border: 1px solid var(--pc-border, #e9edf2);
+    border: 1px solid var(--pc-border);
     border-radius: var(--pc-radius, 14px);
-    background: var(--pc-surface, #fff);
-    color: var(--pc-text, #25334b);
+    background: var(--pc-surface);
+    color: var(--pc-text);
     font: inherit;
     line-height: 1.8;
 }
 .preview-state {
     padding: 44px 18px;
     text-align: center;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
 }
-.preview-state--error { color: var(--pc-danger, #9b2c2c); }
+.preview-state--error { color: var(--pc-danger); }
 .preview-footer-note {
     display: flex;
     align-items: center;
     gap: 6px;
     margin: 10px 2px 0;
-    color: var(--pc-muted, #5c6b82);
+    color: var(--pc-muted);
     font-size: 0.76rem;
 }
 .et-footer-actions { display: flex; justify-content: flex-end; }

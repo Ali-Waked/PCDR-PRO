@@ -10,7 +10,12 @@ import MultiSelect from '../../../Components/Selection/MultiSelect.vue'
 import FormSection from '../../../Components/Dashboard/FormSection.vue'
 import { useLocale } from '../../../Composables/useLocale'
 
-defineOptions({ layout: AppLayout })
+defineOptions({
+    layout: (h, page) => h(AppLayout, {
+        title: page.props.role?.name || '',
+        subtitleKey: 'roles_page.subtitle',
+    }, () => page),
+})
 
 const props = defineProps({
     role: { type: Object, required: true },

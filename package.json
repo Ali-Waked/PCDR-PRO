@@ -6,6 +6,7 @@
         "build": "vite build",
         "dev": "vite",
         "icons": "node scripts/make-icons.mjs",
+        "email-assets": "python3 scripts/make-email-logo.py",
         "test:e2e": "playwright test --config=tests/e2e/playwright.config.mjs",
         "test:a11y": "playwright test --config=tests/e2e/playwright.config.mjs --grep 'axe|Lighthouse'",
         "test:selection": "node --test tests/selection-system.test.mjs"

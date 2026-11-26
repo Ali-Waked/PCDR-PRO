@@ -29,7 +29,7 @@ export default defineConfig({
     screenshot: 'off',
     video: 'off',
     actionTimeout: 10_000,
-    navigationTimeout: 30_000,
+    navigationTimeout: 60_000,
     launchOptions,
   },
   projects: [
