@@ -19,6 +19,7 @@ class HomepageSectionItem extends Model
         'homepage_section_id',
         'item_type',
         'item_id',
+        'media_id',
         'item_key',
         'is_published',
         'numeric_value',
@@ -37,6 +38,11 @@ class HomepageSectionItem extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(HomepageSection::class, 'homepage_section_id');
+    }
+
+    public function media(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'media_id');
     }
 
     /** @param Builder<self> $query */

@@ -31,6 +31,7 @@ use App\Http\Controllers\Cms\SettingController;
 use App\Http\Controllers\Phase5\WebhookController;
 use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\HomepageApiController;
 use App\Http\Controllers\Public\InquiryController as PublicInquiryController;
 use App\Http\Controllers\Public\MediaController;
 use App\Http\Controllers\Public\NewsController;
@@ -63,6 +64,12 @@ Route::get('/login', fn () => redirect()->route('login.show', ['locale' => 'ar']
 Route::get('/forgot-password', fn () => redirect()->route('password.request', ['locale' => 'ar']));
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', RobotsController::class)->name('robots');
+
+// First read-only public JSON surface. It is deliberately isolated from the
+// localized Inertia routes and serves published homepage content only.
+Route::get('/api/public/homepage', HomepageApiController::class)
+    ->middleware('throttle:60,1')
+    ->name('api.public.homepage');
 
 // Signed, rate-limited inbound webhook receiver. CSRF is replaced by HMAC
 // verification inside the controller and the route fails closed when webhooks
@@ -177,6 +184,10 @@ Route::prefix('{locale}')
 
                 Route::get('/homepage', [HomepageController::class, 'index'])->middleware('cms:homepage.view')->name('homepage.index');
                 Route::put('/homepage', [HomepageController::class, 'update'])->middleware('cms:homepage.update')->name('homepage.update');
+                Route::get('/homepage/preview', [HomepageController::class, 'preview'])->middleware('cms:homepage.view')->name('homepage.preview');
+                Route::post('/homepage/reorder', [HomepageController::class, 'reorder'])->middleware('cms:homepage.update')->name('homepage.reorder');
+                Route::patch('/homepage/{homepageSection}/status', [HomepageController::class, 'status'])->middleware('cms:homepage.update')->name('homepage.status');
+                Route::post('/homepage/{homepageSection}/toggle', [HomepageController::class, 'toggle'])->middleware('cms:homepage.update')->name('homepage.toggle');
 
                 Route::prefix('partner-directory')->as('partner-directory.')->middleware('cms:directory_partners.view')->group(function (): void {
                     Route::get('/', [DirectoryPartnerController::class, 'index'])->name('index');
