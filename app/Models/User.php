@@ -9,9 +9,12 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\URL;
 
 #[Fillable(['name', 'email', 'password', 'status', 'locale'])]
 #[Hidden(['password', 'remember_token'])]
@@ -45,6 +48,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'locked_until' => 'datetime',
             'is_platform_owner' => 'boolean',
             'failed_login_attempts' => 'integer',
+            'avatar_media_id' => 'integer',
+            'last_activity_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -63,6 +68,40 @@ class User extends Authenticatable implements MustVerifyEmail
     public function auditLogs()
     {
         return $this->hasMany(AuditLog::class, 'actor_id');
+    }
+
+    public function avatar(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'avatar_media_id');
+    }
+
+    public function emailChanges(): HasMany
+    {
+        return $this->hasMany(UserEmailChange::class);
+    }
+
+    public function avatarUrl(): ?string
+    {
+        if ($this->avatar_media_id === null) {
+            return null;
+        }
+
+        $avatar = $this->relationLoaded('avatar')
+            ? $this->getRelation('avatar')
+            : $this->avatar()->first();
+
+        if (! $avatar instanceof Media) {
+            return null;
+        }
+
+        return URL::temporarySignedRoute(
+            'account.avatar.download',
+            now()->addMinutes(30),
+            [
+                'locale' => $this->locale ?: 'ar',
+                'media' => $this->avatar_media_id,
+            ],
+        );
     }
 
     public function isActive(): bool
@@ -87,6 +126,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'status' => $this->status,
             'is_platform_owner' => $this->isPlatformOwner(),
             'email_verified_at' => $this->email_verified_at?->toISOString(),
+            'email_verified' => $this->hasVerifiedEmail(),
+            'last_activity_at' => $this->last_activity_at?->toISOString(),
+            'avatar_url' => $this->avatarUrl(),
             'roles' => $this->roles()->pluck('key')->all(),
         ];
     }

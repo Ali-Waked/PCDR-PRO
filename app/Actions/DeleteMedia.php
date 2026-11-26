@@ -53,6 +53,7 @@ final class DeleteMedia
             'document_reviews' => ['media_id'],
             'directory_partners' => ['logo_media_id'],
             'homepage_section_items' => ['media_id'],
+            'users' => ['avatar_media_id'],
         ];
 
         foreach ($columns as $table => $fields) {
