@@ -72,14 +72,6 @@ class Publication extends Model
         return $this->belongsToMany(Media::class, 'publication_media')->withPivot('usage', 'sort_order');
     }
 
-    public function route(string $locale): string
-    {
-        return route('public.publications.show', [
-            'locale' => $locale,
-            'publication' => $this->t('slug', $locale) ?: $this->id,
-        ]);
-    }
-
     public function categoryLabel(string $locale): string
     {
         return __("website.publication.categories.{$this->category}", [], $locale);

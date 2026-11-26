@@ -113,14 +113,6 @@ class StrategicPillar extends Model
         return $this->hasMany(Publication::class);
     }
 
-    public function route(string $locale): string
-    {
-        return route('public.pillars.show', [
-            'locale' => $locale,
-            'pillar' => $this->t('slug', $locale) ?: $this->code,
-        ]);
-    }
-
     public function objectiveLines(): array
     {
         return $this->splitLines($this->t('objectives'));

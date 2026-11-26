@@ -186,7 +186,7 @@ final class HomepageService
             'label' => $this->translated($model, 'short_title', $locale) ?? $this->translated($model, 'title', $locale),
             'body' => $this->translated($model, 'summary', $locale) ?? $this->translated($model, 'description', $locale),
             'display' => null,
-            'url' => $this->safeLink(method_exists($model, 'route') ? $model->route($locale) : null),
+            'url' => null,
             'value' => null,
             'tab' => $item->tab,
             'featured' => (bool) $item->is_featured,
@@ -259,9 +259,31 @@ final class HomepageService
         }
 
         if (str_starts_with($value, '/') && ! str_starts_with($value, '//')) {
-            return $value;
+            return $this->isRemovedPublicPath($value) ? null : $value;
         }
 
         return preg_match('/^https:\/\/[^\s]+$/i', $value) === 1 ? $value : null;
+    }
+
+    private function isRemovedPublicPath(string $value): bool
+    {
+        $path = (string) (parse_url($value, PHP_URL_PATH) ?: '');
+        $path = '/'.ltrim($path, '/');
+
+        if (preg_match('#^/(ar|en)/?$#', $path) === 1) {
+            return false;
+        }
+
+        $path = preg_replace('#^/(ar|en)(?=/)#', '', $path) ?: '/';
+
+        foreach (['about', 'strategic-areas', 'programs', 'projects', 'news',
+            'publications', 'transparency', 'partners', 'partnerships',
+            'get-involved', 'contact', 'complaints', 'pages'] as $prefix) {
+            if ($path === '/'.$prefix || str_starts_with($path, '/'.$prefix.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

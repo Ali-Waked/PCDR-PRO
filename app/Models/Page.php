@@ -71,9 +71,4 @@ class Page extends Model
     {
         return $this->morphMany(ContentRevision::class, 'revisionable');
     }
-
-    public function route(string $locale): string
-    {
-        return route('public.page', ['locale' => $locale, 'page' => $this->t('slug', $locale) ?: $this->id]);
-    }
 }

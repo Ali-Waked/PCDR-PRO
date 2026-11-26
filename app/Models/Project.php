@@ -86,14 +86,6 @@ class Project extends Model
         return $this->belongsToMany(Media::class, 'project_media')->withPivot('usage', 'sort_order');
     }
 
-    public function route(string $locale): string
-    {
-        return route('public.projects.show', [
-            'locale' => $locale,
-            'project' => $this->t('slug', $locale) ?: $this->id,
-        ]);
-    }
-
     public function statusLabel(?string $locale = null): string
     {
         return $this->status->label($locale ?? app()->getLocale());

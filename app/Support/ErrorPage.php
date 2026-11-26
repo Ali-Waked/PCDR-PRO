@@ -134,13 +134,6 @@ final class ErrorPage
         ];
 
         $secondary = match ($status) {
-            404 => [
-                'label' => self::actionLabel('contact', $locale),
-                'href' => self::localizedUrl('public.contact', $locale),
-                'type' => 'link',
-                'variant' => 'secondary',
-                'icon' => 'contact',
-            ],
             500 => [
                 'label' => self::actionLabel('reload', $locale),
                 'href' => null,

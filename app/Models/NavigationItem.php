@@ -59,19 +59,10 @@ class NavigationItem extends Model
 
         $routes = [
             'home' => 'public.home',
-            'about' => 'public.about',
-            'pillars' => 'public.pillars.index',
-            'programs' => 'public.programs.index',
-            'news' => 'public.news.index',
-            'publications' => 'public.publications.index',
-            'transparency' => 'public.transparency',
-            'partnerships' => 'public.partnerships',
-            'involve' => 'public.involve',
-            'contact' => 'public.contact',
         ];
 
-        $name = $routes[$this->link_value] ?? null;
+        $name = $routes[$this->link_value] ?? 'public.home';
 
-        return $name ? route($name, ['locale' => $locale]) : route('public.home', ['locale' => $locale]);
+        return route($name, ['locale' => $locale]);
     }
 }
