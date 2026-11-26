@@ -10,8 +10,9 @@
 
 | Command | Result |
 |---|---|
-| `php artisan test --compact tests/Feature/RedesignHomepageApiTest.php tests/Feature/RedesignHomepageCmsTest.php tests/Feature/RedesignHomepageSeederTest.php tests/Feature/RedesignHomepageFrontendTest.php tests/Feature/HomepageBackendIntegrationTest.php` | **27 passed / 389 assertions** |
-| `php artisan test --compact tests/Feature/RedesignHomepageFrontendTest.php` | 2 passed / 97 assertions |
+| `php artisan test --compact tests/Feature/RedesignHomepageApiTest.php tests/Feature/RedesignHomepageCmsTest.php tests/Feature/RedesignHomepageSeederTest.php tests/Feature/RedesignHomepageFrontendTest.php tests/Feature/HomepageBackendIntegrationTest.php` | **28 passed / 392 assertions** |
+| `php artisan test --compact tests/Feature/RedesignHomepageFrontendTest.php` | 3 passed / 100 assertions |
+| `node --test tests/homepage-content.test.mjs` | 4 passed / 0 failed |
 | `npm run build` | Passed — 826 modules transformed, exit 0 |
 | `vendor/bin/pint --format agent <each changed PHP file>` | Passed; no formatting findings |
 
@@ -27,9 +28,18 @@ Focused coverage includes:
 - additive seeder idempotency, verbatim caveat and no-media placeholders;
 - one skip link, pinned `Home.vue` markers and canonical section order;
 - scoped CSS isolation and single Vue template root per redesign component;
+- `useHomepageContent` accepting value, ref and getter sources and degrading non-array sources safely;
 - existing integration contract for the ten canonical sections and inline sources.
 
 The final seeder adjustment removed invented fragment URLs from ticker headlines; all focused tests were rerun afterwards.
+
+A runtime regression was reproduced from the reported errors:
+
+> `TypeError: (j(...) || []).filter is not a function`
+>
+> `TypeError: Cannot read properties of undefined (reading 'length')`
+
+Root cause: `Home.vue` calls `useHomepageContent(() => props.sections)`, but the composable used `unref()`, which does not invoke getter functions. The getter itself was therefore treated as the sections array. The fix resolves sources with Vue `toValue()` and guards them with `Array.isArray()`. Regression coverage was added in `tests/homepage-content.test.mjs` and in the source assertion inside `RedesignHomepageFrontendTest.php`.
 
 ---
 
@@ -66,15 +76,16 @@ These failures were not fixed by discarding preserved user work, and none of the
 
 ## 4. Runtime smoke check
 
-A local `php artisan serve` instance was started briefly on port 8123 and stopped after the check:
+A temporary SQLite database was seeded and a local `php artisan serve` instance was started briefly on port 8124. Chromium could not launch in this environment, so the browser check used the installed Playwright Firefox build:
 
-- `GET /ar` → HTTP 200 (193,442 bytes).
-- `GET /api/public/homepage?locale=ar` → HTTP 200 (764 bytes) with `{"data":{"locale":"ar","dir":"rtl",...}}`.
+- `GET /ar` → HTTP 200; 5 carousel slides, ticker visible, 9 planning targets, no page or console errors.
+- `GET /en` → HTTP 200; 5 carousel slides, ticker visible, 9 planning targets, no page or console errors.
+- The initial Inertia payload contains all 10 canonical sections; the `hero` section contains 11 published items.
 
-The development database had no homepage sections at the time, so the API returned an empty `sections` array. The database was not seeded or modified during this check. Full Playwright specs were not run: they require a seeded server fixture and the relevant institutional design/content approvals are not recorded.
+The server was stopped after the check and the temporary database was not used for production. Full Playwright specs were not run: they require a durable seeded fixture and the relevant institutional design/content approvals are not recorded.
 
 ---
 
 ## 5. Conclusion
 
-All redesign-specific tests pass, the production asset build succeeds, and formatting checks pass. The remaining suite failures are pre-existing, reproducible from preserved source work, and explicitly excluded from this change set. No result here should be read as acceptance of the institutional content or as authorization to deploy.
+All redesign-specific tests pass, the reported runtime errors are resolved and verified in a seeded browser session, the production asset build succeeds, and formatting checks pass. The remaining suite failures are pre-existing, reproducible from preserved source work, and explicitly excluded from this change set. No result here should be read as acceptance of the institutional content or as authorization to deploy.

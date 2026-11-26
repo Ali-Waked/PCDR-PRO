@@ -1,13 +1,20 @@
-import { computed, unref } from 'vue'
+import { computed, toValue } from 'vue'
 
 /**
  * Reads CMS-provided homepage sections and items without inventing content.
  * All components consuming this composable render only values that exist in
  * the backend response.
  */
-export function useHomepageContent(sectionsRef) {
+export function useHomepageContent(sectionsSource) {
+    // Accept a value, a ref or a getter. `unref` does not invoke getters, so a
+    // getter would otherwise be treated as the sections array itself.
+    const sections = computed(() => {
+        const value = toValue(sectionsSource)
+        return Array.isArray(value) ? value : []
+    })
+
     const sectionsByKey = computed(() => Object.fromEntries(
-        (unref(sectionsRef) || [])
+        sections.value
             .filter((section) => section && section.key)
             .map((section) => [section.key, section]),
     ))

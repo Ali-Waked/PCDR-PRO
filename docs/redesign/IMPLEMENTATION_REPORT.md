@@ -126,7 +126,7 @@ These deviations are deliberate and documented rather than silently performed:
 - Requests/service/controller: four `app/Http/Requests/Cms/*Homepage*Request.php`, `HomepageService.php`, `Cms/HomepageController.php`, `Public/HomepageApiController.php`, `app/Http/Resources/Public/*`, `Actions/DeleteMedia.php`, additive routes in `routes/web.php`.
 - Seeders: `HomepageContentSeeder.php` (caveat only), new `RedesignHomepageContentSeeder.php`, `DatabaseSeeder.php`.
 - Frontend: `resources/css/pcdr-pro-home.css`, `resources/js/composables/useHomepageContent.js`, six `resources/js/Components/RedesignHome/Pro*.vue`, `Pages/Public/Home.vue`, `Pages/Cms/Homepage/Index.vue`.
-- Tests: four `tests/Feature/RedesignHomepage*Test.php`.
+- Tests: four `tests/Feature/RedesignHomepage*Test.php` plus `tests/homepage-content.test.mjs`.
 
 Byte-pinned files were not edited: `resources/css/pcdr-home.css`, `resources/views/app.blade.php`, `resources/js/Components/LanguageSwitcher.vue`.
 
@@ -134,11 +134,12 @@ Byte-pinned files were not edited: `resources/css/pcdr-home.css`, `resources/vie
 
 ## 7. Verification summary
 
-- Focused redesign tests: **27 passed / 389 assertions**.
+- Focused redesign tests: **28 passed / 392 assertions**.
+- Node composable regression tests: **4 passed / 0 failed**.
 - `npm run build`: passed, 826 modules transformed.
 - Targeted Pint: passed on all changed PHP files.
 - Batched suite: 397 tests executed across four batches, 393 passed, with 4 failures attributable to preserved pre-existing work; `AccountEmailChangeTest` has an additional 1 fatal and 6 errors from pre-existing notification code.
-- Runtime smoke: `GET /ar` and `GET /api/public/homepage?locale=ar` both returned HTTP 200.
+- Runtime smoke: seeded Firefox checks of `/ar` and `/en` returned HTTP 200 with populated redesign components and no page or console errors; the reported `filter`/`length` TypeErrors were resolved by changing `useHomepageContent` from `unref()` to `toValue()` with an `Array.isArray()` guard.
 
 Full details and failure evidence are in `TESTING_REPORT.md`.
 

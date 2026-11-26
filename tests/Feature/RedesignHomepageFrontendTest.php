@@ -54,6 +54,15 @@ final class RedesignHomepageFrontendTest extends TestCase
         $this->assertSame($positions, $sorted, 'Section markers must retain canonical order.');
     }
 
+    public function test_homepage_content_composable_accepts_getters_and_non_array_sources(): void
+    {
+        $composable = (string) file_get_contents(resource_path('js/composables/useHomepageContent.js'));
+
+        $this->assertStringContainsString('toValue', $composable, 'Getters must be resolved with toValue.');
+        $this->assertStringContainsString('Array.isArray', $composable, 'Non-array sources must degrade safely.');
+        $this->assertStringNotContainsString('unref(', $composable, 'unref does not invoke getter sources.');
+    }
+
     public function test_redesign_components_are_scoped_under_one_css_namespace(): void
     {
         $css = (string) file_get_contents(resource_path('css/pcdr-pro-home.css'));
