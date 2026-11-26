@@ -73,6 +73,33 @@ final class LoginExperienceTest extends TestCase
         $this->assertStringContainsString('pcdr-logo.png', $layoutSource);
     }
 
+    public function test_login_intro_owns_its_tokens_and_finishes_before_marking_the_session(): void
+    {
+        $intro = (string) file_get_contents(resource_path('js/Components/Auth/BrandIntro.vue'));
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $matches = [];
+        $matched = preg_match('/\.auth-intro\s*\{(.*?)\n\}/s', $css, $matches);
+        $introBlock = $matches[1] ?? '';
+
+        $this->assertSame(1, $matched);
+        $this->assertStringNotContainsString('--auth-', $introBlock);
+
+        foreach (['--intro-canvas:', '--intro-navy:', '--intro-teal-wash:', '--intro-wheat-line:'] as $token) {
+            $this->assertStringContainsString($token, $introBlock);
+        }
+
+        $this->assertStringContainsString('let introStarted = false', $intro);
+        $this->assertStringContainsString('visible.value = !hasPlayed() && !prefersReducedMotion()', $intro);
+        $this->assertStringContainsString("    finished = true\n    visible.value = false\n    markPlayed()\n    restoreMain()", $intro);
+        $this->assertStringContainsString('(prefers-reduced-motion: reduce)', $intro);
+        $this->assertStringContainsString('<span v-if="tagline">{{ tagline }}</span>', $intro);
+        $this->assertStringContainsString('.auth-intro,', $css);
+
+        foreach (['Auth/ForgotPassword.vue', 'Auth/ResetPassword.vue', 'Auth/VerifyEmail.vue', 'Cms/Login.vue'] as $page) {
+            $this->assertStringNotContainsString('BrandIntro', (string) file_get_contents(resource_path("js/Pages/{$page}")), $page);
+        }
+    }
+
     public function test_all_existing_auth_pages_share_the_unified_design_system(): void
     {
         $pages = [
