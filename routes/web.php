@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Account\AvatarController;
+use App\Http\Controllers\Account\EmailChangeController;
+use App\Http\Controllers\Account\PasswordController;
+use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\Admin\AccessController;
 use App\Http\Controllers\Admin\AuditArchiveController;
 use App\Http\Controllers\Admin\AuditLogController;
@@ -283,6 +287,44 @@ Route::prefix('{locale}')
 
         Route::middleware(['auth', 'account.active'])->group(function (): void {
             Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+
+            // Self-service account security lives under the profile page's
+            // #security anchor; there is no separate security page route.
+            Route::get('/dashboard/profile', [ProfileController::class, 'show'])->name('account.profile.show');
+            Route::put('/dashboard/profile', [ProfileController::class, 'update'])->name('account.profile.update');
+
+            Route::get('/dashboard/profile/email/confirm/{token}', [EmailChangeController::class, 'confirm'])
+                ->middleware(['signed', 'throttle:6,1'])
+                ->name('account.email.change.confirm');
+            Route::post('/dashboard/profile/email', [EmailChangeController::class, 'store'])
+                ->middleware('throttle:account-email')
+                ->name('account.email.change.request');
+            Route::delete('/dashboard/profile/email', [EmailChangeController::class, 'destroy'])
+                ->middleware('throttle:account-email')
+                ->name('account.email.change.cancel');
+
+            Route::post('/dashboard/profile/password', [PasswordController::class, 'update'])
+                ->middleware('throttle:account-sensitive')
+                ->name('account.password.update');
+            Route::delete('/dashboard/profile/sessions/{reference}', [PasswordController::class, 'revokeSession'])
+                ->middleware('throttle:account-sensitive')
+                ->name('account.sessions.destroy');
+            Route::delete('/dashboard/profile/sessions', [PasswordController::class, 'revokeOtherSessions'])
+                ->middleware('throttle:account-sensitive')
+                ->name('account.sessions.destroy-others');
+            Route::get('/dashboard/profile/sessions', [PasswordController::class, 'sessionsJson'])
+                ->middleware('throttle:60,1')
+                ->name('account.sessions.index');
+
+            Route::post('/dashboard/profile/avatar', [AvatarController::class, 'store'])
+                ->middleware(['throttle:account-avatar', 'throttle:account-avatar-hour'])
+                ->name('account.avatar.store');
+            Route::delete('/dashboard/profile/avatar', [AvatarController::class, 'destroy'])
+                ->middleware('throttle:account-sensitive')
+                ->name('account.avatar.destroy');
+            Route::get('/dashboard/profile/avatar/{media}/download', [AvatarController::class, 'download'])
+                ->middleware(['signed', 'throttle:60,1'])
+                ->name('account.avatar.download');
 
             Route::prefix('admin')->as('admin.')->group(function (): void {
                 Route::get('users', [UserController::class, 'index'])->middleware('permission:users.view')->name('users.index');

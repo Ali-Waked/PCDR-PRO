@@ -58,6 +58,7 @@ final class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->session()->put('account.session_reference', bin2hex(random_bytes(16)));
         $user->forceFill([
             'previous_login_at' => $user->last_login_at,
             'last_login_at' => now(),

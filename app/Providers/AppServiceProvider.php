@@ -18,6 +18,8 @@ use App\Services\RbacService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -88,6 +90,32 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('password-reset', function (Request $request): Limit {
             return Limit::perMinute(3)->by(Str::transliterate(
                 Str::lower((string) $request->input('email', '')).'|'.$request->ip(),
+            ));
+        });
+
+        RateLimiter::for('account-email', function (Request $request): Limit {
+            return Limit::perMinute(3)->by(Str::transliterate(
+                (string) Auth::id().'|'.$request->ip(),
+            ));
+        });
+
+        RateLimiter::for('account-sensitive', function (Request $request): Limit {
+            return Limit::perMinute(5)->by(Str::transliterate(
+                (string) Auth::id().'|'.$request->ip(),
+            ));
+        });
+
+        // Laravel 13's Limit has no `and()` combinator, so the hourly avatar
+        // cap is registered as a second named limiter and applied in sequence.
+        RateLimiter::for('account-avatar', function (Request $request): Limit {
+            return Limit::perMinute(10)->by(Str::transliterate(
+                (string) Auth::id().'|'.$request->ip(),
+            ));
+        });
+
+        RateLimiter::for('account-avatar-hour', function (Request $request): Limit {
+            return Limit::perHour(30)->by(Str::transliterate(
+                (string) Auth::id().'|'.$request->ip(),
             ));
         });
     }

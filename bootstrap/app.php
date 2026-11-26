@@ -12,6 +12,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetWebsiteLocale;
+use App\Http\Middleware\TrackAuthenticatedActivity;
 use App\Support\WorkflowFeedback;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -34,10 +35,12 @@ return Application::configure(basePath: dirname(__DIR__))
             SetWebsiteLocale::class,
             EnsureDashboardFeatureAvailable::class,
             HandleInertiaRequests::class,
+            TrackAuthenticatedActivity::class,
             AddSecurityHeaders::class,
         ]);
 
         $middleware->alias([
+            'account.activity' => TrackAuthenticatedActivity::class,
             'account.active' => EnsureAccountActive::class,
             'permission' => RequirePermission::class,
             'cms' => EnsureCmsPermission::class,
