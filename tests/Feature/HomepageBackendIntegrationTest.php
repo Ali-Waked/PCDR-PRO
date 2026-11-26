@@ -140,13 +140,17 @@ final class HomepageBackendIntegrationTest extends TestCase
         $this->assertStringContainsString('نعمل بروح الشراكة', (string) $section->fresh()->t('body', 'ar'));
     }
 
-    public function test_public_home_receives_localized_sections_mission_and_strategic_targets(): void
+    public function test_public_home_receives_localized_sections_and_meta_only(): void
     {
         $this->seedHomepage();
 
         $this->get('/ar')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Public/Home')
-            ->where('mission', config('website.mission.ar'))
+            ->missing('mission')
+            ->missing('vision')
+            ->missing('pillars')
+            ->missing('programs')
+            ->missing('publications')
             ->where('sections.0.key', 'hero')
             ->where('sections.1.key', 'intro')
             ->where('sections.5.key', 'targets')
@@ -159,11 +163,24 @@ final class HomepageBackendIntegrationTest extends TestCase
 
         $this->get('/en')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Public/Home')
-            ->where('mission', config('website.mission.en'))
+            ->missing('mission')
             ->where('sections.5.title', 'Where we aim to be by the end of 2027')
             ->where('sections.5.items.0.title', 'Families targeted for humanitarian interventions')
             ->where('meta.locale', 'en')
             ->where('meta.og.image', null));
+    }
+
+    public function test_dead_stored_homepage_links_are_neutralized_in_the_public_payload(): void
+    {
+        $this->seedHomepage();
+
+        $this->section('intro')->translations()->where('locale', 'ar')
+            ->update(['cta_link' => '/ar/about']);
+        app(HomepageService::class)->flush();
+
+        $this->get('/ar')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Public/Home')
+            ->where('sections.1.ctaLink', null));
     }
 
     public function test_public_home_hides_disabled_sections_but_cms_preview_keeps_them(): void

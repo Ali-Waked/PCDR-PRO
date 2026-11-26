@@ -5,7 +5,6 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 const widths = [1024, 1100, 1180, 1280, 1366, 1440, 1536, 1600, 1920]
 const scales = [1, 1.25, 1.5]
 const locales = ['ar', 'en']
-const innerRoutes = ['about', 'news']
 const outputDir = 'tests/e2e/screenshots/nav'
 
 const prototypeLabels = {
@@ -22,45 +21,6 @@ function inside(box, container) {
         && box.right <= container.right + 0.5
         && box.top >= container.top - 0.5
         && box.bottom <= container.bottom + 0.5
-}
-
-async function headerState(page) {
-    return page.locator('.ps-header').evaluate((header) => {
-        const rect = (element) => {
-            if (!element || element.getClientRects().length === 0) return null
-            const box = element.getBoundingClientRect()
-            return {
-                left: box.left, right: box.right, top: box.top, bottom: box.bottom,
-                width: box.width, height: box.height,
-            }
-        }
-        const items = [...header.querySelectorAll('.ps-nav__list--bar .ps-nav__item, .ps-nav__list--bar .ps-nav__group')]
-            .map((element) => rect(element.querySelector('.ps-nav__link') || element))
-            .filter(Boolean)
-        const labels = [...header.querySelectorAll('.ps-nav__list--bar .ps-nav__label')]
-            .filter((element) => element.getClientRects().length > 0)
-            .map((element) => {
-                const box = element.getBoundingClientRect()
-                return { height: box.height, lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight) }
-            })
-
-        return {
-            nav: header.dataset.nav,
-            required: Number(header.dataset.navRequired),
-            available: Number(header.dataset.navAvailable),
-            free: Number(header.dataset.navFree),
-            header: rect(header),
-            brand: rect(header.querySelector('.ps-brand')),
-            items,
-            labels,
-            lang: rect(header.querySelector('.ps-header__lang')),
-            cta: rect(header.querySelector('.ps-header__cta')),
-            burger: rect(header.querySelector('.ps-burger')),
-            burgerVisible: getComputedStyle(header.querySelector('.ps-burger')).display !== 'none',
-            scrollWidth: document.documentElement.scrollWidth,
-            innerWidth: window.innerWidth,
-        }
-    })
 }
 
 async function prototypeState(page) {
@@ -88,11 +48,6 @@ async function prototypeState(page) {
             innerWidth: window.innerWidth,
         }
     })
-}
-
-async function gotoPath(page, path) {
-    await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 60_000 })
-    await page.waitForFunction(() => Number(document.querySelector('.ps-header')?.dataset.navRequired) > 0)
 }
 
 async function gotoHome(page, locale) {
@@ -153,40 +108,6 @@ for (const scale of scales) {
         }
     })
 }
-
-test('inner pages keep the same measured header geometry', async ({ page }) => {
-    await page.setViewportSize({ width: 1366, height: 900 })
-    for (const locale of locales) {
-        for (const route of innerRoutes) {
-            await gotoPath(page, `/${locale}/${route}`)
-            const state = await headerState(page)
-            expect(state.nav, `${locale}/${route}`).toBe('expanded')
-            expect(state.free, `${locale}/${route} free space`).toBeGreaterThanOrEqual(24)
-            const boxes = [state.brand, ...state.items, state.lang, state.cta]
-            for (let i = 0; i < boxes.length; i++) {
-                for (let j = i + 1; j < boxes.length; j++) {
-                    expect(intersects(boxes[i], boxes[j]), `${locale}/${route} boxes ${i}/${j}`).toBe(false)
-                }
-            }
-        }
-    }
-})
-
-test.describe('inner page shared header dropdowns', () => {
-    test('active page state appears on trigger and panel item', async ({ page }) => {
-        await page.setViewportSize({ width: 1600, height: 900 })
-        await gotoPath(page, '/ar/about')
-        const trigger = page.locator('.ps-nav__group-trigger').first()
-        await trigger.click()
-        await expect(trigger).toHaveClass(/is-group-active/)
-        const activeItem = page.locator('.ps-dropdown__item[aria-current="page"]')
-        await expect(activeItem).toHaveCount(1)
-        await expect(activeItem).toHaveClass(/is-active/)
-        await expect(activeItem).toContainText('عن الجمعية')
-        const dotOpacity = await trigger.locator('.ps-nav__active-dot').evaluate((el) => getComputedStyle(el).opacity)
-        expect(dotOpacity).toBe('1')
-    })
-})
 
 test.describe('prototype pill menu', () => {
     test.use({ colorScheme: 'light' })

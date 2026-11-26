@@ -48,64 +48,6 @@ final class WebsiteCmsInquiryTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_public_inquiry_is_persisted_safely_and_internal_notice_is_reference_only(): void
-    {
-        $reviewer = $this->userWith(['inquiries.view']);
-        $inactiveReviewer = $this->userWith(['inquiries.view']);
-        $inactiveReviewer->forceFill(['status' => User::STATUS_INACTIVE])->save();
-
-        $email = 'private-sender@example.test';
-        $message = 'PRIVATE MESSAGE CONTENT THAT MUST NOT BE NOTIFIED';
-
-        $this->postJson('/'.self::LOCALE.'/contact/inquiry', $this->payload($email, $message), [
-            'REMOTE_ADDR' => '203.0.113.44',
-            'User-Agent' => 'PCDR-Test/1.0',
-        ])->assertRedirect();
-
-        $record = ContactMessage::query()->where('email', $email)->firstOrFail();
-
-        $this->assertTrue(Str::isUlid($record->reference));
-        $this->assertSame('new', $record->status);
-        $this->assertNotSame('203.0.113.44', $record->ip_hash);
-        $this->assertSame(hash('sha256', '203.0.113.44|'.config('app.key')), $record->ip_hash);
-
-        Mail::assertSent(InquiryReplyMail::class, function (InquiryReplyMail $mail) use ($record, $message): bool {
-            return $mail->hasTo(self::INTERNAL_RECIPIENT)
-                && str_contains($mail->renderedBody, (string) $record->reference)
-                && ! str_contains($mail->renderedBody, 'Private Sender')
-                && ! str_contains($mail->renderedBody, 'private-sender@example.test')
-                && ! str_contains($mail->renderedBody, $message);
-        });
-
-        $this->assertCount(1, $reviewer->notifications);
-        $notification = $reviewer->notifications->first();
-        $payload = json_encode($notification->data, JSON_THROW_ON_ERROR);
-
-        $this->assertSame('inquiry.received', $notification->data['key']);
-        $this->assertSame($record->reference, $notification->data['reference']);
-        $this->assertStringNotContainsString('Private Sender', $payload);
-        $this->assertStringNotContainsString($email, $payload);
-        $this->assertStringNotContainsString($message, $payload);
-        $this->assertCount(0, $inactiveReviewer->notifications);
-    }
-
-    public function test_public_inquiry_submission_is_rate_limited(): void
-    {
-        $email = 'rate-limit@example.test';
-
-        for ($attempt = 0; $attempt < 5; $attempt++) {
-            $this->post('/'.self::LOCALE.'/contact/inquiry', $this->payload($email, 'Valid inquiry body '.$attempt), [
-                'REMOTE_ADDR' => '198.51.100.7',
-            ])->assertRedirect();
-        }
-
-        $this->assertSame(5, ContactMessage::query()->where('email', $email)->count());
-
-        $this->post('/'.self::LOCALE.'/contact/inquiry', $this->payload($email, 'Sixth inquiry body'), [
-            'REMOTE_ADDR' => '198.51.100.7',
-        ])->assertStatus(429);
-    }
-
     public function test_inquiry_index_requires_view_permission_and_scopes_assigned_records(): void
     {
         $unauthorized = $this->userWith(['pillars.view']);
@@ -333,20 +275,6 @@ final class WebsiteCmsInquiryTest extends TestCase
             'consent' => true,
             'status' => 'new',
         ], $overrides));
-    }
-
-    /** @return array<string, string> */
-    private function payload(string $email, string $message): array
-    {
-        return [
-            'category' => 'general',
-            'name' => 'Private Sender',
-            'email' => $email,
-            'subject' => 'Private subject',
-            'message' => $message,
-            'consent' => '1',
-            'website' => '',
-        ];
     }
 
     private function bootstrapUser(): User

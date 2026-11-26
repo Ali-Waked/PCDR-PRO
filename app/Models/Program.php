@@ -59,12 +59,4 @@ class Program extends Model
     {
         return $this->belongsTo(Media::class, 'featured_image_id');
     }
-
-    public function route(string $locale): string
-    {
-        return route('public.programs.show', [
-            'locale' => $locale,
-            'program' => $this->t('slug', $locale) ?: $this->id,
-        ]);
-    }
 }

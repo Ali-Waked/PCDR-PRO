@@ -90,12 +90,12 @@ final class CmsNavigationModuleRemovalTest extends TestCase
         $this->assertSame('website.ui.cms_navigation', __('website.ui.cms_navigation', [], 'ar'));
     }
 
-    public function test_seeded_public_navigation_is_still_shared_in_arabic_and_english(): void
+    public function test_seeded_navigation_is_still_shared_in_arabic_and_english(): void
     {
         $this->seed(WebsiteSeeder::class);
 
         foreach (['ar' => 'الرئيسية', 'en' => 'Home'] as $locale => $homeLabel) {
-            $this->get("/{$locale}/about")
+            $this->get("/{$locale}")
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page
                     ->where('locale', $locale)
@@ -112,41 +112,21 @@ final class CmsNavigationModuleRemovalTest extends TestCase
                         return count($items) === 10;
                     }));
 
-            $props = $this->inertiaProps($this->get("/{$locale}/about"));
+            $props = $this->inertiaProps($this->get("/{$locale}"));
             $urls = array_column($props['navigation']['primary'], 'url');
 
             $this->assertContains(url("/{$locale}"), $urls);
-            $this->assertContains(url("/{$locale}/about"), $urls);
-            $this->assertContains(url("/{$locale}/strategic-areas"), $urls);
             $this->assertNotContains(url('/ar/en'), $urls);
             $this->assertNotContains(url('/en/ar'), $urls);
+
+            foreach (['about', 'strategic-areas', 'programs', 'news', 'publications', 'contact'] as $removedPath) {
+                $this->assertStringNotContainsString('/'.$removedPath, implode(' ', $urls));
+            }
         }
     }
 
-    public function test_public_shell_header_footer_mobile_nav_and_footer_groups_remain_wired(): void
+    public function test_admin_shell_mobile_navigation_remains_wired(): void
     {
-        $composable = (string) File::get(resource_path('js/composables/usePublicNavigation.js'));
-        $this->assertStringContainsString('page.props.navigation', $composable);
-        $this->assertStringContainsString('seededNavigation.value.primary', $composable);
-        $this->assertStringContainsString('if (seededPrimary.value.length > 0)', $composable);
-        $this->assertStringContainsString('const FOOTER_GROUPS = [', $composable);
-
-        foreach (["key: 'about'", "key: 'knowledge'", "key: 'involve'"] as $fragment) {
-            $this->assertStringContainsString($fragment, $composable);
-        }
-
-        $header = (string) File::get(resource_path('js/Components/Public/SiteHeader.vue'));
-        $this->assertStringContainsString("from '../../composables/usePublicNavigation'", $header);
-        $this->assertMatchesRegularExpression(
-            '/const \{ links, cta(?:, barEntries)? \} = usePublicNavigation\(\)/',
-            $header,
-        );
-        $this->assertStringContainsString('v-for="(item, i) in links"', $header);
-
-        $footer = (string) File::get(resource_path('js/Components/Public/SiteFooter.vue'));
-        $this->assertStringContainsString('const { footerGroups: navFooterGroups } = usePublicNavigation()', $footer);
-        $this->assertStringContainsString('v-for="(group, gi) in footerGroups"', $footer);
-
         $cmsLayout = (string) File::get(resource_path('js/Layouts/CmsLayout.vue'));
         $this->assertStringContainsString('mobileNavigationOpen', $cmsLayout);
         $this->assertStringContainsString('admin-nav-scrim', $cmsLayout);

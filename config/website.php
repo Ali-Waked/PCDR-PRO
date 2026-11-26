@@ -39,11 +39,7 @@ return [
      * database-backed navigation menu.
      */
     'not_found_suggestions' => [
-        ['label' => 'about', 'route' => 'public.about'],
-        ['label' => 'pillars', 'route' => 'public.pillars.index'],
-        ['label' => 'programs', 'route' => 'public.programs.index'],
-        ['label' => 'news', 'route' => 'public.news.index'],
-        ['label' => 'contact', 'route' => 'public.contact'],
+        ['label' => 'home', 'route' => 'public.home'],
     ],
 
     'description' => [

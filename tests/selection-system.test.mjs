@@ -220,7 +220,6 @@ test('unified stylesheet exposes palette, RTL, responsive, reduced-motion and da
 test('browser specs target the unified selection markup', () => {
     for (const spec of [
         'tests/e2e/admin-redesign.spec.mjs',
-        'tests/e2e/strategic-pillars-responsive.spec.mjs',
     ]) {
         const source = read(spec)
         assert.doesNotMatch(source, /pc-select-pro/, `${spec} still uses the retired selector classes`)

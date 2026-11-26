@@ -65,7 +65,9 @@ test('useHomepageContent keeps only prototype-approved destinations', () => {
     const content = useHomepageContent([])
 
     assert.equal(content.safeUrl('#news'), '#news')
-    assert.equal(content.safeUrl('/ar/programs'), '/ar/programs')
+    assert.equal(content.safeUrl('/ar'), '/ar')
+    assert.equal(content.safeUrl('/ar/programs'), '')
+    assert.equal(content.safeUrl('/en/news/article'), '')
     assert.equal(content.safeUrl('https://example.org/page'), 'https://example.org/page')
     assert.equal(content.safeUrl('#'), '')
     assert.equal(content.safeUrl('javascript:alert(1)'), '')

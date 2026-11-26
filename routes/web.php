@@ -33,19 +33,11 @@ use App\Http\Controllers\Cms\ProjectController as CmsProjectController;
 use App\Http\Controllers\Cms\PublicationController as CmsPublicationController;
 use App\Http\Controllers\Cms\SettingController;
 use App\Http\Controllers\Phase5\WebhookController;
-use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\HomepageApiController;
-use App\Http\Controllers\Public\InquiryController as PublicInquiryController;
 use App\Http\Controllers\Public\MediaController;
-use App\Http\Controllers\Public\NewsController;
-use App\Http\Controllers\Public\PageController;
-use App\Http\Controllers\Public\PillarController;
-use App\Http\Controllers\Public\ProgramController;
-use App\Http\Controllers\Public\PublicationController;
 use App\Http\Controllers\Public\RobotsController;
 use App\Http\Controllers\Public\SitemapController;
-use App\Http\Controllers\Public\StaticPageController;
 use App\Http\Middleware\EnsureDashboardFeatureAvailable;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectToLocalizedUrl;
@@ -89,34 +81,6 @@ Route::prefix('{locale}')
         // method/URI match and can drop the earlier name from the route collection.
         Route::get('/', HomeController::class)->name('public.home');
 
-        Route::get('/about', [AboutController::class, '__invoke'])->name('public.about');
-        Route::get('/about/{focus}', [AboutController::class, '__invoke'])->name('public.about.focus');
-
-        Route::get('/strategic-areas', [PillarController::class, 'index'])->name('public.pillars.index');
-        Route::get('/strategic-areas/{pillar}', [PillarController::class, 'show'])->name('public.pillars.show');
-
-        Route::get('/programs', [ProgramController::class, 'index'])->name('public.programs.index');
-        Route::get('/programs/{program}', [ProgramController::class, 'show'])->name('public.programs.show');
-        Route::get('/projects/{project}', [ProgramController::class, 'project'])->name('public.projects.show');
-
-        Route::get('/news', [NewsController::class, 'index'])->name('public.news.index');
-        Route::get('/news/{article}', [NewsController::class, 'show'])->name('public.news.show');
-
-        Route::get('/publications', [PublicationController::class, 'index'])->name('public.publications.index');
-        Route::get('/publications/{publication}/download', [PublicationController::class, 'download'])->name('public.publications.download');
-        Route::get('/publications/{publication}', [PublicationController::class, 'show'])->name('public.publications.show');
-
-        Route::get('/transparency', [StaticPageController::class, 'transparency'])->name('public.transparency');
-        Route::get('/partners', [StaticPageController::class, 'partners'])->name('public.partners');
-        Route::get('/partnerships', [StaticPageController::class, 'partners'])->name('public.partnerships');
-        Route::get('/get-involved', [StaticPageController::class, 'involve'])->name('public.involve');
-        Route::get('/contact', [StaticPageController::class, 'contact'])->name('public.contact');
-        Route::get('/complaints', [StaticPageController::class, 'complaints'])->name('public.complaints');
-
-        Route::post('/contact/inquiry', [PublicInquiryController::class, 'contact'])->name('public.inquiry.contact');
-        Route::post('/volunteer/inquiry', [PublicInquiryController::class, 'volunteer'])->name('public.inquiry.volunteer');
-
-        Route::get('/pages/{page}', [PageController::class, 'show'])->name('public.page');
         Route::get('/media/{uuid}/download', [MediaController::class, 'download'])->name('public.media.download');
 
         Route::prefix('cms')->name('cms.')->group(function (): void {

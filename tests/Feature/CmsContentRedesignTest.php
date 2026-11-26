@@ -514,33 +514,4 @@ final class CmsContentRedesignTest extends TestCase
             'content' => $program->getKey(),
         ]), ['status' => 'published'])->assertForbidden();
     }
-
-    public function test_public_pages_keep_serving_only_published_records(): void
-    {
-        $pillar = $this->createPillar('AG', 'الزراعة');
-        $program = $this->createProgram('public-program', ContentStatus::Published, $pillar);
-        $this->createProgram('hidden-program', ContentStatus::Draft, $pillar);
-        $project = $this->createProject('public-project', ProjectStatus::Ongoing, ContentStatus::Published, $program);
-        $article = $this->createArticle('public-news', ContentStatus::Published);
-        $this->createArticle('hidden-news', ContentStatus::Draft);
-
-        $this->get(route('public.programs.index', ['locale' => self::LOCALE]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Public/Programs/Index')
-                ->where('programs.0.title', 'برنامج public-program')
-                ->missing('programs.1')
-                ->where('projects.0.title', 'مشروع public-project')
-                ->etc(),
-            );
-
-        $this->get(route('public.news.index', ['locale' => self::LOCALE]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Public/News/Index')
-                ->where('articles.0.id', $article->getKey())
-                ->missing('articles.1')
-                ->etc(),
-            );
-    }
 }
