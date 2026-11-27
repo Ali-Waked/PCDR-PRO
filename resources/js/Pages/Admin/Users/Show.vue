@@ -82,7 +82,7 @@ async function remove() {
 
         <div class="pc-page-actions">
             <Link :href="localePath('/admin/users')" class="pc-btn pc-btn--ghost">
-                <UiIcon name="chevronLeft" :size="16" />
+                <UiIcon name="chevronBack" :size="16" />
                 {{ t('users_page.back_to_list') }}
             </Link>
         </div>

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from '../../composables/useI18n'
 
 const props = defineProps({
     name: { type: String, required: true },
@@ -46,6 +47,7 @@ const paths = {
     logout: ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'm16 17 5-5-5-5', 'M21 12H9'],
     eyeOff: ['m3 3 18 18', 'M10.6 10.6a3 3 0 0 0 4.2 4.2', 'M9.4 5.2A9.8 9.8 0 0 1 12 5c6.4 0 10 7 10 7a18 18 0 0 1-2.2 3.1', 'M6.2 6.2A18 18 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 3.2-.5'],
     arrowRight: ['M5 12h14', 'm13 6 6 6-6 6'],
+    arrowLeft: ['M19 12H5', 'm11 6-6 6 6 6'],
     refresh: ['M21 12a9 9 0 1 1-3-6.7L21 8', 'M21 3v5h-5'],
     copy: ['M9 9h10v11H9z', 'M5 15V4h10'],
     monitor: ['M3 4h18v13H3z', 'M8 21h8', 'M12 17v4'],
@@ -55,7 +57,17 @@ const paths = {
     book: ['M4 4h7a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H4z', 'M20 4h-3a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h3z'],
 }
 
-const drawnPaths = computed(() => paths[props.name] ?? paths.info)
+const { isRtl } = useI18n()
+
+const directionAliases = {
+    arrowForward: (rtl) => rtl ? 'arrowLeft' : 'arrowRight',
+    arrowBack: (rtl) => rtl ? 'arrowRight' : 'arrowLeft',
+    chevronForward: (rtl) => rtl ? 'chevronLeft' : 'chevronRight',
+    chevronBack: (rtl) => rtl ? 'chevronRight' : 'chevronLeft',
+}
+
+const resolvedName = computed(() => directionAliases[props.name]?.(isRtl.value) ?? props.name)
+const drawnPaths = computed(() => paths[resolvedName.value] ?? paths.info)
 const pixelSize = computed(() => Number(props.size))
 </script>
 

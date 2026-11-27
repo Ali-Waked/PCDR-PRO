@@ -27,7 +27,7 @@
         >
             @switch($action['icon'])
                 @case('back')
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <svg class="directional-flip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                         <path d="M10 5 3 12l7 7"/>
                         <path d="M3 12h11a6 6 0 0 1 6 6"/>
                     </svg>

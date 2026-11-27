@@ -71,6 +71,8 @@ final class LoginExperienceTest extends TestCase
         $this->assertStringContainsString('BrandIntro.vue', $loginSource);
         $this->assertStringContainsString('pcdr-logo-animated.svg', $introSource);
         $this->assertStringContainsString('pcdr-logo.png', $layoutSource);
+        $this->assertStringContainsString("provide('pcdr-auth-ready', isReady)", $layoutSource);
+        $this->assertStringContainsString("inject('pcdr-auth-ready', ref(true))", $introSource);
     }
 
     public function test_login_intro_owns_its_tokens_and_finishes_before_marking_the_session(): void
@@ -88,8 +90,16 @@ final class LoginExperienceTest extends TestCase
             $this->assertStringContainsString($token, $introBlock);
         }
 
+        $this->assertStringContainsString('--intro-canvas: var(--pcdr-navy-900)', $introBlock);
+        $this->assertStringContainsString('--intro-logo-surface: var(--pcdr-white)', $introBlock);
+        $this->assertStringNotContainsString('--intro-canvas: var(--pcdr-white)', $introBlock);
+
         $this->assertStringContainsString('let introStarted = false', $intro);
+        $this->assertStringContainsString('const MIN_VISIBLE_MS = 3000', $intro);
         $this->assertStringContainsString('visible.value = !hasPlayed() && !prefersReducedMotion()', $intro);
+        $this->assertStringContainsString('startedAt = Date.now()', $intro);
+        $this->assertStringContainsString('if (!force && !authReady.value)', $intro);
+        $this->assertStringContainsString('watch(authReady,', $intro);
         $this->assertStringContainsString("    finished = true\n    visible.value = false\n    markPlayed()\n    restoreMain()", $intro);
         $this->assertStringContainsString('(prefers-reduced-motion: reduce)', $intro);
         $this->assertStringContainsString('<span v-if="tagline">{{ tagline }}</span>', $intro);

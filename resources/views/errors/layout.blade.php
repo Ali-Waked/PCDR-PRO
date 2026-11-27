@@ -170,6 +170,10 @@
                 text-transform: none;
             }
 
+            [dir='rtl'] .pcdr-error .directional-flip {
+                transform: scaleX(-1);
+            }
+
             .pcdr-error__title {
                 margin: 0;
                 color: var(--pcdr-error-navy-900);

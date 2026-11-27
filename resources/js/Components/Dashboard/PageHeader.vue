@@ -15,7 +15,7 @@ defineProps({
         <div class="pc-page-head__copy">
             <nav v-if="breadcrumb.length" class="pc-breadcrumb" aria-label="Breadcrumb">
                 <template v-for="(item, index) in breadcrumb" :key="`${item.label}-${index}`">
-                    <UiIcon v-if="index > 0" name="chevronRight" :size="12" />
+                    <UiIcon v-if="index > 0" name="chevronForward" :size="12" />
                     <Link v-if="item.href" :href="item.href">{{ item.label }}</Link>
                     <span v-else aria-current="page">{{ item.label }}</span>
                 </template>

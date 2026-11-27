@@ -630,12 +630,12 @@ function save() {
                 <button type="button" class="pc-btn pc-btn--secondary" @click="requestClose">{{ strings.cancel }}</button>
                 <div class="wizard-footer__nav">
                     <button v-if="step > 0" type="button" class="pc-btn pc-btn--secondary" @click="step -= 1">
-                        <UiIcon name="chevronLeft" :size="15" />
+                        <UiIcon name="chevronBack" :size="15" />
                         {{ strings.previous }}
                     </button>
                     <button v-if="step < 5" type="button" class="pc-btn pc-btn--primary" @click="nextStep">
                         {{ strings.next }}
-                        <UiIcon name="arrowRight" :size="15" />
+                        <UiIcon name="arrowForward" :size="15" />
                     </button>
                     <button v-else type="button" class="pc-btn pc-btn--primary" :disabled="form.processing" @click="save">
                         <UiIcon name="check" :size="15" />

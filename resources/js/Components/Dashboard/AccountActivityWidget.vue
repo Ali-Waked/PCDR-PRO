@@ -96,11 +96,11 @@ function formatDate(value) {
             <div class="pc-account-activity__links" style="display: flex; flex-wrap: wrap; gap: 14px; margin-block-start: 16px">
                 <Link :href="profileUrl" class="pc-overview-view" :style="textStyle">
                     <span>{{ t('admin_dashboard.account_activity_manage') }}</span>
-                    <UiIcon name="arrowRight" :size="14" />
+                    <UiIcon name="arrowForward" :size="14" />
                 </Link>
                 <Link :href="securityUrl" class="pc-overview-view" :style="textStyle">
                     <span>{{ t('admin_dashboard.account_activity_security_settings') }}</span>
-                    <UiIcon name="arrowRight" :size="14" />
+                    <UiIcon name="arrowForward" :size="14" />
                 </Link>
             </div>
 

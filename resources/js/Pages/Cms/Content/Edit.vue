@@ -326,7 +326,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
         <div class="pc-stack pc-content-editor pcdr-enter">
             <div class="pc-toolbar pc-content-editor__toolbar">
                 <button type="button" class="pc-btn pc-btn--secondary pc-btn--sm" @click="backToIndex">
-                    <UiIcon name="arrowRight" :size="15" />
+                    <UiIcon name="arrowForward" :size="15" />
                     {{ t('ui.back_to_list') }}
                 </button>
                 <CmsStatusBadge v-if="record" :status="record.status" />

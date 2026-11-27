@@ -1,14 +1,15 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from '../../composables/useI18n'
 
 const emit = defineEmits(['finish'])
 
 const { t } = useI18n()
+const authReady = inject('pcdr-auth-ready', ref(true))
 
 const STORAGE_KEY = 'pcdr.auth.intro.v1'
 const LEAVE_AT = 2450
-const FINISH_AT = 3000
+const MIN_VISIBLE_MS = 3000
 
 /* Keep replay suppression within one SPA runtime even if Inertia remounts Login. */
 let introStarted = false
@@ -19,6 +20,7 @@ const leaving = ref(false)
 let timers = []
 let mainElement = null
 let finished = false
+let startedAt = 0
 
 const organizationName = computed(() => t('site.name', 'PCDR'))
 const tagline = computed(() => t('site.slogan', ''))
@@ -56,8 +58,29 @@ function clearTimers() {
     timers = []
 }
 
-function finish() {
+function scheduleTimers() {
+    clearTimers()
+
+    const elapsed = Date.now() - startedAt
+    if (!leaving.value) {
+        timers.push(window.setTimeout(() => { leaving.value = true }, Math.max(0, LEAVE_AT - elapsed)))
+    }
+
+    if (!authReady.value) {
+        return
+    }
+
+    timers.push(window.setTimeout(finish, Math.max(0, MIN_VISIBLE_MS - elapsed)))
+}
+
+function finish(force = false) {
     if (finished) {
+        return
+    }
+
+    if (!force && !authReady.value) {
+        scheduleTimers()
+
         return
     }
 
@@ -67,6 +90,12 @@ function finish() {
     restoreMain()
     emit('finish')
 }
+
+watch(authReady, (ready) => {
+    if (ready && visible.value && !finished) {
+        scheduleTimers()
+    }
+})
 
 /* Decide before the first paint so the login form never flashes above the intro. */
 if (typeof window !== 'undefined') {
@@ -80,7 +109,7 @@ onMounted(() => {
     }
 
     if (!visible.value) {
-        finish()
+        finish(true)
 
         return
     }
@@ -88,8 +117,8 @@ onMounted(() => {
     mainElement = document.getElementById('pc-auth-main')
     mainElement?.setAttribute('inert', '')
 
-    timers.push(window.setTimeout(() => { leaving.value = true }, LEAVE_AT))
-    timers.push(window.setTimeout(finish, FINISH_AT))
+    startedAt = Date.now()
+    scheduleTimers()
 })
 
 onBeforeUnmount(() => {

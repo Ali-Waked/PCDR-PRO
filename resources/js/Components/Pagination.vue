@@ -35,7 +35,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:perPage'])
 
-const { t, page, locale, direction, isRtl } = useI18n()
+const { t, page, locale, direction } = useI18n()
 
 const currentUrl = computed(() => {
     if (page.url) {
@@ -190,11 +190,11 @@ function onPerPageChange(value) {
                     :replace="replace"
                     :aria-label="previousLabel"
                 >
-                    <UiIcon :name="isRtl ? 'chevronRight' : 'chevronLeft'" :size="15" />
+                    <UiIcon name="chevronBack" :size="15" />
                     <span class="pc-pagination__nav-label">{{ previousLabel }}</span>
                 </Link>
                 <span v-else class="pc-page-link pc-page-link--nav is-disabled" aria-disabled="true">
-                    <UiIcon :name="isRtl ? 'chevronRight' : 'chevronLeft'" :size="15" />
+                    <UiIcon name="chevronBack" :size="15" />
                     <span class="pc-pagination__nav-label">{{ previousLabel }}</span>
                 </span>
 
@@ -234,11 +234,11 @@ function onPerPageChange(value) {
                     :aria-label="nextLabel"
                 >
                     <span class="pc-pagination__nav-label">{{ nextLabel }}</span>
-                    <UiIcon :name="isRtl ? 'chevronLeft' : 'chevronRight'" :size="15" />
+                    <UiIcon name="chevronForward" :size="15" />
                 </Link>
                 <span v-else class="pc-page-link pc-page-link--nav is-disabled" aria-disabled="true">
                     <span class="pc-pagination__nav-label">{{ nextLabel }}</span>
-                    <UiIcon :name="isRtl ? 'chevronLeft' : 'chevronRight'" :size="15" />
+                    <UiIcon name="chevronForward" :size="15" />
                 </span>
             </nav>
         </div>

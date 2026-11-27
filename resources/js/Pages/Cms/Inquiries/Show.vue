@@ -205,7 +205,7 @@ function formatFileSize(bytes) {
         <div class="pc-stack pcdr-enter">
             <div class="pc-page-actions">
                 <Link :href="inquiryPath" class="pc-btn pc-btn--secondary">
-                    <UiIcon name="arrowRight" :size="16" />
+                    <UiIcon name="arrowForward" :size="16" />
                     {{ t('back') }}
                 </Link>
                 <CmsStatusBadge :status="inquiry.status" :label="statusLabel(inquiry.status)" />

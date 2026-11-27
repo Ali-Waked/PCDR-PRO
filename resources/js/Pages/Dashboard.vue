@@ -182,7 +182,7 @@ const websiteChecks = computed(() => {
                         <h3 class="pc-overview-content__title">{{ labelFor('content', row.key) }}</h3>
                         <Link :href="localePath(row.href)" class="pc-overview-view">
                             <span>{{ t('admin_dashboard.view_item') }}</span>
-                            <UiIcon name="arrowRight" :size="14" />
+                            <UiIcon name="arrowForward" :size="14" />
                         </Link>
                     </div>
                     <dl class="pc-overview-metrics">
@@ -219,7 +219,7 @@ const websiteChecks = computed(() => {
                             <span class="pc-overview-pending__label">{{ labelFor('pending', item.key) }}</span>
                             <span class="pc-overview-pending__value">{{ formatNumber(item.value) }}</span>
                         </span>
-                        <UiIcon name="arrowRight" :size="16" />
+                        <UiIcon name="arrowForward" :size="16" />
                     </Link>
                 </div>
             </section>
@@ -279,7 +279,7 @@ const websiteChecks = computed(() => {
                             <span class="pc-metric__icon"><UiIcon :name="quickIcons[item.key] || 'file'" :size="17" /></span>
                             <span class="pc-list__title">{{ item.label }}</span>
                         </span>
-                        <UiIcon name="arrowRight" :size="16" />
+                        <UiIcon name="arrowForward" :size="16" />
                     </Link>
                 </div>
                 <div v-else class="pc-card__body">

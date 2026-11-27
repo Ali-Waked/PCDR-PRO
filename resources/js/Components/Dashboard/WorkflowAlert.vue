@@ -57,7 +57,7 @@ function dismiss() {
                         <span>{{ feedback.currentLabel || t('ui.cms_pillars_page.alert.current_status') }}</span>
                         <b>{{ current.label }}</b>
                     </div>
-                    <UiIcon class="pc-workflow-alert__arrow" name="arrowRight" :size="15" />
+                    <UiIcon class="pc-workflow-alert__arrow" name="arrowForward" :size="15" />
                     <div v-if="requested" class="pc-workflow-alert__state">
                         <span>{{ feedback.requestedLabel || t('ui.cms_pillars_page.alert.requested_status') }}</span>
                         <b>{{ requested.label }}</b>

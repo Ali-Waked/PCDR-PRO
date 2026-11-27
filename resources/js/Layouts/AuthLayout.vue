@@ -1,11 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, provide, ref } from 'vue'
 import { useI18n } from '../composables/useI18n'
 import AdminToastProvider from '../Components/Dashboard/AdminToastProvider.vue'
 import LanguageSwitcher from '../Components/LanguageSwitcher.vue'
 
 const { t, direction } = useI18n()
 const isReady = ref(false)
+provide('pcdr-auth-ready', isReady)
 
 onMounted(() => {
     isReady.value = true

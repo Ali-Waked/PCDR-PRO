@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import UiIcon from '../../Components/Dashboard/UiIcon.vue'
 import RichTextEditor from '../../Components/Cms/RichTextEditor.vue'
 import SelectionControl from '../../Components/Selection/SelectionControl.vue'
 import StatusSelect from '../../Components/Selection/StatusSelect.vue'
@@ -207,7 +208,7 @@ function errorText(error) {
                             {{ t('ui.cancel', humanize('cancel')) }}
                         </Link>
                         <Link :href="indexUrl" class="pc-btn pc-btn--ghost">
-                            ← {{ t('ui.back_to_list') }}
+                            <UiIcon name="arrowBack" :size="15" /> {{ t('ui.back_to_list') }}
                         </Link>
                     </div>
                 </section>

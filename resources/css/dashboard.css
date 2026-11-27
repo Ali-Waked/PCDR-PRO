@@ -2659,14 +2659,15 @@ html[lang='ar'] .pc-auth__heading h1 {
    The overlay is teleported to <body>, so it defines its own tokens from the
    canonical :root palette instead of inheriting themed .pc-auth aliases. */
 .auth-intro {
-    --intro-canvas: var(--pcdr-white);
-    --intro-canvas-warm: var(--pcdr-sand-100);
-    --intro-canvas-edge: color-mix(in srgb, var(--pcdr-wheat) 42%, var(--pcdr-white));
-    --intro-navy: var(--pcdr-navy-700);
-    --intro-teal-wash: color-mix(in srgb, var(--pcdr-teal) 12%, transparent);
-    --intro-navy-line: color-mix(in srgb, var(--pcdr-navy-700) 10%, transparent);
-    --intro-wheat-line: color-mix(in srgb, var(--pcdr-wheat) 55%, transparent);
-    --intro-ink-soft: color-mix(in srgb, var(--pcdr-navy-700) 76%, transparent);
+    --intro-canvas: var(--pcdr-navy-900);
+    --intro-canvas-warm: var(--pcdr-navy-800);
+    --intro-canvas-edge: var(--pcdr-navy-700);
+    --intro-navy: var(--on-dark);
+    --intro-teal-wash: color-mix(in srgb, var(--pcdr-teal) 22%, transparent);
+    --intro-navy-line: color-mix(in srgb, var(--pcdr-white) 16%, transparent);
+    --intro-wheat-line: color-mix(in srgb, var(--pcdr-wheat) 62%, transparent);
+    --intro-ink-soft: var(--on-dark-muted);
+    --intro-logo-surface: var(--pcdr-white);
 
     position: fixed;
     inset: 0;
@@ -2687,7 +2688,7 @@ html[lang='ar'] .pc-auth__heading h1 {
     aspect-ratio: 1;
     border-radius: 50%;
     border: 1px solid var(--intro-wheat-line);
-    box-shadow: 0 0 0 52px color-mix(in srgb, var(--pcdr-navy-700) 3%, transparent);
+    box-shadow: 0 0 0 52px color-mix(in srgb, var(--pcdr-white) 10%, transparent);
     animation: auth-intro-halo 1800ms var(--motion-ease-decelerate) 300ms both;
 }
 
@@ -2700,8 +2701,13 @@ html[lang='ar'] .pc-auth__heading h1 {
 }
 
 .auth-intro__glyph {
+    box-sizing: border-box;
     inline-size: clamp(200px, 30vmin, 300px);
     block-size: clamp(200px, 30vmin, 300px);
+    padding: 10px;
+    border-radius: 50%;
+    background: var(--intro-logo-surface);
+    box-shadow: 0 24px 60px rgba(24, 34, 50, 0.28), 0 0 0 1px var(--intro-wheat-line);
     animation: auth-intro-logo 900ms var(--motion-ease-decelerate) 180ms both;
 }
 

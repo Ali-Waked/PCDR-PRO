@@ -22,7 +22,7 @@ const { t, localPath } = useI18n()
         <div class="pc-stack pcdr-enter">
             <div class="pc-page-actions">
                 <Link :href="localPath(`cms/${props.resource}`)" class="pc-btn pc-btn--secondary">
-                    <UiIcon name="arrowRight" :size="16" />
+                    <UiIcon name="arrowForward" :size="16" />
                     {{ t('back') }}
                 </Link>
             </div>

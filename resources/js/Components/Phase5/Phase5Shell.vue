@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import UiIcon from '../Dashboard/UiIcon.vue'
 import { useI18n } from '../../composables/useI18n'
 import { label } from './phase5'
 
@@ -22,7 +23,7 @@ const backText = () => props.backLabel || label('back', locale.value) || t('phas
     <AppLayout :title="title" :subtitle="subtitle" :eyebrow="eyebrow">
         <template #actions>
             <Link v-if="back" :href="back" class="pc-btn pc-btn--ghost pc-btn--sm">
-                <span aria-hidden="true">←</span> {{ backText() }}
+                <UiIcon name="arrowBack" :size="16" /> {{ backText() }}
             </Link>
             <slot name="actions" />
         </template>

@@ -60,7 +60,7 @@ const targets = computed(() => content.items('impact', 'target-').map((item, ind
                     class="stat"
                     :href="stat.url || undefined"
                 >
-                    <h3 v-if="stat.title">{{ stat.title }} <span class="arr"><svg aria-hidden="true"><use href="#i-arrow" /></svg></span></h3>
+                    <h3 v-if="stat.title">{{ stat.title }} <span class="arr"><svg class="directional-flip" aria-hidden="true"><use href="#i-arrow" /></svg></span></h3>
                     <p v-if="stat.body">{{ stat.body }}</p>
                     <div class="num"><b>{{ stat.display }}</b><span v-if="stat.unit">{{ stat.unit }}</span></div>
                 </component>
