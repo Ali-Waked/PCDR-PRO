@@ -1,50 +1,49 @@
 <script setup>
-import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from '../../composables/useI18n'
+import {
+    ANIMATED_LOGO_SRC,
+    AUTH_INTRO_READY_FALLBACK_MS,
+    STATIC_LOGO_SRC,
+    createAuthIntroGate,
+} from '../../Support/authIntro'
 
 const emit = defineEmits(['finish'])
 
 const { t } = useI18n()
-const authReady = inject('pcdr-auth-ready', ref(true))
-
-const STORAGE_KEY = 'pcdr.auth.intro.v1'
-const LEAVE_AT = 2450
-const MIN_VISIBLE_MS = 3000
-
-/* Keep replay suppression within one SPA runtime even if Inertia remounts Login. */
-let introStarted = false
-
-const visible = ref(false)
-const leaving = ref(false)
-
-let timers = []
-let mainElement = null
-let finished = false
-let startedAt = 0
+const authSurface = inject('pcdr-auth-ready', null)
 
 const organizationName = computed(() => t('site.name', 'PCDR'))
 const tagline = computed(() => t('site.slogan', ''))
 
-function prefersReducedMotion() {
-    return typeof window !== 'undefined'
-        && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
-}
+const reducedMotion = typeof window !== 'undefined'
+    && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
 
-function markPlayed() {
-    try {
-        sessionStorage.setItem(STORAGE_KEY, '1')
-    } catch {
-        // Storage can be unavailable in private browsing; the SPA flag still prevents replay.
-    }
-}
+const visible = ref(!reducedMotion)
+const leaving = ref(false)
+const logoSrc = ref(ANIMATED_LOGO_SRC)
 
-function hasPlayed() {
-    try {
-        return sessionStorage.getItem(STORAGE_KEY) === '1'
-    } catch {
-        return false
-    }
-}
+let finished = false
+let mainElement = null
+let frameIds = []
+let visibilityListener = null
+let readyFallbackTimer = null
+
+const gate = createAuthIntroGate({
+    onLeave() {
+        leaving.value = true
+    },
+    onFinish() {
+        if (finished) {
+            return
+        }
+
+        finished = true
+        visible.value = false
+        restoreMain()
+        emit('finish')
+    },
+})
 
 function restoreMain() {
     if (mainElement) {
@@ -53,54 +52,62 @@ function restoreMain() {
     }
 }
 
-function clearTimers() {
-    timers.forEach((timer) => window.clearTimeout(timer))
-    timers = []
+function cancelFrames() {
+    frameIds.forEach((id) => window.cancelAnimationFrame(id))
+    frameIds = []
 }
 
-function scheduleTimers() {
-    clearTimers()
-
-    const elapsed = Date.now() - startedAt
-    if (!leaving.value) {
-        timers.push(window.setTimeout(() => { leaving.value = true }, Math.max(0, LEAVE_AT - elapsed)))
+function clearVisibilityListener() {
+    if (visibilityListener) {
+        document.removeEventListener('visibilitychange', visibilityListener)
+        visibilityListener = null
     }
+}
 
-    if (!authReady.value) {
+function clearReadyFallback() {
+    if (readyFallbackTimer !== null) {
+        window.clearTimeout(readyFallbackTimer)
+        readyFallbackTimer = null
+    }
+}
+
+function markShown() {
+    clearVisibilityListener()
+    gate.markShown()
+}
+
+function waitForVisibleFrame() {
+    if (typeof window === 'undefined') {
         return
     }
 
-    timers.push(window.setTimeout(finish, Math.max(0, MIN_VISIBLE_MS - elapsed)))
-}
-
-function finish(force = false) {
-    if (finished) {
-        return
-    }
-
-    if (!force && !authReady.value) {
-        scheduleTimers()
+    const requestFrame = window.requestAnimationFrame
+    if (typeof requestFrame !== 'function') {
+        markShown()
 
         return
     }
 
-    finished = true
-    visible.value = false
-    markPlayed()
-    restoreMain()
-    emit('finish')
+    frameIds.push(requestFrame.call(window, () => {
+        frameIds.push(requestFrame.call(window, () => {
+            if (document.visibilityState === 'hidden') {
+                visibilityListener = () => {
+                    if (document.visibilityState === 'visible') {
+                        markShown()
+                    }
+                }
+                document.addEventListener('visibilitychange', visibilityListener)
+
+                return
+            }
+
+            markShown()
+        }))
+    }))
 }
 
-watch(authReady, (ready) => {
-    if (ready && visible.value && !finished) {
-        scheduleTimers()
-    }
-})
-
-/* Decide before the first paint so the login form never flashes above the intro. */
-if (typeof window !== 'undefined') {
-    introStarted = true
-    visible.value = !hasPlayed() && !prefersReducedMotion()
+function useStaticLogo() {
+    logoSrc.value = STATIC_LOGO_SRC
 }
 
 onMounted(() => {
@@ -108,8 +115,11 @@ onMounted(() => {
         return
     }
 
-    if (!visible.value) {
-        finish(true)
+    /* The Vue overlay replaces the server-rendered boot intro in the same commit. */
+    document.getElementById('pcdr-boot-intro')?.remove()
+
+    if (reducedMotion) {
+        gate.finish()
 
         return
     }
@@ -117,12 +127,36 @@ onMounted(() => {
     mainElement = document.getElementById('pc-auth-main')
     mainElement?.setAttribute('inert', '')
 
-    startedAt = Date.now()
-    scheduleTimers()
+    const ready = authSurface?.readyPromise ?? Promise.resolve()
+    Promise.resolve(ready).then(
+        () => {
+            clearReadyFallback()
+            gate.markReady()
+        },
+        () => {
+            clearReadyFallback()
+            gate.markReady()
+        },
+    )
+
+    /* Fail-safe only: the layout normally resolves readiness well before this. */
+    readyFallbackTimer = window.setTimeout(() => {
+        readyFallbackTimer = null
+        gate.markReady()
+    }, AUTH_INTRO_READY_FALLBACK_MS + 1000)
+
+    waitForVisibleFrame()
 })
 
 onBeforeUnmount(() => {
-    clearTimers()
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    cancelFrames()
+    clearVisibilityListener()
+    clearReadyFallback()
+    gate.destroy()
 
     if (!finished) {
         restoreMain()
@@ -133,16 +167,24 @@ onBeforeUnmount(() => {
 <template>
     <!-- Teleport keeps the fixed overlay outside transformed auth ancestors. -->
     <Teleport to="body">
-        <div v-if="visible" class="auth-intro" :class="{ 'is-leaving': leaving }" data-auth-intro aria-hidden="true">
+        <div
+            v-if="visible"
+            class="auth-intro"
+            :class="{ 'is-leaving': leaving }"
+            :data-intro-state="leaving ? 'leaving' : 'visible'"
+            data-auth-intro
+            aria-hidden="true"
+        >
             <span class="auth-intro__halo" aria-hidden="true"></span>
             <div class="auth-intro__center">
                 <div class="auth-intro__glyph">
                     <img
-                        src="/assets/pcdr-homepage/logo/pcdr-logo-animated.svg"
+                        :src="logoSrc"
                         alt=""
                         width="280"
                         height="280"
                         fetchpriority="high"
+                        @error="useStaticLogo"
                     >
                 </div>
                 <p class="auth-intro__identity">

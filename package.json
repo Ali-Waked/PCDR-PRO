@@ -9,7 +9,8 @@
         "email-assets": "python3 scripts/make-email-logo.py",
         "test:e2e": "playwright test --config=tests/e2e/playwright.config.mjs",
         "test:a11y": "playwright test --config=tests/e2e/playwright.config.mjs --grep 'axe|Lighthouse'",
-        "test:selection": "node --test tests/selection-system.test.mjs"
+        "test:selection": "node --test tests/selection-system.test.mjs",
+        "test:auth-intro": "node --test tests/auth-intro.test.mjs"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.14.0",

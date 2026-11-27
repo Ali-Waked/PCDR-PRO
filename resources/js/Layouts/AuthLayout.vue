@@ -1,15 +1,38 @@
 <script setup>
-import { onMounted, provide, ref } from 'vue'
+import { onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { useI18n } from '../composables/useI18n'
+import { waitForAuthSurfaceReady } from '../Support/authIntro'
 import AdminToastProvider from '../Components/Dashboard/AdminToastProvider.vue'
 import LanguageSwitcher from '../Components/LanguageSwitcher.vue'
 
 const { t, direction } = useI18n()
 const isReady = ref(false)
-provide('pcdr-auth-ready', isReady)
+
+let resolveReady = () => {}
+const readyPromise = new Promise((resolve) => {
+    resolveReady = resolve
+})
+provide('pcdr-auth-ready', { isReady, readyPromise })
+
+let readinessController = null
 
 onMounted(() => {
-    isReady.value = true
+    const controller = new AbortController()
+    readinessController = controller
+
+    waitForAuthSurfaceReady({ signal: controller.signal }).then((result) => {
+        if (controller.signal.aborted) {
+            return
+        }
+
+        isReady.value = true
+        resolveReady(result)
+    })
+})
+
+onBeforeUnmount(() => {
+    readinessController?.abort()
+    readinessController = null
 })
 </script>
 

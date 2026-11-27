@@ -48,6 +48,22 @@ final class LoginExperienceTest extends TestCase
                 ->where('flash.success', __('passwords.sent')));
     }
 
+    public function test_login_page_renders_the_navy_boot_intro_before_vue_mounts(): void
+    {
+        $login = $this->get('/en/login');
+
+        $login->assertOk()
+            ->assertSee('id="pcdr-boot-intro"', false)
+            ->assertSee('data-pcdr-boot-intro', false)
+            ->assertSee('background:#3E5172', false)
+            ->assertSee('href="/assets/pcdr-homepage/logo/pcdr-logo-animated.svg"', false)
+            ->assertSee('media="print" onload="this.media=\'all\'"', false);
+
+        $this->get('/en/forgot-password')
+            ->assertOk()
+            ->assertDontSee('id="pcdr-boot-intro"', false);
+    }
+
     public function test_login_intro_reuses_the_exact_official_logo_assets(): void
     {
         $staticLogo = public_path('assets/pcdr-homepage/logo/pcdr-logo.png');
@@ -67,18 +83,23 @@ final class LoginExperienceTest extends TestCase
         $loginSource = file_get_contents(resource_path('js/Pages/Auth/Login.vue'));
         $introSource = file_get_contents(resource_path('js/Components/Auth/BrandIntro.vue'));
         $layoutSource = file_get_contents(resource_path('js/Layouts/AuthLayout.vue'));
+        $supportSource = file_get_contents(resource_path('js/Support/authIntro.js'));
 
         $this->assertStringContainsString('BrandIntro.vue', $loginSource);
-        $this->assertStringContainsString('pcdr-logo-animated.svg', $introSource);
-        $this->assertStringContainsString('pcdr-logo.png', $layoutSource);
-        $this->assertStringContainsString("provide('pcdr-auth-ready', isReady)", $layoutSource);
-        $this->assertStringContainsString("inject('pcdr-auth-ready', ref(true))", $introSource);
+        $this->assertStringContainsString('ANIMATED_LOGO_SRC', $introSource);
+        $this->assertStringContainsString('STATIC_LOGO_SRC', $introSource);
+        $this->assertStringContainsString("provide('pcdr-auth-ready', { isReady, readyPromise })", $layoutSource);
+        $this->assertStringContainsString("inject('pcdr-auth-ready', null)", $introSource);
+        $this->assertStringContainsString('pcdr-logo-animated.svg', $supportSource);
+        $this->assertStringContainsString('pcdr-logo.png', $supportSource);
     }
 
-    public function test_login_intro_owns_its_tokens_and_finishes_before_marking_the_session(): void
+    public function test_login_intro_uses_the_official_navy_canvas_and_gated_fade(): void
     {
         $intro = (string) file_get_contents(resource_path('js/Components/Auth/BrandIntro.vue'));
+        $gate = (string) file_get_contents(resource_path('js/Support/authIntro.js'));
         $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $tokens = (string) file_get_contents(resource_path('css/tokens.css'));
         $matches = [];
         $matched = preg_match('/\.auth-intro\s*\{(.*?)\n\}/s', $css, $matches);
         $introBlock = $matches[1] ?? '';
@@ -90,17 +111,20 @@ final class LoginExperienceTest extends TestCase
             $this->assertStringContainsString($token, $introBlock);
         }
 
-        $this->assertStringContainsString('--intro-canvas: var(--pcdr-navy-900)', $introBlock);
+        $this->assertStringContainsString('--intro-canvas: var(--pcdr-navy-700)', $introBlock);
+        $this->assertStringContainsString('background-color: var(--intro-canvas);', $introBlock);
         $this->assertStringContainsString('--intro-logo-surface: var(--pcdr-white)', $introBlock);
-        $this->assertStringNotContainsString('--intro-canvas: var(--pcdr-white)', $introBlock);
+        $this->assertStringContainsString('--pcdr-navy-700: #3e5172;', $tokens);
+        $this->assertStringNotContainsString('--intro-canvas-warm', $css);
 
-        $this->assertStringContainsString('let introStarted = false', $intro);
-        $this->assertStringContainsString('const MIN_VISIBLE_MS = 3000', $intro);
-        $this->assertStringContainsString('visible.value = !hasPlayed() && !prefersReducedMotion()', $intro);
-        $this->assertStringContainsString('startedAt = Date.now()', $intro);
-        $this->assertStringContainsString('if (!force && !authReady.value)', $intro);
-        $this->assertStringContainsString('watch(authReady,', $intro);
-        $this->assertStringContainsString("    finished = true\n    visible.value = false\n    markPlayed()\n    restoreMain()", $intro);
+        $this->assertStringContainsString('AUTH_INTRO_MIN_VISIBLE_MS = 3000', $gate);
+        $this->assertStringContainsString('AUTH_INTRO_LEAVE_MS = 550', $gate);
+        $this->assertStringContainsString('if (!painted || !fontsSettled || !logoSettled)', $gate);
+        $this->assertStringContainsString("doc.querySelector('#pc-auth-main form')", $gate);
+        $this->assertStringContainsString('createAuthIntroGate({', $intro);
+        $this->assertStringContainsString("leaving ? 'leaving' : 'visible'", $intro);
+        $this->assertStringNotContainsString('sessionStorage', $intro);
+        $this->assertStringNotContainsString('LEAVE_AT', $intro);
         $this->assertStringContainsString('(prefers-reduced-motion: reduce)', $intro);
         $this->assertStringContainsString('<span v-if="tagline">{{ tagline }}</span>', $intro);
         $this->assertStringContainsString('.auth-intro,', $css);

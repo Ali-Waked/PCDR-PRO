@@ -2659,9 +2659,7 @@ html[lang='ar'] .pc-auth__heading h1 {
    The overlay is teleported to <body>, so it defines its own tokens from the
    canonical :root palette instead of inheriting themed .pc-auth aliases. */
 .auth-intro {
-    --intro-canvas: var(--pcdr-navy-900);
-    --intro-canvas-warm: var(--pcdr-navy-800);
-    --intro-canvas-edge: var(--pcdr-navy-700);
+    --intro-canvas: var(--pcdr-navy-700);
     --intro-navy: var(--on-dark);
     --intro-teal-wash: color-mix(in srgb, var(--pcdr-teal) 22%, transparent);
     --intro-navy-line: color-mix(in srgb, var(--pcdr-white) 16%, transparent);
@@ -2675,9 +2673,8 @@ html[lang='ar'] .pc-auth__heading h1 {
     display: grid;
     place-items: center;
     overflow: hidden;
-    background:
-        radial-gradient(circle at 50% 38%, var(--intro-teal-wash), transparent 44%),
-        linear-gradient(160deg, var(--intro-canvas) 0%, var(--intro-canvas-warm) 56%, var(--intro-canvas-edge) 100%);
+    background-color: var(--intro-canvas);
+    background-image: radial-gradient(circle at 50% 38%, var(--intro-teal-wash), transparent 44%);
     box-shadow: inset 0 0 0 1px var(--intro-navy-line);
     animation: auth-intro-bg 320ms var(--motion-ease-decelerate) both;
 }

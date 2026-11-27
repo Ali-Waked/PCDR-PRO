@@ -47,6 +47,8 @@
 @endphp
 @php
     $iconV = trim((string) @file_get_contents(public_path('icons-version.txt'))) ?: '1';
+    $bootLoginIntro = request()->routeIs('login.show');
+    $fontStylesheet = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap';
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ \App\Support\Locale::direction(app()->getLocale()) }}" data-locale="{{ app()->getLocale() }}">
@@ -62,10 +64,19 @@
         <link rel="manifest" href="/site.webmanifest?v={{ $iconV }}">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link
-            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        >
+        <link rel="preload" as="style" href="{{ $fontStylesheet }}">
+        <link rel="stylesheet" href="{{ $fontStylesheet }}" media="print" onload="this.media='all'">
+        <noscript><link rel="stylesheet" href="{{ $fontStylesheet }}"></noscript>
+        @if ($bootLoginIntro)
+            <link rel="preload" as="image" href="/assets/pcdr-homepage/logo/pcdr-logo-animated.svg" fetchpriority="high">
+            <style>
+                .pcdr-boot-intro{position:fixed;inset:0;z-index:1599;display:grid;place-items:center;background:#3E5172;overflow:hidden}
+                .pcdr-boot-intro__disc{box-sizing:border-box;display:grid;place-items:center;inline-size:clamp(156px,30vmin,300px);block-size:clamp(156px,30vmin,300px);padding:10px;border-radius:50%;background:#fff;box-shadow:0 24px 60px rgba(24,34,50,.28),0 0 0 1px rgba(218,195,163,.62)}
+                .pcdr-boot-intro__mark{inline-size:100%;block-size:100%;background-image:url('/assets/pcdr-homepage/logo/pcdr-logo-animated.svg'),url('/assets/pcdr-homepage/logo/pcdr-logo.png');background-position:center;background-repeat:no-repeat;background-size:contain;animation:pcdr-boot-mark 900ms cubic-bezier(.16,1,.3,1) 180ms both}
+                @keyframes pcdr-boot-mark{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:scale(1)}}
+                @media(prefers-reduced-motion:reduce){.pcdr-boot-intro__mark{animation:none}}
+            </style>
+        @endif
         <title inertia>{{ $seoTitle }}</title>
         <meta name="description" inertia content="{{ $seoDescription }}">
         <link rel="canonical" inertia href="{{ $canonicalUrl }}">
@@ -93,6 +104,13 @@
         @inertiaHead
     </head>
     <body class="min-h-screen bg-surface text-ink antialiased">
+        @if ($bootLoginIntro)
+            <div id="pcdr-boot-intro" class="pcdr-boot-intro" data-pcdr-boot-intro aria-hidden="true">
+                <span class="pcdr-boot-intro__disc">
+                    <span class="pcdr-boot-intro__mark"></span>
+                </span>
+            </div>
+        @endif
         @inertia
         <x-devtools />
     </body>
