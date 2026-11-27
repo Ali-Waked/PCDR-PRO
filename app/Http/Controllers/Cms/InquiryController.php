@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Cms;
 
+use App\Enums\ComplaintStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Complaint;
+use App\Models\ComplaintAttachment;
+use App\Models\ComplaintNote;
+use App\Models\ComplaintStatusHistory;
 use App\Models\ContactMessage;
 use App\Models\EmailDeliveryLog;
 use App\Models\EmailTemplate;
@@ -14,13 +19,16 @@ use App\Models\User;
 use App\Models\VolunteerInquiry;
 use App\Services\AuditService;
 use App\Services\CmsAccess;
+use App\Services\ComplaintService;
 use App\Services\InquiryMailService;
 use App\Services\TemplateRenderer;
+use BackedEnum;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,6 +40,7 @@ final class InquiryController extends Controller
         private AuditService $audit,
         private InquiryMailService $mail,
         private TemplateRenderer $renderer,
+        private ComplaintService $complaints,
     ) {}
 
     private function authorize(string $permission): void
@@ -54,9 +63,14 @@ final class InquiryController extends Controller
         $search = mb_strcut(trim($request->string('search')->toString()), 0, 120);
         $assigned = $request->string('assigned')->toString();
         $restrictToAssigned = ! $this->has('inquiries.view_all') && $this->has('inquiries.view_assigned');
+        $statuses = $this->statuses();
+        $complaintStatuses = $this->complaintStatuses();
+        $canViewComplaints = $this->canViewComplaints();
 
         /** @var array<string, int> $counts */
-        $counts = array_fill_keys(array_merge(['total', 'unassigned'], $this->statuses()), 0);
+        $counts = array_fill_keys(array_merge(['total', 'unassigned'], $statuses, $complaintStatuses), 0);
+        /** @var array<string, int> $complaintCounts */
+        $complaintCounts = array_fill_keys(array_merge(['total', 'unassigned'], $complaintStatuses), 0);
         $lists = [];
         $pagination = [];
 
@@ -96,6 +110,45 @@ final class InquiryController extends Controller
             $pagination[$type] = $this->pagination($paginator);
         }
 
+        if ($canViewComplaints) {
+            $complaintQuery = Complaint::query();
+
+            if (! $this->has('complaints.view_all') && $this->has('complaints.view_assigned')) {
+                $complaintQuery->where('assigned_to', auth()->id());
+            }
+
+            $complaintCounts = $this->accumulateCounts($complaintCounts, $complaintQuery);
+            $counts = $this->accumulateCounts($counts, $complaintQuery);
+            $query = clone $complaintQuery;
+
+            if ($status !== '') {
+                $query->whereIn('status', $this->statusValuesFor($status));
+            }
+
+            if ($search !== '') {
+                $query->where(function ($query) use ($search): void {
+                    foreach (['reference', 'subject', 'description', 'category', 'complainant_name'] as $column) {
+                        $query->orWhere($column, 'like', '%'.$search.'%');
+                    }
+                });
+            }
+
+            if ($assigned === 'mine') {
+                $query->where('assigned_to', auth()->id());
+            } elseif ($assigned === 'unassigned') {
+                $query->whereNull('assigned_to');
+            }
+
+            $paginator = $query->with('assignee:id,name')->latest()
+                ->paginate(20, ['*'], 'complaintPage')
+                ->withQueryString();
+            $lists['complaints'] = $paginator->map(fn (Complaint $record) => $this->summary('complaint', $record))->all();
+            $pagination['complaints'] = $this->pagination($paginator);
+        } else {
+            $lists['complaints'] = [];
+            $pagination['complaints'] = $this->emptyPagination('complaintPage');
+        }
+
         return Inertia::render('Cms/Inquiries/Index', [
             'inquiries' => $lists,
             'pagination' => $pagination,
@@ -104,16 +157,25 @@ final class InquiryController extends Controller
                 'search' => $search,
                 'assigned' => $assigned,
             ],
-            'statuses' => $this->statuses(),
+            'statuses' => $statuses,
             'canonicalStatuses' => (array) config('cms.inquiry_statuses', ['new', 'in_progress', 'resolved', 'closed']),
-            'counts' => $counts,
-            'can' => [
+            'complaintStatuses' => $complaintStatuses,
+            'complaintPriorities' => (array) config('complaints.priorities', []),
+            'complaintCategories' => $this->complaintCategories($locale),
+            'statusesByType' => [
+                'contact' => $statuses,
+                'volunteer' => $statuses,
+                'complaint' => $complaintStatuses,
+            ],
+            'complaintCounts' => $complaintCounts,
+            'counts' => array_merge($counts, ['complaints' => $complaintCounts]),
+            'can' => array_merge([
                 'viewAll' => $this->has('inquiries.view_all'),
                 'update' => $this->has('inquiries.update'),
                 'assign' => $this->has('inquiries.assign'),
                 'reply' => $this->has('inquiries.reply'),
                 'note' => $this->has('inquiries.add_internal_note'),
-            ],
+            ], $this->complaintPermissions()),
         ]);
     }
 
@@ -123,14 +185,71 @@ final class InquiryController extends Controller
         $record = $this->find($type, $inquiry);
         $this->ensureVisible($record);
 
-        $notes = InquiryNote::query()->where('inquiry_type', $type)->where('inquiry_id', $inquiry)
-            ->with('author:id,name')->latest()->get()
-            ->map(fn (InquiryNote $note) => [
-                'id' => $note->id,
-                'body' => $note->body,
-                'author' => $note->author?->name,
-                'createdAt' => $note->created_at?->toISOString(),
-            ])->all();
+        $isComplaint = $type === 'complaint' && $record instanceof Complaint;
+        $users = $this->users();
+        $contact = null;
+        $history = [];
+        $attachments = [];
+        $allowedTransitions = [];
+        $urls = [];
+
+        if ($isComplaint) {
+            /** @var Complaint $complaint */
+            $complaint = $record;
+            $allowedTransitions = $this->complaints->allowedTransitions($complaint);
+            $contact = $this->has('complaints.view_contact') ? $this->complaintContact($complaint) : null;
+
+            $history = ComplaintStatusHistory::query()->where('complaint_id', $complaint->id)
+                ->with('changedBy:id,name')->oldest()->get()
+                ->map(fn (ComplaintStatusHistory $entry) => [
+                    'id' => $entry->id,
+                    'fromStatus' => $entry->from_status,
+                    'toStatus' => $entry->to_status,
+                    'changedByName' => $entry->changedBy?->name,
+                    'note' => $entry->note,
+                    'createdAt' => $entry->created_at?->toISOString(),
+                ])->all();
+
+            if ($this->canViewComplaint($complaint)) {
+                $attachments = ComplaintAttachment::query()->where('complaint_id', $complaint->id)
+                    ->with('media')->latest()->get()
+                    ->map(fn (ComplaintAttachment $attachment) => [
+                        'id' => $attachment->id,
+                        'label' => $attachment->label ?: $attachment->media?->original_name,
+                        'originalName' => $attachment->media?->original_name,
+                        'sizeBytes' => $attachment->media?->size_bytes,
+                        'url' => $attachment->media?->url() ?? '',
+                    ])->all();
+            }
+
+            foreach (['status', 'priority', 'assign', 'note', 'resolve'] as $action) {
+                $routeName = $action === 'note' && Route::has('cms.complaints.notes')
+                    ? 'cms.complaints.notes'
+                    : 'cms.complaints.'.$action;
+
+                if (Route::has($routeName)) {
+                    $urls[$action] = route($routeName, ['locale' => $locale, 'complaint' => $complaint->id]);
+                }
+            }
+        }
+
+        $notes = $isComplaint
+            ? ComplaintNote::query()->where('complaint_id', $record->id)
+                ->with('author:id,name')->latest()->get()
+                ->map(fn (ComplaintNote $note) => [
+                    'id' => $note->id,
+                    'body' => $note->body,
+                    'author' => $note->author?->name,
+                    'createdAt' => $note->created_at?->toISOString(),
+                ])->all()
+            : InquiryNote::query()->where('inquiry_type', $type)->where('inquiry_id', $inquiry)
+                ->with('author:id,name')->latest()->get()
+                ->map(fn (InquiryNote $note) => [
+                    'id' => $note->id,
+                    'body' => $note->body,
+                    'author' => $note->author?->name,
+                    'createdAt' => $note->created_at?->toISOString(),
+                ])->all();
         $replies = InquiryReply::query()->where('inquiry_type', $type)->where('inquiry_id', $inquiry)
             ->with('sender:id,name')->latest()->get()
             ->map(fn (InquiryReply $reply) => [
@@ -164,19 +283,27 @@ final class InquiryController extends Controller
 
         return Inertia::render('Cms/Inquiries/Show', [
             'type' => $type,
-            'inquiry' => $this->details($type, $record),
+            'inquiry' => $this->details($type, $record, $users),
             'notes' => $notes,
             'replies' => $replies,
             'deliveryLog' => $deliveryLog,
             'templates' => $templates,
             'variables' => $this->renderer->availableVariables(),
-            'statuses' => $this->statuses(),
-            'can' => [
+            'statuses' => $isComplaint ? $this->complaintStatuses() : $this->statuses(),
+            'contact' => $contact,
+            'history' => $history,
+            'attachments' => $attachments,
+            'users' => $users,
+            'complaintStatuses' => $this->complaintStatuses(),
+            'complaintPriorities' => (array) config('complaints.priorities', []),
+            'allowedTransitions' => $allowedTransitions,
+            'urls' => $urls,
+            'can' => array_merge([
                 'update' => $this->has('inquiries.update'),
                 'assign' => $this->has('inquiries.assign'),
                 'note' => $this->has('inquiries.add_internal_note'),
                 'reply' => $this->has('inquiries.reply'),
-            ],
+            ], $this->complaintPermissions()),
         ]);
     }
 
@@ -323,6 +450,7 @@ final class InquiryController extends Controller
         return match ($type) {
             'contact' => ContactMessage::class,
             'volunteer' => VolunteerInquiry::class,
+            'complaint' => Complaint::class,
             default => abort(404),
         };
     }
@@ -331,13 +459,19 @@ final class InquiryController extends Controller
     {
         $class = $this->modelClass($type);
         /** @var Model $record */
-        $record = $class::query()->findOrFail($id);
+        $record = $class::query()->with('assignee:id,name')->findOrFail($id);
 
         return $record;
     }
 
     private function ensureVisible(Model $record): void
     {
+        if ($record instanceof Complaint) {
+            abort_unless($this->canViewComplaint($record), 403, (string) __('website.cms.complaint_forbidden'));
+
+            return;
+        }
+
         if (! $this->has('inquiries.view_all') && $this->has('inquiries.view_assigned')
             && (int) $record->getAttribute('assigned_to') !== (int) auth()->id()) {
             abort(403);
@@ -350,6 +484,7 @@ final class InquiryController extends Controller
         return match ($type) {
             'contact' => ['name', 'email', 'subject', 'category'],
             'volunteer' => ['name', 'email', 'area_of_interest'],
+            'complaint' => ['subject', 'description', 'category', 'complainant_name'],
             default => [],
         };
     }
@@ -357,6 +492,29 @@ final class InquiryController extends Controller
     /** @return array<string, mixed> */
     private function summary(string $type, Model $record): array
     {
+        if ($type === 'complaint' && $record instanceof Complaint) {
+            $category = $this->enumValue($record->getAttribute('category'));
+            $anonymous = $record->isAnonymous();
+
+            return [
+                'id' => $record->getAttribute('id'),
+                'type' => 'complaint',
+                'reference' => $record->getAttribute('reference'),
+                'label' => $record->getAttribute('subject'),
+                'subject' => $record->getAttribute('subject'),
+                'senderName' => $anonymous ? null : $record->getAttribute('complainant_name'),
+                'context' => $this->complaintCategoryLabel($category),
+                'email' => null,
+                'status' => $this->enumValue($record->getAttribute('status')),
+                'priority' => $this->enumValue($record->getAttribute('priority')),
+                'category' => $category,
+                'categoryLabel' => $this->complaintCategoryLabel($category),
+                'isAnonymous' => $anonymous,
+                'assignedTo' => $record->relationLoaded('assignee') ? $record->getRelation('assignee')?->name : null,
+                'createdAt' => $record->getAttribute('created_at')?->toISOString(),
+            ];
+        }
+
         $subject = $record->getAttribute('subject')
             ?: $record->getAttribute('area_of_interest')
             ?: $record->getAttribute('interest')
@@ -382,9 +540,38 @@ final class InquiryController extends Controller
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function details(string $type, Model $record): array
+    /** @param list<array{id: int, name: string}> $users @return array<string, mixed> */
+    private function details(string $type, Model $record, array $users = []): array
     {
+        $base = [
+            'id' => $record->getAttribute('id'),
+            'type' => $type,
+            'reference' => $record->getAttribute('reference'),
+            'status' => $this->enumValue($record->getAttribute('status')),
+            'locale' => $record->getAttribute('locale'),
+            'assignedTo' => $record->getAttribute('assigned_to'),
+            'assignedToName' => $record->relationLoaded('assignee') ? $record->getRelation('assignee')?->name : null,
+            'createdAt' => $record->getAttribute('created_at')?->toISOString(),
+        ];
+
+        if ($type === 'complaint' && $record instanceof Complaint) {
+            $category = $this->enumValue($record->getAttribute('category'));
+
+            return array_merge($base, [
+                'subject' => $record->getAttribute('subject'),
+                'description' => $record->getAttribute('description'),
+                'category' => $category,
+                'categoryLabel' => $this->complaintCategoryLabel($category),
+                'priority' => $this->enumValue($record->getAttribute('priority')),
+                'relatedProject' => $record->getAttribute('related_project'),
+                'location' => $record->getAttribute('location'),
+                'isAnonymous' => $record->isAnonymous(),
+                'resolvedAt' => $record->getAttribute('resolved_at')?->toISOString(),
+                'resolutionDetails' => $record->getAttribute('resolution_details'),
+                'users' => $users,
+            ]);
+        }
+
         $fields = match ($type) {
             'contact' => [
                 'name' => $record->getAttribute('name'),
@@ -404,18 +591,123 @@ final class InquiryController extends Controller
             default => [],
         };
 
-        return array_merge([
-            'id' => $record->getAttribute('id'),
-            'type' => $type,
-            'reference' => $record->getAttribute('reference'),
-            'status' => $record->getAttribute('status'),
-            'locale' => $record->getAttribute('locale'),
-            'assignedTo' => $record->getAttribute('assigned_to'),
-            'assignedToName' => $record->relationLoaded('assignee') ? $record->getRelation('assignee')?->name : null,
-            'createdAt' => $record->getAttribute('created_at')?->toISOString(),
-        ], $fields, [
-            'users' => User::query()->orderBy('name')->limit(200)->get(['id', 'name'])->all(),
-        ]);
+        return array_merge($base, $fields, ['users' => $users]);
+    }
+
+    /** @return list<string> */
+    private function complaintStatuses(): array
+    {
+        /** @var list<string> $statuses */
+        $statuses = array_values((array) config('complaints.statuses', ComplaintStatus::values()));
+
+        return array_values(array_unique(array_filter(
+            $statuses,
+            static fn (mixed $status): bool => is_string($status) && ComplaintStatus::tryFrom($status) !== null,
+        )));
+    }
+
+    /** @return list<array{value: string, label: string}> */
+    private function complaintCategories(string $locale): array
+    {
+        $categories = [];
+
+        foreach ((array) config('complaints.categories', []) as $value) {
+            $value = (string) $value;
+            $categories[] = ['value' => $value, 'label' => $this->complaintCategoryLabel($value, $locale)];
+        }
+
+        return $categories;
+    }
+
+    private function canViewComplaints(): bool
+    {
+        return $this->has('complaints.view_all') || $this->has('complaints.view_assigned');
+    }
+
+    private function canViewComplaint(Complaint $complaint): bool
+    {
+        if ($this->has('complaints.view_all')) {
+            return true;
+        }
+
+        return $this->has('complaints.view_assigned')
+            && (int) $complaint->getAttribute('assigned_to') === (int) auth()->id();
+    }
+
+    /** @return array<string, bool> */
+    private function complaintPermissions(): array
+    {
+        return [
+            'complaintView' => $this->canViewComplaints(),
+            'complaintViewAll' => $this->has('complaints.view_all'),
+            'complaintViewAssigned' => $this->has('complaints.view_assigned'),
+            'complaintViewContact' => $this->has('complaints.view_contact'),
+            'complaintViewAttachments' => $this->canViewComplaints(),
+            'complaintUpdate' => $this->has('complaints.update'),
+            'complaintAssign' => $this->has('complaints.assign'),
+            'complaintNote' => $this->has('complaints.add_internal_note'),
+            'complaintResolve' => $this->has('complaints.resolve'),
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function complaintContact(Complaint $complaint): ?array
+    {
+        if (! $this->has('complaints.view_contact') || $complaint->isAnonymous()) {
+            return null;
+        }
+
+        return [
+            'name' => $complaint->getAttribute('complainant_name'),
+            'email' => $complaint->getAttribute('email'),
+            'phone' => $complaint->getAttribute('phone'),
+            'preferredContactMethod' => $this->enumValue($complaint->getAttribute('preferred_contact_method')),
+            'preferredLocale' => $complaint->getAttribute('preferred_locale'),
+        ];
+    }
+
+    /** @return list<array{id: int, name: string}> */
+    private function users(): array
+    {
+        /** @var list<array{id: int, name: string}> $users */
+        $users = User::query()->orderBy('name')->limit(200)->get(['id', 'name'])->all();
+
+        return $users;
+    }
+
+    private function complaintCategoryLabel(string $category, ?string $locale = null): string
+    {
+        $key = 'website.complaints.categories.'.$category;
+        $label = __($key, [], $locale ?? app()->getLocale());
+
+        return is_string($label) && $label !== $key ? $label : str_replace('_', ' ', $category);
+    }
+
+    private function enumValue(mixed $value): string
+    {
+        if ($value instanceof BackedEnum) {
+            return (string) $value->value;
+        }
+
+        if (is_object($value) && method_exists($value, 'value')) {
+            return (string) $value->value;
+        }
+
+        return $value === null ? '' : (string) $value;
+    }
+
+    /** @return array{currentPage: int, lastPage: int, perPage: int, total: int, from: int|null, to: int|null, pageName: string} */
+    private function emptyPagination(string $pageName): array
+    {
+        return [
+            'currentPage' => 1,
+            'lastPage' => 1,
+            'perPage' => 20,
+            'total' => 0,
+            'from' => null,
+            'to' => null,
+            'pageName' => $pageName,
+        ];
     }
 
     /** @return array{currentPage: int, lastPage: int, perPage: int, total: int, from: int|null, to: int|null, pageName: string} */

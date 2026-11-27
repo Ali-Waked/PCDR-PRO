@@ -343,6 +343,12 @@ return [
                 'high' => 'High',
                 'urgent' => 'Urgent',
             ],
+            'status_mail' => [
+                'subject' => 'Update on complaint :reference',
+                'greeting' => 'Hello,',
+                'body' => 'The status of complaint :reference is now: :status.',
+                'footer' => 'This message contains only your reference number and status to protect the confidentiality of your complaint.',
+            ],
         ],
         'view_all' => 'View all',
         'download' => 'Download',

@@ -83,7 +83,7 @@ final class CmsPagesModuleRemovalAndStrategicContentTest extends TestCase
         }
     }
 
-    public function test_only_the_home_public_route_remains_after_admin_module_removal(): void
+    public function test_removed_legacy_public_paths_stay_absent_after_admin_module_removal(): void
     {
         foreach (['ar', 'en'] as $locale) {
             $this->get(route('public.home', ['locale' => $locale]))
@@ -91,7 +91,15 @@ final class CmsPagesModuleRemovalAndStrategicContentTest extends TestCase
                 ->assertViewIs('app');
         }
 
-        foreach (['about', 'programs', 'news', 'publications', 'contact'] as $path) {
+        foreach (['about', 'programs', 'media', 'partners', 'contact', 'complaints'] as $path) {
+            foreach (['ar', 'en'] as $locale) {
+                $this->get('/'.$locale.'/'.$path)
+                    ->assertOk()
+                    ->assertViewIs('app');
+            }
+        }
+
+        foreach (['strategic-areas', 'news', 'publications', 'transparency', 'get-involved'] as $path) {
             foreach (['ar', 'en'] as $locale) {
                 $this->get('/'.$locale.'/'.$path)->assertNotFound();
             }

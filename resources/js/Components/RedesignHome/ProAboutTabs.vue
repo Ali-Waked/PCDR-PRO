@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useHomepageContent } from '../../composables/useHomepageContent'
 import { useI18n } from '../../composables/useI18n'
 
@@ -11,92 +11,56 @@ const { locale } = useI18n()
 const content = useHomepageContent(() => props.sections)
 const logo = '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg'
 
-const FALLBACK = {
-    eyebrow: { ar: 'من نحن', en: 'About us' },
-    title: { ar: 'رسالتنا ورؤيتنا', en: 'Our mission and vision' },
-    group: { ar: 'رسالتنا وأهدافنا ورؤيتنا', en: 'Our mission, objectives and vision' },
-    valuesLabel: { ar: 'قيمنا المؤسسية', en: 'Our institutional values' },
-    mission: {
-        ar: 'تنسيق الجهود الإنسانية وتعزيز الشراكات المحلية والدولية، وتقديم استجابات إغاثية وتنموية متكاملة، وتمكين الفئات الأكثر هشاشة، وتحسين الظروف المعيشية للأسر المتضررة والفقيرة، من خلال برامج مهنية ومستدامة تقوم على المشاركة المجتمعية والشفافية والمساءلة.',
-        en: 'Coordinating humanitarian efforts and strengthening local and international partnerships, providing integrated relief and development responses, empowering the most vulnerable groups, and improving the living conditions of affected and poor families through professional and sustainable programmes grounded in community participation, transparency and accountability.',
-    },
-    vision: {
-        ar: 'الريادة في العمل الإنساني والتنموي التشاركي، والمساهمة في بناء مجتمع فلسطيني أكثر قدرة على الصمود والتعافي، يتمتع فيه الأفراد والأسر بالكرامة والعدالة وتكافؤ الفرص.',
-        en: 'Leadership in participatory humanitarian and development action, contributing to building a more resilient and recovering Palestinian society in which individuals and families enjoy dignity, justice and equal opportunities.',
-    },
-    objectives: [
-        { ar: 'تطوير منظومة متكاملة للاستجابة الإنسانية وإدارة الأزمات والكوارث.', en: 'Develop an integrated system for humanitarian response and crisis and disaster management.' },
-        { ar: 'تعزيز الأمن الغذائي وتحسين الظروف المعيشية للأسر الفقيرة والمتضررة.', en: 'Enhance food security and improve living conditions for poor and affected families.' },
-        { ar: 'تمكين الأسر اقتصادياً وتعزيز فرص العمل والإنتاج ومكافحة الفقر.', en: 'Empower families economically and promote work and production opportunities and combat poverty.' },
-        { ar: 'توفير خدمات الحماية الاجتماعية والرعاية النفسية والاجتماعية للفئات الأكثر هشاشة.', en: 'Provide social protection and psychosocial care services for the most vulnerable groups.' },
-        { ar: 'تحسين الصحة العامة والمياه والإصحاح البيئي.', en: 'Improve public health, water and environmental sanitation.' },
-        { ar: 'دعم التعليم وتنمية قدرات الأطفال والشباب.', en: 'Support education and develop the capacities of children and young people.' },
-        { ar: 'المساهمة في التعافي المبكر وتحسين ظروف السكن وإعادة تأهيل المرافق المجتمعية.', en: 'Contribute to early recovery, improve housing conditions and rehabilitate community facilities.' },
-        { ar: 'تعزيز المشاركة المجتمعية والتطوع والعمل التشاركي.', en: 'Promote community participation, volunteering and participatory action.' },
-        { ar: 'تطوير الشراكات المحلية والدولية واستقطاب التمويل.', en: 'Develop local and international partnerships and attract funding.' },
-        { ar: 'بناء منظومة إعلام واتصال ومناصرة مجتمعية فاعلة.', en: 'Build an effective media, communication and community advocacy system.' },
-        { ar: 'تعزيز البحث والدراسات وتقييم الاحتياجات وقياس أثر التدخلات.', en: 'Promote research, studies, needs assessment and measurement of intervention impact.' },
-    ],
-    values: [
-        { ar: 'الإنسانية وصون الكرامة', en: 'Humanity and preservation of dignity' },
-        { ar: 'العدالة وعدم التمييز', en: 'Justice and non-discrimination' },
-        { ar: 'النزاهة والشفافية والمساءلة', en: 'Integrity, transparency and accountability' },
-        { ar: 'المشاركة المجتمعية والتطوع', en: 'Community participation and volunteering' },
-        { ar: 'المهنية والكفاءة والاستدامة', en: 'Professionalism, efficiency and sustainability' },
-        { ar: 'الشراكة والتكامل', en: 'Partnership and integration' },
-        { ar: 'الاستجابة السريعة والمرونة', en: 'Rapid response and flexibility' },
-        { ar: 'حماية الفئات الأكثر هشاشة', en: 'Protection of the most vulnerable groups' },
-        { ar: 'احترام الخصوصية وحماية البيانات', en: 'Respect for privacy and data protection' },
-        { ar: 'التعلم والتحسين المستمر', en: 'Continuous learning and improvement' },
-    ],
-}
+const chrome = computed(() => (locale.value === 'ar' ? {
+    group: 'رسالتنا وأهدافنا ورؤيتنا',
+    values: 'قيمنا المؤسسية',
+} : {
+    group: 'Our mission, objectives and vision',
+    values: 'Our institutional values',
+}))
 
-const arabic = computed(() => locale.value === 'ar')
-const label = (value) => (arabic.value ? value.ar : value.en)
 const section = computed(() => content.section('about'))
-const allItems = computed(() => content.items('about'))
-
-function itemFor(prefix, field = 'body') {
-    return allItems.value.find((item) => String(item.key || '').toLowerCase().startsWith(prefix)
-        && content.text(item, field))
-}
-
-function tabLabel(id, fallback) {
-    const labels = section.value?.tabLabels
-    if (labels && typeof labels === 'object' && typeof labels[id] === 'string' && labels[id].trim()) {
-        return labels[id]
-    }
-
-    return label(fallback)
-}
+const eyebrow = computed(() => content.text(section.value, 'eyebrow'))
+const heading = computed(() => content.text(section.value, 'title'))
 
 const tabs = computed(() => [
-    { id: 'mission', domId: 'mission', label: tabLabel('mission', { ar: 'رسالتنا', en: 'Our mission' }) },
-    { id: 'objectives', domId: 'goals', label: tabLabel('objectives', { ar: 'أهدافنا', en: 'Our objectives' }) },
-    { id: 'vision', domId: 'vision', label: tabLabel('vision', { ar: 'رؤيتنا', en: 'Our vision' }) },
-])
+    { id: 'mission', domId: 'mission', label: content.text(section.value?.tabLabels, 'mission') },
+    { id: 'objectives', domId: 'goals', label: content.text(section.value?.tabLabels, 'objectives') },
+    { id: 'vision', domId: 'vision', label: content.text(section.value?.tabLabels, 'vision') },
+].filter((tab) => tab.label))
 
-const mission = computed(() => content.text(itemFor('mission'), 'body') || label(FALLBACK.mission))
-const vision = computed(() => content.text(itemFor('vision'), 'body') || label(FALLBACK.vision))
+const allItems = computed(() => content.items('about'))
 
-const objectives = computed(() => {
-    const fromCms = content.items('about', 'objective-')
-    return FALLBACK.objectives.map((fallback, index) => ({
-        key: content.text(fromCms[index], 'key', `objective-${index + 1}`),
-        title: content.text(fromCms[index], 'title') || label(fallback),
+function bodyFor(prefix) {
+    return content.text(allItems.value.find((item) => String(item.key || '').startsWith(prefix)
+        && content.text(item, 'body')), 'body')
+}
+
+const mission = computed(() => bodyFor('mission'))
+const vision = computed(() => bodyFor('vision'))
+
+const objectives = computed(() => content.items('about', 'objective-')
+    .map((item) => ({
+        key: content.text(item, 'key'),
+        title: content.text(item, 'title') || content.text(item, 'label'),
     }))
-})
+    .filter((item) => item.title))
 
-const values = computed(() => {
-    const fromCms = content.items('about', 'value-')
-    return FALLBACK.values.map((fallback, index) => ({
-        key: content.text(fromCms[index], 'key', `value-${index + 1}`),
-        title: content.text(fromCms[index], 'title') || label(fallback),
+const values = computed(() => content.items('about', 'value-')
+    .map((item) => ({
+        key: content.text(item, 'key'),
+        title: content.text(item, 'title') || content.text(item, 'label'),
     }))
-})
+    .filter((item) => item.title))
 
 const active = ref('mission')
 const buttons = ref([])
+
+watch(tabs, (value) => {
+    if (value.length && !value.some((tab) => tab.id === active.value)) {
+        active.value = value[0].id
+    }
+})
 
 function select(index, focus = false) {
     const tab = tabs.value[index]
@@ -120,22 +84,11 @@ function onKeydown(event, index) {
     } else if (event.key === 'End') {
         next = tabs.value.length - 1
     }
-    if (next !== null) {
+    if (next !== null && tabs.value.length) {
         event.preventDefault()
         select(next, true)
     }
 }
-
-function onDeepLink(event) {
-    const requested = event.detail?.tab === 'goals' ? 'objectives' : event.detail?.tab
-    const index = tabs.value.findIndex((tab) => tab.id === requested)
-    if (index >= 0) {
-        select(index)
-    }
-}
-
-onMounted(() => window.addEventListener('pcdr:open-tab', onDeepLink))
-onBeforeUnmount(() => window.removeEventListener('pcdr:open-tab', onDeepLink))
 </script>
 
 <template>
@@ -143,12 +96,12 @@ onBeforeUnmount(() => window.removeEventListener('pcdr:open-tab', onDeepLink))
         <div class="wrap">
             <div class="deco" aria-hidden="true"></div>
             <div style="margin-top:44px">
-                <div class="eyebrow"><b>04</b><span>{{ content.text(section, 'eyebrow') || label(FALLBACK.eyebrow) }}</span></div>
-                <h2 class="h2">{{ content.text(section, 'title') || label(FALLBACK.title) }}</h2>
+                <div v-if="eyebrow" class="eyebrow"><b>{{ eyebrow }}</b></div>
+                <h2 v-if="heading" class="h2">{{ heading }}</h2>
             </div>
 
-            <div data-tabs>
-                <div class="tabs" role="tablist" :aria-label="label(FALLBACK.group)">
+            <div v-if="tabs.length" data-tabs>
+                <div class="tabs" role="tablist" :aria-label="chrome.group">
                     <button
                         v-for="(tab, index) in tabs"
                         :key="tab.id"
@@ -174,7 +127,7 @@ onBeforeUnmount(() => window.removeEventListener('pcdr:open-tab', onDeepLink))
                 >
                     <div class="mission">
                         <div class="mark"><img :src="logo" alt="" width="210" height="210"></div>
-                        <p>{{ mission }}</p>
+                        <p v-if="mission">{{ mission }}</p>
                     </div>
                 </div>
 
@@ -185,7 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('pcdr:open-tab', onDeepLink))
                     aria-labelledby="about-goals-t"
                     :hidden="active !== 'objectives'"
                 >
-                    <ol class="goals">
+                    <ol v-if="objectives.length" class="goals">
                         <li v-for="objective in objectives" :key="objective.key">{{ objective.title }}</li>
                     </ol>
                 </div>
@@ -200,8 +153,8 @@ onBeforeUnmount(() => window.removeEventListener('pcdr:open-tab', onDeepLink))
                     <div class="mission">
                         <div class="mark"><img :src="logo" alt="" width="210" height="210"></div>
                         <div>
-                            <p>{{ vision }}</p>
-                            <ul class="vals" :aria-label="label(FALLBACK.valuesLabel)">
+                            <p v-if="vision">{{ vision }}</p>
+                            <ul v-if="values.length" class="vals" :aria-label="chrome.values">
                                 <li v-for="value in values" :key="value.key">{{ value.title }}</li>
                             </ul>
                         </div>

@@ -31,6 +31,7 @@ return [
             'feature' => 'content',
             'items' => [
                 ['key' => 'cms_dashboard', 'label' => 'cms_dashboard', 'path' => '/cms', 'permission' => 'pillars.view'],
+                ['key' => 'homepage', 'label' => 'homepage', 'path' => '/cms/homepage', 'permission' => 'homepage.view'],
                 ['key' => 'pillars', 'label' => 'pillars', 'path' => '/cms/pillars', 'permission' => 'pillars.view'],
                 ['key' => 'programs', 'label' => 'programs', 'path' => '/cms/programs', 'permission' => 'programs.view'],
                 ['key' => 'projects', 'label' => 'projects', 'path' => '/cms/projects', 'permission' => 'programs.view'],

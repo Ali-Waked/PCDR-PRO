@@ -39,7 +39,8 @@ final class ComplaintStatusChangedNotification extends Notification implements S
 
     public function toMail(object $notifiable): MailMessage
     {
-        $status = __('website.ui.complaints.statuses.'.$this->status, [], $this->locale);
+        $statusLabels = __('website.ui.complaints.statuses', [], $this->locale);
+        $status = is_array($statusLabels) ? ($statusLabels[$this->status] ?? null) : null;
 
         return (new MailMessage)
             ->subject(__('website.ui.complaints.status_mail.subject', ['reference' => $this->reference], $this->locale))

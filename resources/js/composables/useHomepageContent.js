@@ -31,11 +31,12 @@ export function useHomepageContent(sectionsSource) {
     }
 
     function sortOrder(record) {
-        return Number(record?.sortOrder ?? record?.sort_order ?? 0)
+        const value = Number(record?.sortOrder ?? record?.sort_order ?? 0)
+        return Number.isFinite(value) ? value : 0
     }
 
     function isVisibleSection(value) {
-        return Boolean(value) && value.enabled !== false && value.is_enabled !== false && value.published !== false
+        return Boolean(value) && value.status !== 'draft' && value.enabled !== false
     }
 
     function visibleSections() {
@@ -99,9 +100,8 @@ export function useHomepageContent(sectionsSource) {
         }
         path = path.replace(/^\/(ar|en)(?=\/)/, '')
 
-        return ['about', 'strategic-areas', 'programs', 'projects', 'news',
-            'publications', 'transparency', 'partnerships',
-            'get-involved', 'contact', 'pages']
+        return ['strategic-areas', 'projects', 'news', 'publications',
+            'transparency', 'partnerships', 'get-involved', 'pages']
             .some((prefix) => path === `/${prefix}` || path.startsWith(`/${prefix}/`))
     }
 

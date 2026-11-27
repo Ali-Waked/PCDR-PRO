@@ -48,6 +48,7 @@ const iconFor = {
     publications: 'folder',
     media: 'image',
     navigation: 'link',
+    homepage: 'home',
     inquiries: 'mail',
     email_templates: 'template',
     cms_settings: 'settings',

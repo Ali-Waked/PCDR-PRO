@@ -1,47 +1,34 @@
 /**
  * Shared complaint status and priority labels for the CMS screens.
- * Values mirror the backend complaint workflow codes; missing codes fall back
- * to a readable form instead of showing a raw machine value.
+ * Values mirror config/complaints.php; missing codes fall back to a readable
+ * form instead of showing a raw machine value.
  */
 
 export const COMPLAINT_STATUSES = [
     'new',
-    'received',
-    'acknowledged',
-    'under_triage',
-    'assigned',
     'under_review',
-    'waiting_information',
-    'referred',
     'in_progress',
-    'responded',
+    'waiting_information',
     'resolved',
     'closed',
-    'reopened',
+    'rejected',
 ]
 
 export const COMPLAINT_PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
 const STATUS_TONES = {
     new: 'teal',
-    received: 'teal',
-    acknowledged: 'teal',
-    under_triage: 'amber',
-    assigned: 'amber',
     under_review: 'amber',
-    waiting_information: 'amber',
-    referred: 'amber',
     in_progress: 'amber',
-    responded: 'green',
+    waiting_information: 'amber',
     resolved: 'green',
     closed: 'slate',
-    reopened: 'red',
+    rejected: 'red',
 }
 
 const PRIORITY_TONES = {
     low: 'green',
     normal: 'teal',
-    medium: 'teal',
     high: 'amber',
     urgent: 'red',
 }

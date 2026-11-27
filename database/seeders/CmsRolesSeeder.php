@@ -22,13 +22,13 @@ final class CmsRolesSeeder extends Seeder
         $view = [
             'news.view', 'programs.view', 'projects.view',
             'pillars.view', 'publications.view', 'media.view',
-            'directory_partners.view',
+            'homepage.view', 'directory_partners.view',
         ];
         $editContent = [
             'news.create', 'news.update',
             'programs.create', 'programs.update', 'projects.create', 'projects.update',
             'pillars.create', 'pillars.update', 'publications.create', 'publications.update',
-            'media.upload', 'media.update',
+            'media.upload', 'media.update', 'homepage.update',
             'directory_partners.create', 'directory_partners.update',
         ];
         $publish = [
@@ -40,6 +40,11 @@ final class CmsRolesSeeder extends Seeder
         $inquiries = [
             'inquiries.view', 'inquiries.view_all', 'inquiries.assign',
             'inquiries.update', 'inquiries.add_internal_note', 'inquiries.reply',
+        ];
+        $complaints = [
+            'complaints.view_all', 'complaints.view_assigned', 'complaints.view_contact',
+            'complaints.update', 'complaints.assign',
+            'complaints.add_internal_note', 'complaints.resolve',
         ];
         $templates = [
             'email_templates.view', 'email_templates.create',
@@ -56,9 +61,9 @@ final class CmsRolesSeeder extends Seeder
                 'name' => 'Website Administrator',
                 'description' => 'Manages the public website CMS, its content, inquiries and authorized users.',
                 'permissions' => array_values(array_unique(array_merge(
-                    $view, $editContent, $publish, $inquiries, $templates, $access,
-                    ['directory_partners.delete', 'media.delete',
-                        'settings.view', 'settings.update'],
+                    $view, $editContent, $publish, $inquiries, $complaints, $templates, $access,
+                    ['homepage.view', 'homepage.update', 'directory_partners.delete',
+                        'media.delete', 'settings.view', 'settings.update'],
                 ))),
             ],
             'content_editor' => [
@@ -74,7 +79,9 @@ final class CmsRolesSeeder extends Seeder
             'contact_manager' => [
                 'name' => 'Contact Manager',
                 'description' => 'Views and manages all inquiries and replies using existing email templates.',
-                'permissions' => array_values(array_unique(array_merge($inquiries, ['email_templates.view']))),
+                'permissions' => array_values(array_unique(array_merge(
+                    $inquiries, $complaints, ['email_templates.view'],
+                ))),
             ],
             'contact_support' => [
                 'name' => 'Contact Support',

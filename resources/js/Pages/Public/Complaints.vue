@@ -16,16 +16,20 @@ import {
 import '../../../css/pcdr-prototype.css'
 
 const props = defineProps({
-    categories: { type: Array, default: () => [] },
-    contactMethods: { type: Array, default: () => [] },
-    attachmentLimits: { type: Object, default: () => ({ maxFiles: 5, maxFileSizeKb: 10240, allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'] }) },
-    storeUrl: { type: String, default: '' },
-    complaintsUrl: { type: String, default: '' },
+    complaintConfig: { type: Object, default: () => ({}) },
     submittedReference: { type: String, default: null },
     meta: { type: Object, default: null },
 })
 
 const { locale, direction, alternateUrl, site, t } = useI18n()
+
+const categories = computed(() => Array.isArray(props.complaintConfig?.categories)
+    ? props.complaintConfig.categories
+    : [])
+const contactMethods = computed(() => Array.isArray(props.complaintConfig?.contactMethods)
+    ? props.complaintConfig.contactMethods
+    : [])
+const attachmentLimits = computed(() => props.complaintConfig?.attachmentLimits || {})
 
 const title = computed(() => (typeof props.meta?.title === 'string' && props.meta.title.trim())
     ? props.meta.title
@@ -34,24 +38,25 @@ const description = computed(() => props.meta?.description || site.value?.slogan
 const skipLabel = computed(() => t('ui.skip_to_content', locale.value === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'))
 
 const form = useForm({
-    category: props.categories[0]?.value || '',
+    category: categories.value[0]?.value || '',
     subject: '',
-    description: '',
+    body: '',
     related_project: '',
     location: '',
     is_anonymous: false,
     name: '',
-    preferred_contact_method: props.contactMethods[0]?.value || '',
+    contact_method: contactMethods.value[0]?.value || '',
     email: '',
     phone: '',
-    preferred_locale: locale.value,
+    locale: locale.value,
     attachments: [],
+    honeypot: '',
 })
 
 const attachmentInput = ref(null)
 
 watch(locale, (value) => {
-    form.preferred_locale = value
+    form.locale = value
 })
 
 watch(() => form.is_anonymous, (anonymous) => {
@@ -60,8 +65,8 @@ watch(() => form.is_anonymous, (anonymous) => {
         return
     }
 
-    if (!form.preferred_contact_method) {
-        form.preferred_contact_method = props.contactMethods[0]?.value || ''
+    if (!form.contact_method) {
+        form.contact_method = contactMethods.value[0]?.value || ''
     }
 })
 
@@ -78,11 +83,11 @@ const guidance = computed(() => [
     t('ui.complaints.guidance_contact'),
 ])
 
-const acceptedFiles = computed(() => attachmentAccept(props.attachmentLimits))
+const acceptedFiles = computed(() => attachmentAccept(attachmentLimits.value))
 const attachmentHint = computed(() => format('ui.complaints.attachments_hint', {
-    max: props.attachmentLimits?.maxFiles ?? 5,
-    size: props.attachmentLimits?.maxFileSizeKb ?? 10240,
-    types: (props.attachmentLimits?.allowedExtensions || []).join(', '),
+    max: attachmentLimits.value?.maxFiles ?? 3,
+    size: attachmentLimits.value?.maxFileSizeKb ?? 5120,
+    types: (attachmentLimits.value?.allowedExtensions || []).join(', '),
 }))
 
 function format(key, replacements = {}) {
@@ -96,17 +101,17 @@ function format(key, replacements = {}) {
 
 function attachmentErrorMessage(code) {
     if (code === 'too_many') {
-        return format('ui.complaints.attachments_too_many', { max: props.attachmentLimits?.maxFiles ?? 5 })
+        return format('ui.complaints.attachments_too_many', { max: attachmentLimits.value?.maxFiles ?? 3 })
     }
     if (code === 'too_large') {
-        return format('ui.complaints.attachments_too_large', { size: props.attachmentLimits?.maxFileSizeKb ?? 10240 })
+        return format('ui.complaints.attachments_too_large', { size: attachmentLimits.value?.maxFileSizeKb ?? 5120 })
     }
 
     return t('ui.complaints.attachments_extension')
 }
 
 function onAttachmentsChange(event) {
-    const result = pickComplaintAttachments(event.target.files, props.attachmentLimits)
+    const result = pickComplaintAttachments(event.target.files, attachmentLimits.value)
     if (result.error) {
         form.attachments = []
         event.target.value = ''
@@ -142,17 +147,18 @@ function formatSize(bytes) {
 }
 
 function submit() {
-    if (!props.storeUrl || form.processing) {
+    if (!props.complaintConfig?.storeUrl || form.processing) {
         return
     }
 
     form
         .transform((data) => complaintPayload(data))
-        .post(props.storeUrl, {
+        .post(props.complaintConfig.storeUrl, {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
                 form.reset()
+                form.honeypot = ''
                 if (attachmentInput.value) {
                     attachmentInput.value.value = ''
                 }
@@ -213,7 +219,7 @@ function submit() {
                                 <span>{{ t('ui.complaints.reference') }}</span>
                                 <strong dir="ltr">{{ props.submittedReference }}</strong>
                             </p>
-                            <Link class="complaints-btn" :href="props.complaintsUrl">{{ t('ui.complaints.submit_another') }}</Link>
+                            <Link class="complaints-btn" :href="props.complaintConfig?.complaintsUrl">{{ t('ui.complaints.submit_another') }}</Link>
                         </div>
 
                         <form v-else id="complaint-form" class="panel complaints-form" @submit.prevent="submit">
@@ -232,7 +238,7 @@ function submit() {
                                         v-model="form.category"
                                         name="category"
                                         :label="t('ui.complaints.category')"
-                                        :options="props.categories"
+                                        :options="categories"
                                         :error="form.errors.category"
                                         :searchable="false"
                                         required
@@ -242,15 +248,15 @@ function submit() {
 
                                 <label class="complaints-field">
                                     <span>{{ t('ui.complaints.subject') }} <b aria-hidden="true">*</b></span>
-                                    <input v-model="form.subject" class="complaints-input" type="text" maxlength="255" required>
+                                    <input v-model="form.subject" class="complaints-input" type="text" minlength="5" maxlength="255" required>
                                     <small v-if="form.errors.subject" class="complaints-error" role="alert">{{ form.errors.subject }}</small>
                                 </label>
 
                                 <label class="complaints-field complaints-field--full">
                                     <span>{{ t('ui.complaints.description') }} <b aria-hidden="true">*</b></span>
-                                    <textarea v-model="form.description" class="complaints-input" rows="7" required></textarea>
+                                    <textarea v-model="form.body" class="complaints-input" rows="7" minlength="20" maxlength="10000" required></textarea>
                                     <small class="fine">{{ t('ui.complaints.description_hint') }}</small>
-                                    <small v-if="form.errors.description" class="complaints-error" role="alert">{{ form.errors.description }}</small>
+                                    <small v-if="form.errors.body" class="complaints-error" role="alert">{{ form.errors.body }}</small>
                                 </label>
 
                                 <label class="complaints-field">
@@ -285,12 +291,12 @@ function submit() {
 
                                     <div class="complaints-field">
                                         <SelectionControl
-                                            v-model="form.preferred_contact_method"
-                                            name="preferred_contact_method"
+                                            v-model="form.contact_method"
+                                            name="contact_method"
                                             :label="t('ui.complaints.preferred_contact_method')"
-                                            :options="props.contactMethods"
+                                            :options="contactMethods"
                                             :placeholder="t('ui.select')"
-                                            :error="form.errors.preferred_contact_method"
+                                            :error="form.errors.contact_method"
                                             :disabled="form.is_anonymous"
                                             :searchable="false"
                                             clearable
@@ -309,21 +315,20 @@ function submit() {
                                         <input v-model="form.phone" class="complaints-input" type="tel" autocomplete="tel">
                                         <small v-if="form.errors.phone" class="complaints-error" role="alert">{{ form.errors.phone }}</small>
                                     </label>
-
-                                    <div class="complaints-field complaints-field--full">
-                                        <SelectionControl
-                                            v-model="form.preferred_locale"
-                                            name="preferred_locale"
-                                            :label="t('ui.complaints.preferred_locale')"
-                                            :options="localeOptions"
-                                            :error="form.errors.preferred_locale"
-                                            :disabled="form.is_anonymous"
-                                            :searchable="false"
-                                            variant="public"
-                                        />
-                                    </div>
                                 </div>
                             </fieldset>
+
+                            <div class="complaints-field complaints-field--full">
+                                <SelectionControl
+                                    v-model="form.locale"
+                                    name="locale"
+                                    :label="t('ui.complaints.preferred_locale')"
+                                    :options="localeOptions"
+                                    :error="form.errors.locale"
+                                    :searchable="false"
+                                    variant="public"
+                                />
+                            </div>
 
                             <div class="complaints-field complaints-field--full">
                                 <span>{{ t('ui.complaints.attachments') }}</span>
@@ -347,8 +352,15 @@ function submit() {
                                 </ul>
                             </div>
 
+                            <label class="complaints-honeypot" aria-hidden="true">
+                                {{ t('ui.complaints.email') }}
+                                <input v-model="form.honeypot" type="text" name="honeypot" tabindex="-1" autocomplete="off">
+                            </label>
+
+                            <p class="complaints-privacy">{{ t('ui.complaints.confidentiality_body') }}</p>
+
                             <div class="complaints-form__actions">
-                                <button class="complaints-btn" type="submit" :disabled="form.processing || !props.storeUrl">
+                                <button class="complaints-btn" type="submit" :disabled="form.processing || !props.complaintConfig?.storeUrl">
                                     {{ form.processing ? t('ui.complaints.submitting') : t('ui.complaints.submit') }}
                                 </button>
                                 <progress v-if="form.progress" :value="form.progress.percentage" max="100" class="complaints-progress"></progress>
@@ -382,3 +394,23 @@ function submit() {
         <ProPrototypeFooter />
     </div>
 </template>
+
+<style scoped>
+.complaints-privacy {
+    margin: 18px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.complaints-honeypot {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+</style>

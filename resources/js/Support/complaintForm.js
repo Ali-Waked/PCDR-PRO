@@ -3,32 +3,46 @@
  * The backend remains authoritative for validation; these helpers only keep
  * anonymous submissions free of identity data and enforce the advertised
  * attachment limits before an upload is attempted.
+ *
+ * Canonical payload keys mirror StoreComplaintRequest. The legacy `description`,
+ * `preferred_contact_method` and `preferred_locale` keys are accepted as input
+ * aliases so stale callers keep working, but they are never emitted.
  */
 
 export const COMPLAINT_IDENTITY_FIELDS = [
     'name',
-    'preferred_contact_method',
+    'contact_method',
     'email',
     'phone',
 ]
+
+function value(form, key, legacyKey = '') {
+    const canonical = form?.[key]
+    if (canonical !== undefined && canonical !== null && String(canonical) !== '') {
+        return canonical
+    }
+
+    return legacyKey ? (form?.[legacyKey] ?? '') : (canonical ?? '')
+}
 
 /** Anonymous submissions never carry name or contact details. */
 export function complaintPayload(form) {
     const anonymous = form?.is_anonymous === true
 
     return {
-        category: form?.category || '',
-        subject: form?.subject || '',
-        description: form?.description || '',
-        related_project: form?.related_project || '',
-        location: form?.location || '',
+        category: value(form, 'category'),
+        subject: value(form, 'subject'),
+        body: value(form, 'body', 'description'),
+        related_project: value(form, 'related_project'),
+        location: value(form, 'location'),
         is_anonymous: anonymous,
-        name: anonymous ? '' : (form?.name || ''),
-        preferred_contact_method: anonymous ? '' : (form?.preferred_contact_method || ''),
-        email: anonymous ? '' : (form?.email || ''),
-        phone: anonymous ? '' : (form?.phone || ''),
-        preferred_locale: form?.preferred_locale || '',
+        name: anonymous ? '' : value(form, 'name'),
+        contact_method: anonymous ? '' : value(form, 'contact_method', 'preferred_contact_method'),
+        email: anonymous ? '' : value(form, 'email'),
+        phone: anonymous ? '' : value(form, 'phone'),
+        locale: value(form, 'locale', 'preferred_locale'),
         attachments: Array.isArray(form?.attachments) ? [...form.attachments] : [],
+        honeypot: value(form, 'honeypot'),
     }
 }
 
@@ -48,9 +62,9 @@ export function clearComplaintIdentity(form) {
 }
 
 function extensionOf(name) {
-    const value = String(name || '')
-    const dot = value.lastIndexOf('.')
-    return dot === -1 ? '' : value.slice(dot + 1).toLowerCase()
+    const text = String(name || '')
+    const dot = text.lastIndexOf('.')
+    return dot === -1 ? '' : text.slice(dot + 1).toLowerCase()
 }
 
 /**

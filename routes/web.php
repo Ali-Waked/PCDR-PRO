@@ -19,10 +19,12 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Cms\ArticleController;
 use App\Http\Controllers\Cms\AuthController;
+use App\Http\Controllers\Cms\ComplaintController as CmsComplaintController;
 use App\Http\Controllers\Cms\DashboardController;
 use App\Http\Controllers\Cms\DirectoryPartnerCategoryController;
 use App\Http\Controllers\Cms\DirectoryPartnerController;
 use App\Http\Controllers\Cms\EmailTemplateController;
+use App\Http\Controllers\Cms\HomepageController as CmsHomepageController;
 use App\Http\Controllers\Cms\InquiryController;
 use App\Http\Controllers\Cms\MediaController as CmsMediaController;
 use App\Http\Controllers\Cms\PillarController as CmsPillarController;
@@ -32,10 +34,15 @@ use App\Http\Controllers\Cms\ProjectController as CmsProjectController;
 use App\Http\Controllers\Cms\PublicationController as CmsPublicationController;
 use App\Http\Controllers\Cms\SettingController;
 use App\Http\Controllers\Phase5\WebhookController;
+use App\Http\Controllers\Public\AboutController;
+use App\Http\Controllers\Public\ComplaintController as PublicComplaintController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\HomepageApiController;
+use App\Http\Controllers\Public\MediaCenterController;
 use App\Http\Controllers\Public\MediaController;
 use App\Http\Controllers\Public\PartnersController;
+use App\Http\Controllers\Public\ProgramsController;
 use App\Http\Controllers\Public\RobotsController;
 use App\Http\Controllers\Public\SitemapController;
 use App\Http\Middleware\EnsureDashboardFeatureAvailable;
@@ -83,7 +90,18 @@ Route::prefix('{locale}')
 
         Route::get('/media/{uuid}/download', [MediaController::class, 'download'])->name('public.media.download');
 
+        Route::get('/about', [AboutController::class, 'index'])->name('public.about');
+        Route::get('/programs', [ProgramsController::class, 'index'])->name('public.programs');
+        Route::get('/media', [MediaCenterController::class, 'index'])->name('public.media.center');
         Route::get('/partners', PartnersController::class)->name('public.partners');
+        Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
+        Route::post('/contact', [ContactController::class, 'store'])
+            ->middleware('throttle:10,5')
+            ->name('public.contact.store');
+        Route::get('/complaints', [PublicComplaintController::class, 'index'])->name('public.complaints');
+        Route::post('/complaints', [PublicComplaintController::class, 'store'])
+            ->middleware('throttle:10,5')
+            ->name('public.complaints.store');
 
         Route::prefix('cms')->name('cms.')->group(function (): void {
             Route::middleware('throttle:10,5')->group(function (): void {
@@ -97,6 +115,21 @@ Route::prefix('{locale}')
             // Account status is enforced before permission evaluation.
             Route::middleware('account.active')->group(function (): void {
                 Route::get('/', DashboardController::class)->middleware('cms:pillars.view')->name('dashboard');
+
+                // Structured homepage management: predefined sections only. There are
+                // deliberately no section create/delete routes.
+                Route::get('/homepage', [CmsHomepageController::class, 'index'])
+                    ->middleware('cms:homepage.view')->name('homepage.index');
+                Route::get('/homepage/preview', [CmsHomepageController::class, 'preview'])
+                    ->middleware('cms:homepage.view')->name('homepage.preview');
+                Route::put('/homepage', [CmsHomepageController::class, 'update'])
+                    ->middleware('cms:homepage.update')->name('homepage.update');
+                Route::post('/homepage/reorder', [CmsHomepageController::class, 'reorder'])
+                    ->middleware('cms:homepage.update')->name('homepage.reorder');
+                Route::patch('/homepage/{homepageSection}', [CmsHomepageController::class, 'status'])
+                    ->middleware('cms:homepage.update')->name('homepage.status');
+                Route::post('/homepage/{homepageSection}/toggle', [CmsHomepageController::class, 'toggle'])
+                    ->middleware('cms:homepage.update')->name('homepage.toggle');
 
                 Route::middleware('cms:pillars.view')->group(function (): void {
                     Route::get('/pillars', [CmsPillarController::class, 'index'])->name('pillars.index');
@@ -180,7 +213,7 @@ Route::prefix('{locale}')
 
                 Route::get('/inquiries', [InquiryController::class, 'index'])->middleware('cms:inquiries.view')->name('inquiries.index');
                 Route::get('/inquiries/{type}/{inquiry}', [InquiryController::class, 'show'])
-                    ->whereIn('type', ['contact', 'volunteer'])
+                    ->whereIn('type', ['contact', 'volunteer', 'complaint'])
                     ->whereNumber('inquiry')
                     ->middleware('cms:inquiries.view')
                     ->name('inquiries.show');
@@ -204,6 +237,21 @@ Route::prefix('{locale}')
                     ->whereNumber('inquiry')
                     ->middleware('cms:inquiries.reply')
                     ->name('inquiries.reply');
+
+                // Complaints share the inquiries management surface but keep their
+                // own authorization and private data boundaries.
+                Route::prefix('complaints')->as('complaints.')->group(function (): void {
+                    Route::put('/{complaint}/status', [CmsComplaintController::class, 'status'])
+                        ->whereNumber('complaint')->middleware('cms:complaints.update')->name('status');
+                    Route::put('/{complaint}/priority', [CmsComplaintController::class, 'priority'])
+                        ->whereNumber('complaint')->middleware('cms:complaints.update')->name('priority');
+                    Route::put('/{complaint}/assign', [CmsComplaintController::class, 'assign'])
+                        ->whereNumber('complaint')->middleware('cms:complaints.assign')->name('assign');
+                    Route::post('/{complaint}/notes', [CmsComplaintController::class, 'note'])
+                        ->whereNumber('complaint')->middleware('cms:complaints.add_internal_note')->name('notes');
+                    Route::post('/{complaint}/resolve', [CmsComplaintController::class, 'resolve'])
+                        ->whereNumber('complaint')->middleware('cms:complaints.resolve')->name('resolve');
+                });
 
                 Route::middleware('cms:email_templates.view')->group(function (): void {
                     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');

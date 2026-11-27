@@ -13,17 +13,24 @@ final class RedesignHomepageFrontendTest extends TestCase
         '<ProPrototypeSprite />',
         'class="skip" href="#top"',
         '<ProTopStrip />',
-        '<ProPillHeader />',
+        '<ProPillHeader :anchor-base="localPath()" />',
         '<main id="top">',
-        '<ProHeroCarousel :sections="props.sections" />',
-        '<ProTicker :sections="props.sections" />',
-        '<ProImpact :sections="props.sections" />',
-        '<ProProgramAxes :sections="props.sections" />',
-        '<ProNewsTabs :sections="props.sections" />',
-        '<ProMediaGallery :sections="props.sections" />',
-        '<ProAboutTabs :sections="props.sections" />',
-        '<ProStories :sections="props.sections" />',
-        '<ProPrototypeFooter :sections="props.sections" />',
+        '<template v-for="section in mainSections"',
+        '</main>',
+        'v-if="footerSection && SECTION_COMPONENTS[footerSection.key]"',
+    ];
+
+    /** @var list<string> */
+    private const SECTION_ORDER = [
+        'hero: ProHeroCarousel',
+        'ticker: ProTicker',
+        'impact: ProImpact',
+        'programs: ProProgramAxes',
+        'news: ProNewsTabs',
+        'albums: ProMediaGallery',
+        'about: ProAboutTabs',
+        'stories: ProStories',
+        'footer: ProPrototypeFooter',
     ];
 
     /** @var list<string> */
@@ -60,7 +67,6 @@ final class RedesignHomepageFrontendTest extends TestCase
             '<SiteHeader',
             '<SiteFooter',
             'routeFor(',
-            'localPath(',
             'pcdr-pro-home.css',
             'const content = {',
             'navOpen',
@@ -70,6 +76,20 @@ final class RedesignHomepageFrontendTest extends TestCase
         }
 
         $this->assertSame(1, substr_count($source, 'href="#top"'), 'Only the in-page skip link may target #top.');
+        $this->assertStringNotContainsString('href="/ar/', $source, 'Internal links must not be hardcoded for Arabic.');
+        $this->assertStringNotContainsString('href="/en/', $source, 'Internal links must not be hardcoded for English.');
+
+        $sectionPositions = [];
+        foreach (self::SECTION_ORDER as $marker) {
+            $position = strpos($source, $marker);
+            $this->assertNotFalse($position, $marker.' section mapping missing.');
+            $sectionPositions[] = $position;
+        }
+
+        $this->assertSame($sectionPositions, array_values(array_unique($sectionPositions)), 'Section mappings must be unique.');
+        $sortedSectionPositions = $sectionPositions;
+        sort($sortedSectionPositions);
+        $this->assertSame($sectionPositions, $sortedSectionPositions, 'Section mappings must retain canonical prototype order.');
 
         $positions = [];
         foreach (self::PROTOTYPE_ORDER as $marker) {
@@ -94,7 +114,6 @@ final class RedesignHomepageFrontendTest extends TestCase
             'js/Components/RedesignHome/ProMediaGallery.vue' => ['id="albums"'],
             'js/Components/RedesignHome/ProAboutTabs.vue' => ['id="about"'],
             'js/Components/RedesignHome/ProStories.vue' => ['id="stories"'],
-            'js/Components/RedesignHome/ProPrototypeFooter.vue' => ['id="contact"'],
         ];
 
         foreach ($anchors as $path => $markers) {
@@ -105,6 +124,10 @@ final class RedesignHomepageFrontendTest extends TestCase
             }
         }
 
+        $footerSource = (string) file_get_contents(resource_path('js/Components/RedesignHome/ProPrototypeFooter.vue'));
+        $this->assertStringContainsString("localPath('about')", $footerSource, 'Footer must link to the About page.');
+        $this->assertStringContainsString("localPath('complaints')", $footerSource, 'Footer must link to the complaints page.');
+
         $sectionKeys = [
             'ProHeroCarousel.vue' => "content.items('hero', 'slide-')",
             'ProTicker.vue' => "content.section('ticker')",
@@ -114,7 +137,7 @@ final class RedesignHomepageFrontendTest extends TestCase
             'ProMediaGallery.vue' => "content.section('albums')",
             'ProAboutTabs.vue' => "content.section('about')",
             'ProStories.vue' => "content.section('stories')",
-            'ProPrototypeFooter.vue' => "content.section('footer')",
+            'ProPrototypeFooter.vue' => "content.visibleSection('footer')",
         ];
 
         foreach ($sectionKeys as $component => $marker) {

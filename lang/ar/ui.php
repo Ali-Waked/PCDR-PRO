@@ -366,6 +366,7 @@ return [
         'audit_archives' => 'أرشيف سجلات التدقيق',
         'platform_settings' => 'إعدادات المنصة',
         'cms_dashboard' => 'لوحة المحتوى',
+        'homepage' => 'الرئيسية',
         'pillars' => 'المحاور الاستراتيجية',
         'programs' => 'البرامج',
         'projects' => 'المشاريع',

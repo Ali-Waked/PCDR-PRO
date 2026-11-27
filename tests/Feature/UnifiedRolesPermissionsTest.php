@@ -33,7 +33,7 @@ final class UnifiedRolesPermissionsTest extends TestCase
     {
         $supported = PermissionCatalog::supported();
 
-        $this->assertCount(67, $supported);
+        $this->assertCount(74, $supported);
         $this->assertSame('content', config('permissions')['inquiries.update']['module']);
 
         foreach (['users.view', 'roles.view', 'inquiries.update', 'news.publish'] as $key) {
@@ -43,6 +43,14 @@ final class UnifiedRolesPermissionsTest extends TestCase
         foreach ([
             'directory_partners.view', 'directory_partners.create', 'directory_partners.update',
             'directory_partners.delete', 'directory_partners.publish', 'directory_partners.unpublish',
+        ] as $key) {
+            $this->assertTrue(PermissionCatalog::isSupported($key), $key);
+        }
+
+        foreach ([
+            'homepage.view', 'homepage.update',
+            'complaints.view_all', 'complaints.view_assigned', 'complaints.view_contact',
+            'complaints.update', 'complaints.assign', 'complaints.add_internal_note', 'complaints.resolve',
         ] as $key) {
             $this->assertTrue(PermissionCatalog::isSupported($key), $key);
         }

@@ -170,7 +170,7 @@ function filterHref(slug) {
                             <h3>{{ t('ui.partner_directory.cta_title') }}</h3>
                             <p>{{ t('ui.partner_directory.cta_body') }}</p>
                         </div>
-                        <a class="partner-cta__link" href="#contact">{{ t('ui.partner_directory.cta_label') }}</a>
+                        <Link class="partner-cta__link" :href="localPath('contact')">{{ t('ui.partner_directory.cta_label') }}</Link>
                     </aside>
                 </div>
             </section>

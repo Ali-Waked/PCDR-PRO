@@ -366,6 +366,7 @@ return [
         'audit_archives' => 'Audit archives',
         'platform_settings' => 'Platform settings',
         'cms_dashboard' => 'Content dashboard',
+        'homepage' => 'Homepage',
         'pillars' => 'Strategic pillars',
         'programs' => 'Programmes',
         'projects' => 'Projects',

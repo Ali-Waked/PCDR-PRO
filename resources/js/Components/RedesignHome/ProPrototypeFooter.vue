@@ -6,128 +6,159 @@ import { useI18n } from '../../composables/useI18n'
 
 const props = defineProps({
     sections: { type: Array, default: () => [] },
+    // Accepted for compatibility with inner pages; destinations use real routes.
     anchorBase: { type: String, default: '' },
 })
 
-const { locale, page } = useI18n()
-const complaintsUrl = computed(() => page.props.publicRoutes?.complaints || '')
-const anchor = (id) => `${props.anchorBase}#${id}`
+const { locale, localPath } = useI18n()
 const content = useHomepageContent(() => props.sections)
 
-const FALLBACK = {
-    aboutTitle: { ar: 'عن الجمعية :', en: 'About the association:' },
-    aboutBody: {
-        ar: 'جمعية العمل التشاركي في الأزمات والكوارث الخيرية جمعية أهلية في قطاع غزة، تعمل على الانتقال من التدخلات الإغاثية الموسمية إلى نموذج مؤسسي متكامل يجمع بين الاستجابة الإنسانية الفورية والحماية الاجتماعية والتنمية الاقتصادية والتعافي المبكر، وتجعل المجتمع شريكاً أساسياً في تحديد الاحتياجات وتنفيذ التدخلات وتقييم أثرها…',
-        en: 'The Participatory Action in Crises and Disasters Charity is a civil society association in the Gaza Strip. It works to move from seasonal relief interventions to an integrated institutional model combining immediate humanitarian response, social protection, economic development and early recovery, and makes the community a key partner in identifying needs, implementing interventions and evaluating their impact…',
-    },
-    readMore: { ar: 'اقرأ المزيد', en: 'Read more' },
-    complaintsTitle: { ar: 'اتصل بنا / الشكاوى :', en: 'Contact us / Complaints:' },
-    complaintsBody: {
-        ar: 'نوفر قنوات آمنة وسرية لتقديم الشكاوى والملاحظات، ونلتزم بالرد عليها وفق سياسة الشكاوى والتظلمات المعتمدة.',
-        en: 'We provide safe and confidential channels for submitting complaints and feedback, and we commit to responding to them in accordance with the approved complaints and grievances policy.',
-    },
-    complaintsLink: { ar: 'اتصل بنا / الشكاوى', en: 'Contact us / Complaints' },
-    mediaTitle: { ar: 'المرئيات :', en: 'Media:' },
-    video: { ar: 'الفيلم التعريفي بالجمعية', en: 'Introductory film about the association' },
-    copyright: {
-        ar: '© 2026 جمعية العمل التشاركي في الأزمات والكوارث الخيرية – قطاع غزة',
-        en: '© 2026 Participatory Action in Crises and Disasters Charity – Gaza Strip',
-    },
-    fab: { ar: 'الشكاوى', en: 'Complaints' },
-    social: [
-        { key: 'social-rss', kind: 'rss', ar: 'خلاصة RSS', en: 'RSS feed' },
-        { key: 'social-youtube', kind: 'youtube', ar: 'يوتيوب', en: 'YouTube' },
-        { key: 'social-x', kind: 'text-x', ar: 'منصة X', en: 'X' },
-        { key: 'social-facebook', kind: 'text-f', ar: 'فيسبوك', en: 'Facebook' },
-    ],
+const SOCIAL_KINDS = {
+    'social-rss': 'rss',
+    'social-youtube': 'youtube',
+    'social-x': 'text-x',
+    'social-facebook': 'text-f',
 }
 
-const arabic = computed(() => locale.value === 'ar')
-const label = (value) => (arabic.value ? value.ar : value.en)
-const section = computed(() => content.section('footer'))
+const chrome = computed(() => (locale.value === 'ar' ? {
+    readMore: 'اقرأ المزيد',
+    complaintsTitle: 'اتصل بنا / الشكاوى :',
+    complaints: 'اتصل بنا / الشكاوى',
+    mediaTitle: 'المرئيات :',
+    copyright: '© 2026 جمعية العمل التشاركي في الأزمات والكوارث الخيرية – قطاع غزة',
+    fab: 'الشكاوى',
+} : {
+    readMore: 'Read more',
+    complaintsTitle: 'Contact us / complaints:',
+    complaints: 'Contact us / complaints',
+    mediaTitle: 'Media:',
+    copyright: '© 2026 Participatory Action in Crises and Disasters Charity – Gaza Strip',
+    fab: 'Complaints',
+}))
+
+const footerSection = computed(() => content.visibleSection('footer'))
 const footerItems = computed(() => content.items('footer'))
 
 function itemFor(prefix) {
     return footerItems.value.find((item) => String(item.key || '').toLowerCase().startsWith(prefix))
 }
 
-const aboutBody = computed(() => content.text(section.value, 'body')
-    || content.text(itemFor('about'), 'body')
-    || label(FALLBACK.aboutBody))
-const complaintsBody = computed(() => content.text(itemFor('complaint'), 'body') || label(FALLBACK.complaintsBody))
-const videoCaption = computed(() => content.text(section.value, 'videoCaption')
-    || content.text(itemFor('video'), 'caption')
-    || label(FALLBACK.video))
-const copyright = computed(() => content.text(itemFor('copyright'), 'title') || label(FALLBACK.copyright))
+function sectionText(field) {
+    return content.text(footerSection.value, field)
+}
 
-const social = computed(() => FALLBACK.social.map((fallback) => {
-    const item = footerItems.value.find((entry) => String(entry.key || '') === fallback.key)
+const aboutItem = computed(() => itemFor('about'))
+const complaintItem = computed(() => itemFor('complaint'))
+const videoItem = computed(() => itemFor('video'))
+const copyrightItem = computed(() => itemFor('copyright'))
+
+const aboutHeading = computed(() => content.text(aboutItem.value, 'title') || sectionText('title'))
+const aboutBody = computed(() => content.text(aboutItem.value, 'body') || sectionText('body'))
+const aboutCta = computed(() => content.text(aboutItem.value, 'ctaLabel')
+    || sectionText('ctaLabel')
+    || chrome.value.readMore)
+
+const aboutHref = computed(() => {
+    const stored = content.safeUrl(content.text(aboutItem.value, 'url') || sectionText('ctaLink'))
+    return stored && !stored.startsWith('#') ? stored : localPath('about')
+})
+
+const complaintsHeading = computed(() => content.text(complaintItem.value, 'title') || chrome.value.complaintsTitle)
+const complaintsBody = computed(() => content.text(complaintItem.value, 'body'))
+const complaintsCta = computed(() => content.text(complaintItem.value, 'ctaLabel') || chrome.value.complaints)
+const complaintsHref = computed(() => localPath('complaints'))
+
+const mediaHeading = computed(() => content.text(videoItem.value, 'title') || chrome.value.mediaTitle)
+const videoCaption = computed(() => sectionText('videoCaption')
+    || content.text(videoItem.value, 'caption')
+    || content.text(videoItem.value, 'label'))
+const videoUrl = computed(() => content.safeUrl(sectionText('videoUrl') || content.text(videoItem.value, 'url')))
+const videoAlt = computed(() => content.mediaAlt(videoItem.value))
+
+const copyright = computed(() => content.text(copyrightItem.value, 'title') || chrome.value.copyright)
+
+const social = computed(() => content.items('footer', 'social-').map((item) => {
+    const key = content.text(item, 'key')
+    const kind = SOCIAL_KINDS[key] || 'link'
     return {
-        key: fallback.key,
-        kind: fallback.kind,
-        label: content.text(item, 'title') || content.text(item, 'label') || label(fallback),
+        key,
+        kind,
+        label: content.text(item, 'title') || content.text(item, 'label') || kind,
         url: content.safeUrl(content.text(item, 'url')),
     }
 }))
 
-const videoUrl = computed(() => content.safeUrl(content.text(section.value, 'videoUrl')
-    || content.text(itemFor('video'), 'url')))
+const values = computed(() => content.items('footer', 'value-')
+    .map((item) => content.text(item, 'title') || content.text(item, 'label'))
+    .filter((value) => value !== ''))
 
 function photoStyle() {
-    const item = itemFor('video')
-    const media = content.mediaUrl(item)
+    const media = content.mediaUrl(videoItem.value)
     return media ? { '--photo': `url("${media.replace(/"/g, '%22')}")` } : null
 }
 </script>
 
 <template>
     <div class="prototype-footer-wrap">
-    <footer class="foot" id="contact">
-        <div class="wrap foot-grid">
-            <section>
-                <h3>{{ label(FALLBACK.aboutTitle) }}</h3>
-                <p>{{ aboutBody }}</p>
-                <a class="link" :href="anchor('about')">{{ label(FALLBACK.readMore) }}</a>
-            </section>
-            <section>
-                <h3>{{ label(FALLBACK.complaintsTitle) }}</h3>
-                <p>{{ complaintsBody }}</p>
-                <Link v-if="complaintsUrl" class="link" :href="complaintsUrl">{{ label(FALLBACK.complaintsLink) }}</Link>
-                <a v-else class="link" :href="anchor('contact')">{{ label(FALLBACK.complaintsLink) }}</a>
-                <div class="social">
-                    <template v-for="item in social" :key="item.key">
-                        <a v-if="item.url" :href="item.url" :aria-label="item.label">
-                            <svg v-if="item.kind === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="1.6" fill="currentColor"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/></svg>
-                            <svg v-else-if="item.kind === 'youtube'" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l5-2.8z" style="fill:var(--deep)"/></svg>
-                            <template v-else>{{ item.kind === 'text-x' ? 'X' : 'f' }}</template>
-                        </a>
-                        <span v-else :aria-label="item.label" :title="item.label">
-                            <svg v-if="item.kind === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="1.6" fill="currentColor"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/></svg>
-                            <svg v-else-if="item.kind === 'youtube'" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l5-2.8z" style="fill:var(--deep)"/></svg>
-                            <template v-else>{{ item.kind === 'text-x' ? 'X' : 'f' }}</template>
-                        </span>
-                    </template>
-                </div>
-            </section>
-            <section>
-                <h3>{{ label(FALLBACK.mediaTitle) }}</h3>
-                <a v-if="videoUrl" class="video" :href="videoUrl" :aria-label="videoCaption" :style="photoStyle()">
-                    <span class="p"><svg aria-hidden="true"><use href="#i-play" /></svg></span>
-                    <em>{{ videoCaption }}</em>
-                </a>
-                <div v-else class="video" role="img" :aria-label="videoCaption" :style="photoStyle()">
-                    <span class="p"><svg aria-hidden="true"><use href="#i-play" /></svg></span>
-                    <em>{{ videoCaption }}</em>
-                </div>
-            </section>
-        </div>
-        <div class="wrap foot-base">
-            <span>{{ copyright }}</span>
-            <span v-if="arabic"><b>الشراكة</b> · <b>الكرامة الإنسانية</b> · <b>العدالة</b> · <b>الاستدامة</b></span>
-            <span v-else><b>Partnership</b> · <b>Human dignity</b> · <b>Justice</b> · <b>Sustainability</b></span>
-        </div>
-    </footer>
-    <Link v-if="complaintsUrl" class="fab" :href="complaintsUrl"><svg aria-hidden="true"><use href="#i-mail" /></svg>{{ label(FALLBACK.fab) }}</Link>
-    <a v-else class="fab" :href="anchor('contact')"><svg aria-hidden="true"><use href="#i-mail" /></svg>{{ label(FALLBACK.fab) }}</a>
+        <footer class="foot">
+            <div class="wrap foot-grid">
+                <section>
+                    <h3 v-if="aboutHeading">{{ aboutHeading }}</h3>
+                    <p v-if="aboutBody">{{ aboutBody }}</p>
+                    <Link class="link" :href="aboutHref">{{ aboutCta }}</Link>
+                </section>
+                <section>
+                    <h3 v-if="complaintsHeading">{{ complaintsHeading }}</h3>
+                    <p v-if="complaintsBody">{{ complaintsBody }}</p>
+                    <Link class="link" :href="complaintsHref">{{ complaintsCta }}</Link>
+                    <div class="social">
+                        <template v-for="item in social" :key="item.key">
+                            <a v-if="item.url" :href="item.url" :aria-label="item.label">
+                                <svg v-if="item.kind === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="1.6" fill="currentColor"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/></svg>
+                                <svg v-else-if="item.kind === 'youtube'" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l5-2.8z" style="fill:var(--deep)"/></svg>
+                                <template v-else>{{ item.kind === 'text-x' ? 'X' : 'f' }}</template>
+                            </a>
+                            <span v-else :aria-label="item.label" :title="item.label">
+                                <svg v-if="item.kind === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="1.6" fill="currentColor"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/></svg>
+                                <svg v-else-if="item.kind === 'youtube'" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l5-2.8z" style="fill:var(--deep)"/></svg>
+                                <template v-else>{{ item.kind === 'text-x' ? 'X' : 'f' }}</template>
+                            </span>
+                        </template>
+                    </div>
+                </section>
+                <section>
+                    <h3 v-if="mediaHeading">{{ mediaHeading }}</h3>
+                    <a
+                        v-if="videoUrl"
+                        class="video"
+                        :href="videoUrl"
+                        :aria-label="videoCaption || videoAlt"
+                        :style="photoStyle()"
+                    >
+                        <span class="p"><svg aria-hidden="true"><use href="#i-play" /></svg></span>
+                        <em v-if="videoCaption">{{ videoCaption }}</em>
+                    </a>
+                    <div
+                        v-else
+                        class="video"
+                        role="img"
+                        :aria-label="videoCaption || videoAlt"
+                        :style="photoStyle()"
+                    >
+                        <span class="p"><svg aria-hidden="true"><use href="#i-play" /></svg></span>
+                        <em v-if="videoCaption">{{ videoCaption }}</em>
+                    </div>
+                </section>
+            </div>
+            <div class="wrap foot-base">
+                <span>{{ copyright }}</span>
+                <span v-if="values.length">
+                    <b v-for="(value, index) in values" :key="`${value}-${index}`">{{ value }}<template v-if="index < values.length - 1"> · </template></b>
+                </span>
+            </div>
+        </footer>
+        <Link class="fab" :href="complaintsHref" :aria-label="chrome.fab">
+            <svg aria-hidden="true"><use href="#i-mail" /></svg>{{ chrome.fab }}
+        </Link>
     </div>
 </template>

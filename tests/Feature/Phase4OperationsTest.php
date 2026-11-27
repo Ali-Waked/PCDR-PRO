@@ -48,8 +48,12 @@ final class Phase4OperationsTest extends TestCase
             $this->assertTrue(Schema::hasTable($table), "Missing operational table [{$table}].");
         }
 
+        // The public complaints box is an intentional standalone channel, not a
+        // beneficiary or approval register.
+        $this->assertTrue(Schema::hasTable('complaints'), 'Missing complaints table.');
+
         foreach ([
-            'beneficiaries', 'households', 'complaints',
+            'beneficiaries', 'households',
             'institutional_approvals', 'delegations', 'officeholders',
         ] as $table) {
             $this->assertFalse(Schema::hasTable($table), "Prohibited table [{$table}] exists.");

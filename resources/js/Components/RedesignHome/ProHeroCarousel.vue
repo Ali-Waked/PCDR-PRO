@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useHomepageContent } from '../../composables/useHomepageContent'
 import { useI18n } from '../../composables/useI18n'
 
@@ -9,81 +9,6 @@ const props = defineProps({
 
 const { locale } = useI18n()
 const content = useHomepageContent(() => props.sections)
-
-// Exact prototype copy, with faithful English translations. Used when the CMS
-// has not supplied a slide; CMS values always take precedence.
-const FALLBACK = [
-    {
-        key: 'slide-1',
-        motifKey: 'm-sun',
-        ar: {
-            label: 'الشعار الاستراتيجي 2027 – 2029',
-            title: 'من الاستجابة الإنسانية إلى التعافي والتنمية المستدامة',
-            body: 'نحوّل الاحتياجات الميدانية في قطاع غزة إلى برامج ومشاريع قابلة للتنفيذ والقياس والاستدامة، بالشراكة مع المجتمع.',
-        },
-        en: {
-            label: 'Strategic slogan 2027 – 2029',
-            title: 'From humanitarian response to recovery and sustainable development',
-            body: 'We translate field needs in the Gaza Strip into programmes and projects that can be implemented, measured and sustained, in partnership with the community.',
-        },
-    },
-    {
-        key: 'slide-2',
-        motifKey: 'm-wheat',
-        ar: {
-            label: 'الأمن الغذائي والتغذية',
-            title: 'غذاء كريم وعادل ومنتظم للأسر الأكثر احتياجاً',
-            body: 'طرود غذائية وكوبونات ومطابخ مجتمعية وحدائق منزلية، وفق معايير استحقاق معلنة وشفافة.',
-        },
-        en: {
-            label: 'Food security and nutrition',
-            title: 'Dignified, fair and regular food for the most needy families',
-            body: 'Food parcels, vouchers, community kitchens and home gardens, based on published and transparent eligibility criteria.',
-        },
-    },
-    {
-        key: 'slide-3',
-        motifKey: 'm-bars',
-        ar: {
-            label: 'التمكين الاقتصادي وسبل العيش',
-            title: 'من الاعتماد على المساعدات إلى القدرة على الإنتاج',
-            body: 'منح صغيرة للمشروعات المنزلية، وتدريب مهني، ودعم للتعاونيات والمبادرات الإنتاجية.',
-        },
-        en: {
-            label: 'Economic empowerment and livelihoods',
-            title: 'From dependence on aid to the ability to produce',
-            body: 'Small grants for home-based projects, vocational training, and support for cooperatives and productive initiatives.',
-        },
-    },
-    {
-        key: 'slide-4',
-        motifKey: 'm-home',
-        ar: {
-            label: 'الحماية والدعم النفسي والاجتماعي',
-            title: 'رعاية متكاملة للفئات الأكثر هشاشة',
-            body: 'الأيتام والأشخاص ذوو الإعاقة والنساء المعيلات وكبار السن، مع دعم نفسي واجتماعي للأطفال والأسر.',
-        },
-        en: {
-            label: 'Protection and psychosocial support',
-            title: 'Integrated care for the most vulnerable groups',
-            body: 'Orphans, persons with disabilities, female-headed households and older people, with psychosocial support for children and families.',
-        },
-    },
-    {
-        key: 'slide-5',
-        motifKey: 'm-drop',
-        ar: {
-            label: 'الصحة والمياه والإصحاح البيئي',
-            title: 'بيئة أكثر أماناً في مراكز الإيواء والمناطق المتضررة',
-            body: 'حملات نظافة وتوعية صحية، ودعم مياه الشرب الآمنة، وتحسين مرافق الصرف الصحي.',
-        },
-        en: {
-            label: 'Health, water and environmental sanitation',
-            title: 'A safer environment in shelters and affected areas',
-            body: 'Cleanliness and health-awareness campaigns, support for safe drinking water, and improved sanitation facilities.',
-        },
-    },
-]
 
 const labels = computed(() => (locale.value === 'ar' ? {
     carousel: 'أبرز برامج الجمعية',
@@ -99,30 +24,14 @@ const labels = computed(() => (locale.value === 'ar' ? {
     slide: 'Slide',
 }))
 
-const slides = computed(() => {
-    const fromCms = content.items('hero', 'slide-')
-    const arabic = locale.value === 'ar'
-
-    if (fromCms.length > 0) {
-        return fromCms.map((item, index) => ({
-            key: content.text(item, 'key', `slide-${index + 1}`),
-            label: content.text(item, 'label'),
-            title: content.text(item, 'title'),
-            body: content.text(item, 'body'),
-            motifKey: content.text(item, 'motifKey', FALLBACK[index % FALLBACK.length].motifKey),
-            media: content.mediaUrl(item),
-        }))
-    }
-
-    return FALLBACK.map((slide) => ({
-        key: slide.key,
-        label: arabic ? slide.ar.label : slide.en.label,
-        title: arabic ? slide.ar.title : slide.en.title,
-        body: arabic ? slide.ar.body : slide.en.body,
-        motifKey: slide.motifKey,
-        media: '',
-    }))
-})
+const slides = computed(() => content.items('hero', 'slide-').map((item, index) => ({
+    key: content.text(item, 'key', `slide-${index + 1}`),
+    label: content.text(item, 'label'),
+    title: content.text(item, 'title'),
+    body: content.text(item, 'body'),
+    motifKey: content.text(item, 'motifKey') || 'm-sun',
+    media: content.mediaUrl(item),
+})))
 
 function photoStyle(slide) {
     return slide.media ? { '--photo': `url("${slide.media.replace(/"/g, '%22')}")` } : null
@@ -133,6 +42,12 @@ const playing = ref(true)
 const reduced = ref(false)
 let timer = null
 let touchStart = null
+
+watch(slides, (value) => {
+    if (current.value >= value.length) {
+        current.value = 0
+    }
+})
 
 function show(index) {
     if (!slides.value.length) {
@@ -225,9 +140,9 @@ onBeforeUnmount(stopTimer)
         >
             <svg class="motif" aria-hidden="true"><use :href="`#${slide.motifKey}`" /></svg>
             <div class="wrap cap">
-                <span class="tag">{{ slide.label }}</span>
-                <component :is="index === 0 ? 'h1' : 'h2'">{{ slide.title }}</component>
-                <p>{{ slide.body }}</p>
+                <span v-if="slide.label" class="tag">{{ slide.label }}</span>
+                <component :is="index === 0 ? 'h1' : 'h2'" v-if="slide.title">{{ slide.title }}</component>
+                <p v-if="slide.body">{{ slide.body }}</p>
             </div>
         </div>
 

@@ -10,6 +10,7 @@ use App\Models\Article;
 use App\Models\AuditLog;
 use App\Models\ContactMessage;
 use App\Models\EmailTemplate;
+use App\Models\HomepageSection;
 use App\Models\Media;
 use App\Models\PartnershipInquiry;
 use App\Models\Permission;
@@ -83,6 +84,7 @@ final class AdminDashboardService
             'projects' => $this->cms->allows($user, 'programs.view'),
             'publications' => $this->cms->allows($user, 'publications.view'),
             'pillars' => $this->cms->allows($user, 'pillars.view'),
+            'homepage' => $this->cms->allows($user, 'homepage.view'),
             'media' => $this->cms->allows($user, 'media.view'),
             'inquiries' => $this->cms->allows($user, 'inquiries.view'),
             'email_templates' => $this->cms->allows($user, 'email_templates.view'),
@@ -151,6 +153,19 @@ final class AdminDashboardService
                 ContentStatus::Published->value,
                 ContentStatus::Draft->value,
             );
+        }
+
+        if ($permissions['homepage']) {
+            $rows[] = [
+                'key' => 'homepage',
+                'href' => '/cms/homepage',
+                'metrics' => [
+                    ['key' => 'total', 'value' => HomepageSection::query()->count()],
+                    ['key' => 'enabled', 'value' => HomepageSection::query()->where('is_enabled', true)->count()],
+                    ['key' => 'disabled', 'value' => HomepageSection::query()->where('is_enabled', false)->count()],
+                ],
+                'updated_at' => $this->latestTimestamp(HomepageSection::query()),
+            ];
         }
 
         if ($permissions['media']) {

@@ -173,12 +173,21 @@ final class HomepageBackendIntegrationTest extends TestCase
         $this->seedHomepage();
 
         $this->section('intro')->translations()->where('locale', 'ar')
-            ->update(['cta_link' => '/ar/about']);
+            ->update(['cta_link' => '/ar/strategic-areas']);
         app(HomepageService::class)->flush();
 
         $this->get('/ar')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Public/Home')
             ->where('sections.1.ctaLink', null));
+
+        // About is now a real public page, so stored links to it survive.
+        $this->section('intro')->translations()->where('locale', 'ar')
+            ->update(['cta_link' => '/ar/about']);
+        app(HomepageService::class)->flush();
+
+        $this->get('/ar')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Public/Home')
+            ->where('sections.1.ctaLink', '/ar/about'));
     }
 
     public function test_public_home_hides_disabled_sections_but_cms_preview_keeps_them(): void
@@ -342,7 +351,7 @@ final class HomepageBackendIntegrationTest extends TestCase
             '<ProPrototypeSprite />',
             'class="skip" href="#top"',
             '<ProTopStrip />',
-            '<ProPillHeader />',
+            '<ProPillHeader',
             'props.sections',
         ] as $marker) {
             $this->assertStringContainsString($marker, $source, $marker.' marker missing.');
@@ -353,7 +362,6 @@ final class HomepageBackendIntegrationTest extends TestCase
             '<SiteHeader',
             '<SiteFooter',
             'routeFor(',
-            'localPath(',
             'href="#main"',
             'const content = {',
             'navOpen',
@@ -361,28 +369,44 @@ final class HomepageBackendIntegrationTest extends TestCase
             $this->assertStringNotContainsString($retiredMarker, $source, $retiredMarker.' still present.');
         }
 
+        $this->assertStringNotContainsString('href="/ar/', $source, 'Internal links must not be hardcoded for Arabic.');
+        $this->assertStringNotContainsString('href="/en/', $source, 'Internal links must not be hardcoded for English.');
+
         $this->assertSame(1, substr_count($source, 'href="#top"'));
 
-        $templateOrder = [
-            '<main id="top">',
-            '<ProHeroCarousel :sections="props.sections" />',
-            '<ProTicker :sections="props.sections" />',
-            '<ProImpact :sections="props.sections" />',
-            '<ProProgramAxes :sections="props.sections" />',
-            '<ProNewsTabs :sections="props.sections" />',
-            '<ProMediaGallery :sections="props.sections" />',
-            '<ProAboutTabs :sections="props.sections" />',
-            '<ProStories :sections="props.sections" />',
-            '<ProPrototypeFooter :sections="props.sections" />',
+        $sectionOrder = [
+            'hero: ProHeroCarousel',
+            'ticker: ProTicker',
+            'impact: ProImpact',
+            'programs: ProProgramAxes',
+            'news: ProNewsTabs',
+            'albums: ProMediaGallery',
+            'about: ProAboutTabs',
+            'stories: ProStories',
+            'footer: ProPrototypeFooter',
         ];
 
         $previousPosition = -1;
-        foreach ($templateOrder as $marker) {
+        foreach ($sectionOrder as $marker) {
             $position = strpos($source, $marker);
-            $this->assertNotFalse($position, "Missing prototype marker: {$marker}");
-            $this->assertGreaterThan($previousPosition, $position, "Out-of-order prototype marker: {$marker}");
+            $this->assertNotFalse($position, "Missing section mapping: {$marker}");
+            $this->assertGreaterThan($previousPosition, $position, "Out-of-order section mapping: {$marker}");
             $previousPosition = $position;
         }
+
+        $mainPosition = strpos($source, '<main id="top">');
+        $this->assertNotFalse($mainPosition, 'Missing prototype main landmark.');
+
+        $componentPosition = strpos($source, ':sections="props.sections"', $mainPosition);
+        $this->assertNotFalse($componentPosition, 'Main sections must be rendered dynamically.');
+        $this->assertGreaterThan($mainPosition, $componentPosition, 'Main sections must render inside the main landmark.');
+
+        $mainClosePosition = strpos($source, '</main>', $componentPosition);
+        $this->assertNotFalse($mainClosePosition, 'Missing prototype main landmark close.');
+
+        $footerPosition = strpos($source, ':anchor-base="localPath()"', $mainClosePosition);
+        $this->assertNotFalse($footerPosition, 'Footer section must be rendered dynamically.');
+        $this->assertGreaterThan($mainClosePosition, $footerPosition, 'Footer section must render outside the main landmark.');
 
         $anchors = [
             'ProImpact.vue' => ['id="impact"', 'id="targets"'],
@@ -391,7 +415,6 @@ final class HomepageBackendIntegrationTest extends TestCase
             'ProMediaGallery.vue' => ['id="albums"'],
             'ProAboutTabs.vue' => ['id="about"'],
             'ProStories.vue' => ['id="stories"'],
-            'ProPrototypeFooter.vue' => ['id="contact"'],
         ];
 
         foreach ($anchors as $component => $markers) {
@@ -401,6 +424,10 @@ final class HomepageBackendIntegrationTest extends TestCase
                 $this->assertStringContainsString($marker, $componentSource, $component.' is missing '.$marker.'.');
             }
         }
+
+        $footerSource = (string) file_get_contents(resource_path('js/Components/RedesignHome/ProPrototypeFooter.vue'));
+        $this->assertStringContainsString("localPath('about')", $footerSource, 'Footer must link to the About page.');
+        $this->assertStringContainsString("localPath('complaints')", $footerSource, 'Footer must link to the complaints page.');
     }
 
     private function seedHomepage(): void

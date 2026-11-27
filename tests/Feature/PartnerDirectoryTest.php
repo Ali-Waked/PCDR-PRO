@@ -523,6 +523,14 @@ final class PartnerDirectoryTest extends TestCase
         $this->assertSame(ContentStatus::Published->value, ContentStatus::valueOf($published->fresh()->status));
     }
 
+    public function test_public_partner_cta_points_to_the_localized_contact_page(): void
+    {
+        $source = (string) file_get_contents(resource_path('js/Pages/Public/Partners.vue'));
+
+        $this->assertStringContainsString("localPath('contact')", $source);
+        $this->assertStringNotContainsString('href="#contact"', $source);
+    }
+
     /** @param array<string, mixed> $overrides @return array<string, mixed> */
     private function partnerPayload(array $overrides = []): array
     {

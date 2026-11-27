@@ -13,6 +13,7 @@ import ProPrototypeSprite from '../../Components/RedesignHome/ProPrototypeSprite
 import ProStories from '../../Components/RedesignHome/ProStories.vue'
 import ProTicker from '../../Components/RedesignHome/ProTicker.vue'
 import ProTopStrip from '../../Components/RedesignHome/ProTopStrip.vue'
+import { useHomepageContent } from '../../composables/useHomepageContent'
 import { useI18n } from '../../composables/useI18n'
 import '../../../css/pcdr-prototype.css'
 
@@ -21,7 +22,20 @@ const props = defineProps({
     meta: { type: Object, default: null },
 })
 
-const { locale, direction, alternateUrl, site, t } = useI18n()
+const SECTION_COMPONENTS = {
+    hero: ProHeroCarousel,
+    ticker: ProTicker,
+    impact: ProImpact,
+    programs: ProProgramAxes,
+    news: ProNewsTabs,
+    albums: ProMediaGallery,
+    about: ProAboutTabs,
+    stories: ProStories,
+    footer: ProPrototypeFooter,
+}
+
+const { locale, direction, alternateUrl, localPath, site, t } = useI18n()
+const content = useHomepageContent(() => props.sections)
 
 const title = computed(() => (typeof props.meta?.title === 'string' && props.meta.title.trim())
     ? props.meta.title
@@ -31,6 +45,9 @@ const title = computed(() => (typeof props.meta?.title === 'string' && props.met
 
 const description = computed(() => props.meta?.description || site.value?.slogan || '')
 const skipLabel = computed(() => t('ui.skip_to_content', locale.value === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'))
+const ordered = computed(() => content.orderedSections())
+const mainSections = computed(() => ordered.value.filter((section) => section.key !== 'footer'))
+const footerSection = computed(() => ordered.value.find((section) => section.key === 'footer') || null)
 
 onMounted(() => {
     if (typeof window !== 'undefined'
@@ -72,19 +89,23 @@ onBeforeUnmount(() => {
         <ProPrototypeSprite />
         <a class="skip" href="#top">{{ skipLabel }}</a>
         <ProTopStrip />
-        <ProPillHeader />
+        <ProPillHeader :anchor-base="localPath()" />
 
         <main id="top">
-            <ProHeroCarousel :sections="props.sections" />
-            <ProTicker :sections="props.sections" />
-            <ProImpact :sections="props.sections" />
-            <ProProgramAxes :sections="props.sections" />
-            <ProNewsTabs :sections="props.sections" />
-            <ProMediaGallery :sections="props.sections" />
-            <ProAboutTabs :sections="props.sections" />
-            <ProStories :sections="props.sections" />
+            <template v-for="section in mainSections" :key="section.key">
+                <component
+                    v-if="SECTION_COMPONENTS[section.key]"
+                    :is="SECTION_COMPONENTS[section.key]"
+                    :sections="props.sections"
+                />
+            </template>
         </main>
 
-        <ProPrototypeFooter :sections="props.sections" />
+        <component
+            v-if="footerSection && SECTION_COMPONENTS[footerSection.key]"
+            :is="SECTION_COMPONENTS[footerSection.key]"
+            :sections="props.sections"
+            :anchor-base="localPath()"
+        />
     </div>
 </template>

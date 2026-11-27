@@ -228,7 +228,7 @@ final class LocalizedUrlFallbackTest extends TestCase
         }
     }
 
-    public function test_only_the_home_and_partners_public_pages_have_unprefixed_paths(): void
+    public function test_supported_public_pages_have_unprefixed_paths(): void
     {
         $paths = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($route): bool => in_array('GET', $route->methods(), true)
@@ -237,12 +237,17 @@ final class LocalizedUrlFallbackTest extends TestCase
             ->filter(fn (string $uri): bool => str_starts_with($uri, '{locale}'))
             ->filter(fn (string $uri): bool => substr_count($uri, '{') === 1)
             ->map(fn (string $uri): string => $uri === '{locale}' ? '/' : '/'.substr($uri, strlen('{locale}/')))
-            ->values();
+            ->sort()
+            ->values()
+            ->all();
 
-        $this->assertSame(['/', '/partners'], $paths->all());
+        $expected = ['/', '/about', '/complaints', '/contact', '/media', '/partners', '/programs'];
 
-        $this->followToOk('/', 'en')->assertOk();
-        $this->followToOk('/partners', 'en')->assertOk();
+        $this->assertSame($expected, $paths);
+
+        foreach ($expected as $path) {
+            $this->followToOk($path, 'en')->assertOk();
+        }
     }
 
     public function test_root_and_localized_home_do_not_gain_extra_redirects(): void
@@ -269,11 +274,11 @@ final class LocalizedUrlFallbackTest extends TestCase
         $this->assertStringContainsString('href="'.route('public.home', ['locale' => 'ar']).'"', $publicHtml);
         $this->assertStringContainsString('role="status"', $publicHtml);
 
-        $removedHtml = (string) $this->noAcceptLanguage()->get('/contact')->getContent();
+        $removedHtml = (string) $this->noAcceptLanguage()->get('/strategic-areas')->getContent();
 
         $this->assertStringContainsString('data-shell="public"', $removedHtml);
         $this->assertStringContainsString('href="'.route('public.home', ['locale' => 'ar']).'"', $removedHtml);
-        $this->assertStringNotContainsString('href="'.url('/ar/contact').'"', $removedHtml);
+        $this->assertStringNotContainsString('href="'.url('/ar/strategic-areas').'"', $removedHtml);
 
         $adminHtml = (string) $this->get('/ar/admin/does-not-exist')->getContent();
 

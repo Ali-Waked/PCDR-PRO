@@ -19,9 +19,8 @@ final class PublicLinkCrawlTest extends TestCase
     use RefreshDatabase;
 
     private const REMOVED_PREFIXES = [
-        'about', 'strategic-areas', 'programs', 'projects', 'news', 'publications',
-        'transparency', 'partnerships', 'get-involved', 'contact',
-        'complaints', 'pages',
+        'strategic-areas', 'projects', 'news', 'publications',
+        'transparency', 'partnerships', 'get-involved', 'pages',
     ];
 
     public function test_seeded_home_links_never_point_to_removed_public_pages(): void
@@ -107,7 +106,7 @@ final class PublicLinkCrawlTest extends TestCase
         $section->translations()->create([
             'locale' => 'ar',
             'title' => 'فحص الروابط',
-            'cta_link' => '/ar/about',
+            'cta_link' => '/ar/strategic-areas',
         ]);
         app(HomepageService::class)->flush();
 
@@ -115,7 +114,7 @@ final class PublicLinkCrawlTest extends TestCase
         $probe = collect($props['sections'])->firstWhere('key', 'crawl-probe');
 
         $this->assertIsArray($probe);
-        $this->assertSame('/ar/about', $section->fresh()->t('cta_link', 'ar'));
+        $this->assertSame('/ar/strategic-areas', $section->fresh()->t('cta_link', 'ar'));
         $this->assertNull($probe['ctaLink']);
     }
 
@@ -126,10 +125,10 @@ final class PublicLinkCrawlTest extends TestCase
             config('website.not_found_suggestions'),
         );
 
-        $html = (string) $this->get('/ar/about')->getContent();
+        $html = (string) $this->get('/ar/strategic-areas')->getContent();
 
         $this->assertStringContainsString('href="'.route('public.home', ['locale' => 'ar']).'"', $html);
-        $this->assertStringNotContainsString('href="'.url('/ar/about').'"', $html);
+        $this->assertStringNotContainsString('href="'.url('/ar/strategic-areas').'"', $html);
     }
 
     /** @return list<mixed> */

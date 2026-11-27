@@ -45,7 +45,8 @@ final class ComplaintNotificationService
             return;
         }
 
-        if ($complaint->isAnonymous() || $complaint->preferred_contact_method !== ComplaintContactMethod::Email) {
+        if ($complaint->isAnonymous() || ! $complaint->preferred_contact_method instanceof ComplaintContactMethod
+            || $complaint->preferred_contact_method !== ComplaintContactMethod::Email) {
             return;
         }
 
@@ -54,14 +55,18 @@ final class ComplaintNotificationService
             return;
         }
 
+        $locale = in_array($complaint->preferred_locale, (array) config('website.locales', ['ar', 'en']), true)
+            ? (string) $complaint->preferred_locale
+            : (string) $complaint->locale;
+
         $notification = new ComplaintStatusChangedNotification(
             $complaint->reference,
             $complaint->status instanceof ComplaintStatus ? $complaint->status->value : (string) $complaint->status,
             $previousStatus,
-            $complaint->preferred_locale ?: $complaint->locale,
+            $locale,
         );
 
-        Notification::route('mail', $email)->notify($notification->locale($notification->locale));
+        Notification::route('mail', $email)->notify($notification->locale($locale));
     }
 
     /** @return Collection<int, User> */

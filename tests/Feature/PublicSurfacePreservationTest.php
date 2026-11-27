@@ -23,10 +23,13 @@ final class PublicSurfacePreservationTest extends TestCase
         ];
     }
 
-    public function test_the_public_surface_keeps_home_partners_and_asset_routes_only(): void
+    public function test_the_public_surface_exposes_only_the_supported_pages_and_asset_routes(): void
     {
         foreach ([
-            'public.home', 'public.partners', 'api.public.homepage', 'public.media.download',
+            'public.home', 'public.about', 'public.programs', 'public.media.center',
+            'public.partners', 'public.contact', 'public.contact.store',
+            'public.complaints', 'public.complaints.store',
+            'api.public.homepage', 'public.media.download',
             'public.operational-documents.download',
         ] as $name) {
             $this->assertTrue(Route::has($name), $name.' is missing.');
@@ -40,8 +43,11 @@ final class PublicSurfacePreservationTest extends TestCase
             ->all();
 
         $this->assertSame([
-            'public.home', 'public.media.download', 'public.operational-documents.download',
-            'public.partners',
+            'public.about', 'public.complaints', 'public.complaints.store',
+            'public.contact', 'public.contact.store', 'public.home',
+            'public.media.center', 'public.media.download',
+            'public.operational-documents.download', 'public.partners',
+            'public.programs',
         ], $publicRoutes);
     }
 
@@ -77,11 +83,12 @@ final class PublicSurfacePreservationTest extends TestCase
     }
 
     #[DataProvider('localeProvider')]
-    public function test_auth_pages_still_render_for_guests(string $locale): void
+    public function test_auth_pages_still_render_for_guests(string $locale, string $direction): void
     {
-        $this->get('/'.$locale.'/login')
-            ->assertOk()
+        $login = $this->get('/'.$locale.'/login');
+        $login->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Auth/Login'));
+        $this->assertStringContainsString('<html lang="'.$locale.'" dir="'.$direction.'"', (string) $login->getContent());
 
         $this->get('/'.$locale.'/forgot-password')
             ->assertOk()
