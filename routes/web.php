@@ -400,7 +400,9 @@ Route::prefix('{locale}')
                 Route::get('audit-archives', [AuditArchiveController::class, 'index'])->middleware('permission:audit_archives.view')->name('audit-archives.index');
                 Route::post('audit-archives', [AuditArchiveController::class, 'store'])->middleware('permission:audit_archives.manage')->name('audit-archives.store');
                 Route::get('audit-archives/{archive}', [AuditArchiveController::class, 'show'])->middleware('permission:audit_archives.view')->name('audit-archives.show');
+                Route::put('audit-archives/{archive}', [AuditArchiveController::class, 'update'])->middleware('permission:audit_archives.manage')->name('audit-archives.update');
                 Route::get('audit-archives/{archive}/download', [AuditArchiveController::class, 'download'])->middleware('permission:audit_archives.download')->name('audit-archives.download');
+                Route::post('audit-archives/{archive}/transition', [AuditArchiveController::class, 'transition'])->middleware('permission:audit_archives.manage')->name('audit-archives.transition');
                 Route::post('audit-archives/{archive}/verify', [AuditArchiveController::class, 'verify'])->middleware('permission:audit_archives.manage')->name('audit-archives.verify');
 
                 Route::get('settings', [AdminSettingController::class, 'index'])->middleware('permission:settings.view')->name('settings.index');

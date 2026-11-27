@@ -25,6 +25,12 @@ class AuditArchive extends Model
 
     public const STATUS_PRUNED = 'pruned';
 
+    public const SOURCE_MANUAL = 'manual';
+
+    public const SOURCE_AUTOMATIC = 'automatic';
+
+    public const FORMAT_ZIP = 'zip';
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -33,6 +39,10 @@ class AuditArchive extends Model
             'period_start' => 'datetime',
             'period_end' => 'datetime',
             'cutoff_at' => 'datetime',
+            'queued_at' => 'datetime',
+            'started_at' => 'datetime',
+            'finished_at' => 'datetime',
+            'failed_at' => 'datetime',
             'verified_at' => 'datetime',
             'pruned_at' => 'datetime',
             'last_cleanup_at' => 'datetime',
@@ -61,6 +71,12 @@ class AuditArchive extends Model
     public function initiator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'initiated_by');
+    }
+
+    /** @return HasMany<AuditArchiveStatusTransition, $this> */
+    public function statusTransitions(): HasMany
+    {
+        return $this->hasMany(AuditArchiveStatusTransition::class, 'audit_archive_id');
     }
 
     public function isVerified(): bool

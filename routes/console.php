@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Console\Commands\ArchiveAuditMonth;
 use App\Console\Commands\AuditCleanupDue;
+use App\Console\Commands\CheckAuditArchiveAutomation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -13,19 +13,18 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 /*
- * Private audit archiving runs monthly for the previous complete month. The
- * cleanup schedule is deliberately report-only: destructive execution requires
- * an operator-supplied confirmation phrase and a current dry-run report.
+ * The due-check command is intentionally lightweight: it reads Website
+ * Settings, determines completed unarchived months, and dispatches queue jobs.
+ * Archive generation never runs inside the scheduler request.
  *
- * Deployment must run both `php artisan schedule:work` (or a real cron entry)
- * and a queue worker for `pcdr:audit:archive --queue` and lifecycle notifications.
+ * Production must run a scheduler (schedule:work or cron schedule:run) and a
+ * dedicated queue worker for the "audit" queue.
  */
-Schedule::command(ArchiveAuditMonth::class)
-    ->monthlyOn((int) config('audit_archive.schedule.day', 2), (string) config('audit_archive.schedule.time', '02:30'))
-    ->withoutOverlapping(180)
+Schedule::command(CheckAuditArchiveAutomation::class)
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(30)
     ->onOneServer()
-    ->runInBackground()
-    ->when((bool) config('audit_archive.enabled', true));
+    ->runInBackground();
 
 Schedule::command(AuditCleanupDue::class)
     ->dailyAt((string) config('audit_archive.schedule.cleanup_time', '03:30'))

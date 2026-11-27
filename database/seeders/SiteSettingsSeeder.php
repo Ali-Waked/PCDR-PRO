@@ -9,17 +9,17 @@ use App\Services\SiteSettings;
 use Illuminate\Database\Seeder;
 
 /**
- * Initializes only the public website settings managed by the CMS.
+ * Initializes the Website Settings catalogue managed by the CMS.
  *
- * Values are applied only when they are missing or empty. Existing
- * administrator-managed values are never overwritten. Secrets, environment
- * configuration and unverified contact details are intentionally absent; the
- * published complaints address is initialized only when no value exists.
+ * Public values and private operational values are both seeded, but private
+ * rows are marked is_public = false and never enter the shared site payload.
+ * Values are applied only when missing or empty; administrator-managed values
+ * are never overwritten. Secrets and environment configuration are absent.
  */
 final class SiteSettingsSeeder extends Seeder
 {
     /**
-     * @var array<string, array{group: string, type: string, localized: bool, value: array<string, ?string>|string|null}>
+     * @var array<string, array{group: string, type: string, localized: bool, public?: bool, value: array<string, ?string>|string|null}>
      */
     private const SETTINGS = [
         'organization.name' => [
@@ -95,6 +95,27 @@ final class SiteSettingsSeeder extends Seeder
         'social.tiktok' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
         'social.snapchat' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
         'social.whatsapp' => ['group' => 'social', 'type' => 'url', 'localized' => false, 'value' => null],
+        'audit_automation.enabled' => [
+            'group' => 'audit_automation', 'type' => 'boolean', 'localized' => false, 'public' => false, 'value' => '0',
+        ],
+        'audit_automation.interval_months' => [
+            'group' => 'audit_automation', 'type' => 'interval', 'localized' => false, 'public' => false, 'value' => '1',
+        ],
+        'audit_automation.execution_day' => [
+            'group' => 'audit_automation', 'type' => 'integer', 'localized' => false, 'public' => false, 'value' => '2',
+        ],
+        'audit_automation.execution_time' => [
+            'group' => 'audit_automation', 'type' => 'time', 'localized' => false, 'public' => false, 'value' => '02:30',
+        ],
+        'audit_automation.timezone' => [
+            'group' => 'audit_automation', 'type' => 'timezone', 'localized' => false, 'public' => false, 'value' => 'UTC',
+        ],
+        'audit_automation.notifications_enabled' => [
+            'group' => 'audit_automation', 'type' => 'boolean', 'localized' => false, 'public' => false, 'value' => '1',
+        ],
+        'audit_automation.lookback_months' => [
+            'group' => 'audit_automation', 'type' => 'integer', 'localized' => false, 'public' => false, 'value' => '3',
+        ],
     ];
 
     public function run(): void
@@ -110,6 +131,10 @@ final class SiteSettingsSeeder extends Seeder
                     'value' => $definition['localized'] ? null : $this->defaultValue($definition['value']),
                 ],
             );
+
+            if (! ($definition['public'] ?? true) && $setting->is_public !== false) {
+                $setting->forceFill(['is_public' => false])->save();
+            }
 
             if (! $definition['localized']) {
                 if (! filled($setting->value) && filled($this->defaultValue($definition['value']))) {

@@ -20,6 +20,31 @@ final class UpdateSiteSettingsRequest extends FormRequest
         return $user !== null && app(CmsAccess::class)->allows($user, 'settings.update');
     }
 
+    protected function prepareForValidation(): void
+    {
+        $settings = $this->input('settings');
+        if (! is_array($settings)) {
+            return;
+        }
+
+        $this->merge([
+            'settings' => array_map(function (mixed $entry): mixed {
+                if (! is_array($entry)) {
+                    return $entry;
+                }
+
+                $key = $entry['key'] ?? null;
+                $meta = SiteSettingsCatalog::find(is_string($key) ? $key : null);
+
+                if ($meta !== null && $meta['type'] === 'boolean') {
+                    $entry['value'] = filter_var($entry['value'] ?? null, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+                }
+
+                return $entry;
+            }, $settings),
+        ]);
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -72,6 +97,10 @@ final class UpdateSiteSettingsRequest extends FormRequest
             }
 
             $rules["{$prefix}.value"] = $this->typeRules($meta['type']);
+
+            if ($key === 'audit_automation.lookback_months') {
+                $rules["{$prefix}.value"] = ['nullable', 'integer', 'min:1', 'max:12'];
+            }
         }
 
         return $rules;
@@ -84,6 +113,11 @@ final class UpdateSiteSettingsRequest extends FormRequest
             'email' => ['nullable', 'string', 'max:2000', 'email:rfc'],
             'url' => ['nullable', 'string', 'max:2000', $this->publicUrlRule()],
             'locale' => ['nullable', Rule::in((array) config('website.locales', ['ar', 'en']))],
+            'boolean' => ['nullable', Rule::in(['0', '1', 'true', 'false', true, false])],
+            'interval' => ['nullable', Rule::in(['1', '2', '3', 1, 2, 3])],
+            'integer' => ['nullable', 'integer', 'min:1', 'max:28'],
+            'time' => ['nullable', 'string', 'date_format:H:i'],
+            'timezone' => ['nullable', 'string', Rule::in(timezone_identifiers_list())],
             default => ['nullable', 'string', 'max:2000'],
         };
     }

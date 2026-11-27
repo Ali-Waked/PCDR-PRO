@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * The canonical catalogue of public website settings editable in the CMS.
+ * The canonical catalogue of Website Settings editable in the CMS.
  *
- * Platform, security, mail transport and hidden operational settings are not
- * part of this catalogue. Keep the list in one place so controllers, requests
- * and tests cannot drift apart.
+ * Public-facing values remain public. Private operational entries (currently
+ * the audit archive automation section) are marked public => false so they can
+ * be edited in the same UI without ever entering the shared site payload.
+ * Keep the list in one place so controllers, requests and tests cannot drift.
  */
 final class SiteSettingsCatalog
 {
-    /** @var array<string, array{group: string, localized: bool, type: string}> */
+    /** @var array<string, array{group: string, localized: bool, type: string, public?: bool}> */
     private const SETTINGS = [
         'organization.name' => ['group' => 'organization', 'localized' => true, 'type' => 'text'],
         'organization.short_name' => ['group' => 'organization', 'localized' => true, 'type' => 'text'],
@@ -37,18 +38,27 @@ final class SiteSettingsCatalog
         'social.tiktok' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
         'social.snapchat' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
         'social.whatsapp' => ['group' => 'social', 'localized' => false, 'type' => 'url'],
+        'audit_automation.enabled' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'boolean', 'public' => false],
+        'audit_automation.interval_months' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'interval', 'public' => false],
+        'audit_automation.execution_day' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'integer', 'public' => false],
+        'audit_automation.execution_time' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'time', 'public' => false],
+        'audit_automation.timezone' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'timezone', 'public' => false],
+        'audit_automation.notifications_enabled' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'boolean', 'public' => false],
+        'audit_automation.lookback_months' => ['group' => 'audit_automation', 'localized' => false, 'type' => 'integer', 'public' => false],
     ];
 
     /** @var list<string> */
-    private const GROUP_ORDER = ['organization', 'website', 'seo', 'footer', 'contact', 'social'];
+    private const GROUP_ORDER = ['organization', 'website', 'seo', 'footer', 'contact', 'social', 'audit_automation'];
 
     /** @var list<string> */
     private const IMAGE_KEYS = ['organization.logo', 'seo.og_image'];
 
-    /** @return array<string, array{group: string, localized: bool, type: string}> */
+    /** @return array<string, array{group: string, localized: bool, type: string, public: bool}> */
     public static function all(): array
     {
-        return self::SETTINGS;
+        return collect(self::SETTINGS)
+            ->map(fn (array $meta): array => array_merge(['public' => true], $meta))
+            ->all();
     }
 
     /** @return list<string> */
@@ -69,13 +79,15 @@ final class SiteSettingsCatalog
         return self::IMAGE_KEYS;
     }
 
-    /** @return array{group: string, localized: bool, type: string}|null */
+    /** @return array{group: string, localized: bool, type: string, public: bool}|null */
     public static function find(?string $key): ?array
     {
         if ($key === null) {
             return null;
         }
 
-        return self::SETTINGS[$key] ?? null;
+        $meta = self::SETTINGS[$key] ?? null;
+
+        return $meta === null ? null : array_merge(['public' => true], $meta);
     }
 }

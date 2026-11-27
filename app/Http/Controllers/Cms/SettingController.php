@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Cms\UpdateSiteSettingsRequest;
 use App\Http\Requests\Cms\UploadSiteSettingImageRequest;
 use App\Models\WebsiteSetting;
+use App\Services\AuditArchiveAutomationService;
 use App\Services\AuditService;
 use App\Services\CmsAccess;
 use App\Services\SiteSettings;
@@ -23,7 +24,10 @@ use Inertia\Response;
 
 final class SettingController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private AuditArchiveAutomationService $automation,
+    ) {}
 
     private function authorize(string $permission): void
     {
@@ -35,7 +39,6 @@ final class SettingController extends Controller
         $this->authorize('settings.view');
 
         $settings = WebsiteSetting::query()
-            ->public()
             ->with('translations')
             ->get()
             ->keyBy('key');
@@ -60,6 +63,7 @@ final class SettingController extends Controller
                     'group' => $meta['group'],
                     'type' => $meta['type'],
                     'localized' => $meta['localized'],
+                    'public' => (bool) ($meta['public'] ?? true),
                     'label' => __('website.cms.setting_labels'.'.'.$translationKey, [], $locale),
                     'description' => Lang::has($descriptionKey, $locale) ? __($descriptionKey, [], $locale) : '',
                     'value' => $setting?->value,
@@ -85,6 +89,8 @@ final class SettingController extends Controller
             'locales' => $locales,
             'canUpdate' => app(CmsAccess::class)->allows(auth()->user(), 'settings.update'),
             'uploadKeys' => SiteSettingsCatalog::imageKeys(),
+            'timezones' => timezone_identifiers_list(),
+            'automation' => $this->automation->status(),
         ]);
     }
 
@@ -109,7 +115,7 @@ final class SettingController extends Controller
                 $attributes = [
                     'group' => $meta['group'],
                     'type' => $meta['type'],
-                    'is_public' => true,
+                    'is_public' => (bool) ($meta['public'] ?? true),
                     'is_localized' => $meta['localized'],
                 ];
 
@@ -139,6 +145,7 @@ final class SettingController extends Controller
         app(SiteSettings::class)->flush();
         $this->audit->record('cms.settings.update', 'website_settings', null, $before, $after, [
             'keys' => array_column($validated['settings'], 'key'),
+            'description' => 'Website settings updated',
         ]);
 
         return back()->with('flash', ['success' => __('website.cms.saved')]);
@@ -193,6 +200,17 @@ final class SettingController extends Controller
 
     private function normalizeValue(string $key, ?string $value): ?string
     {
+        $meta = SiteSettingsCatalog::find($key);
+        $type = $meta['type'] ?? 'text';
+
+        if ($type === 'boolean') {
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+        }
+
+        if ($type === 'integer' || $type === 'interval') {
+            return $value === null || $value === '' ? null : (string) (int) $value;
+        }
+
         $value = $this->normalize($value);
 
         if ($value === null || ! str_starts_with($key, 'social.')) {

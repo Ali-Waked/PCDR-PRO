@@ -5228,6 +5228,145 @@ html.dark .pc-audit-page,
     background: color-mix(in srgb, var(--audit-success) 8%, var(--audit-surface));
 }
 
+.pc-audit-page .pc-workflow-alert--info {
+    border-color: var(--pc-info-border);
+    border-inline-start-color: var(--pc-info);
+    background: var(--pc-info-soft);
+    color: var(--pc-info-ink);
+}
+
+.pc-audit-page .pc-workflow-alert--info .pc-workflow-alert__icon {
+    background: color-mix(in srgb, var(--pc-info) 12%, white);
+    color: var(--pc-info-ink);
+}
+
+.pc-audit-page .pc-workflow-alert--info .pc-workflow-alert__copy {
+    color: var(--pc-info-ink);
+}
+
+.pc-audit-archive-form {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr) minmax(0, 2fr) auto;
+    align-items: end;
+    gap: 12px;
+}
+
+.pc-audit-archive-form .pc-field--action {
+    justify-self: end;
+}
+
+.pc-audit-automation__link {
+    margin-inline-start: auto;
+    font-size: 13px;
+}
+
+.pc-audit-automation__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-block-start: 12px;
+}
+
+.pc-audit-automation__grid > div {
+    min-inline-size: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--audit-border);
+    border-radius: var(--pc-radius-sm);
+    background: var(--audit-surface-soft);
+}
+
+.pc-audit-automation__grid dt {
+    color: var(--audit-muted);
+    font-size: 0.7rem;
+    font-weight: 680;
+}
+
+.pc-audit-automation__grid dd {
+    margin: 3px 0 0;
+    color: var(--audit-text);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+
+.pc-audit-automation__failure {
+    margin: 12px 0 0;
+    padding: 9px 12px;
+    border-inline-start: 3px solid var(--audit-danger);
+    border-radius: var(--pc-radius-sm);
+    background: color-mix(in srgb, var(--audit-danger) 8%, var(--audit-surface));
+    color: var(--audit-danger);
+    font-size: 0.78rem;
+}
+
+.pc-badge--small {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+}
+
+.pc-audit-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-align: start;
+}
+
+.pc-audit-sort:hover,
+.pc-audit-sort:focus-visible {
+    color: var(--audit-teal);
+}
+
+.pc-audit-table--archives th:nth-child(1) { inline-size: 11%; }
+.pc-audit-table--archives th:nth-child(2) { inline-size: 15%; }
+.pc-audit-table--archives th:nth-child(3) { inline-size: 14%; }
+.pc-audit-table--archives th:nth-child(4) { inline-size: 10%; }
+.pc-audit-table--archives th:nth-child(5) { inline-size: 11%; }
+.pc-audit-table--archives th:nth-child(6) { inline-size: 11%; }
+.pc-audit-table--archives th:nth-child(7) { inline-size: 12%; }
+.pc-audit-table--archives th:nth-child(8) { inline-size: 16%; }
+
+.pc-audit-transition-list {
+    display: grid;
+    gap: 8px;
+    margin: 8px 0 16px;
+    padding: 0;
+    list-style: none;
+}
+
+.pc-audit-transition-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 11px;
+    border: 1px solid var(--audit-border);
+    border-radius: var(--pc-radius-sm);
+    background: var(--audit-surface-soft);
+    color: var(--audit-muted);
+    font-size: 0.78rem;
+}
+
+.pc-audit-help {
+    display: grid;
+    gap: 14px;
+}
+
+.pc-audit-help section {
+    display: grid;
+    gap: 6px;
+}
+
+.pc-audit-help p {
+    margin: 0;
+    color: var(--audit-muted);
+    font-size: 0.84rem;
+    line-height: 1.65;
+}
+
 @media (max-width: 1100px) {
     .pc-audit-metrics {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5258,6 +5397,14 @@ html.dark .pc-audit-page,
     .pc-audit-support-grid {
         grid-template-columns: minmax(0, 1fr);
     }
+
+    .pc-audit-archive-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pc-audit-automation__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 620px) {
@@ -5276,6 +5423,14 @@ html.dark .pc-audit-page,
 
     .pc-audit-archive-form {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pc-audit-automation__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pc-audit-automation__link {
+        margin-inline-start: 0;
     }
 
     .pc-audit-detail-grid {

@@ -12,9 +12,11 @@ const props = defineProps({
     locales: { type: Array, default: () => ['ar', 'en'] },
     canUpdate: { type: Boolean, default: false },
     uploadKeys: { type: Array, default: () => [] },
+    timezones: { type: Array, default: () => [] },
+    automation: { type: Object, default: null },
 })
 
-const { t, localPath } = useI18n()
+const { t, localPath, formatDate } = useI18n()
 
 const rows = computed(() => props.settings.map((setting, index) => ({ ...setting, index })))
 
@@ -43,6 +45,49 @@ function localeLabel(code) {
 
 const localeOptions = computed(() => props.locales.map((code) => ({ value: code, label: localeLabel(code) })))
 
+const intervalOptions = [
+    { value: '1', label: '1' },
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+]
+
+const booleanOptions = computed(() => [
+    { value: '1', label: t('cms_automation_status_enabled', 'Enabled') },
+    { value: '0', label: t('cms_automation_status_disabled', 'Disabled') },
+])
+
+const timezoneOptions = computed(() => props.timezones.map((value) => ({ value, label: value })))
+
+function selectOptions(setting) {
+    if (setting.type === 'boolean') {
+        return booleanOptions.value
+    }
+    if (setting.type === 'interval') {
+        return intervalOptions
+    }
+    if (setting.type === 'timezone') {
+        return timezoneOptions.value
+    }
+
+    return []
+}
+
+function numberBounds(setting) {
+    if (setting.key === 'audit_automation.lookback_months') {
+        return { min: 1, max: 12 }
+    }
+
+    return { min: 1, max: 28 }
+}
+
+function healthLabel(health) {
+    return t(`cms_automation_health_${health}`, health || t('cms_automation_status_none', 'Not available'))
+}
+
+function automationDate(value) {
+    return value ? formatDate(value, { hour: '2-digit', minute: '2-digit' }) : t('cms_automation_status_none', 'Not available')
+}
+
 const form = useForm({
     settings: props.settings.map((setting) => ({
         key: setting.key,
@@ -68,6 +113,15 @@ function inputType(setting) {
     }
     if (setting.type === 'locale') {
         return 'locale'
+    }
+    if (['boolean', 'interval', 'timezone'].includes(setting.type)) {
+        return 'select'
+    }
+    if (setting.type === 'integer') {
+        return 'number'
+    }
+    if (setting.type === 'time') {
+        return 'time'
     }
 
     return 'text'
@@ -233,6 +287,45 @@ function submitImage(setting) {
                 <span>{{ t('cms_protected_settings_note') }}</span>
             </div>
 
+            <div class="pc-callout pc-callout--sand" role="note">
+                <UiIcon name="shield" :size="17" />
+                <span>{{ t('cms_setting_private_note') }}</span>
+            </div>
+
+            <section v-if="automation" class="pc-card pc-audit-automation" aria-labelledby="automation-status-title">
+                <div class="pc-card__head">
+                    <div>
+                        <h2 id="automation-status-title" class="pc-card__title">{{ t('cms_automation_status_title') }}</h2>
+                        <p class="pc-card__subtitle">{{ t('cms_automation_status_hint') }}</p>
+                    </div>
+                    <span class="pc-badge" :class="automation.health === 'degraded' ? 'pc-badge--red' : 'pc-badge--slate'">
+                        {{ healthLabel(automation.health) }}
+                    </span>
+                </div>
+                <div class="pc-card__body pc-audit-automation__grid">
+                    <div>
+                        <span class="pc-label">{{ t('cms_automation_status_enabled') }}</span>
+                        <strong>{{ automation.enabled ? t('cms_automation_status_enabled') : t('cms_automation_status_disabled') }}</strong>
+                    </div>
+                    <div>
+                        <span class="pc-label">{{ t('cms_automation_status_next') }}</span>
+                        <strong>{{ automationDate(automation.next_expected_at) }}</strong>
+                    </div>
+                    <div>
+                        <span class="pc-label">{{ t('cms_automation_status_last_check') }}</span>
+                        <strong>{{ automationDate(automation.last_execution_at) }}</strong>
+                    </div>
+                    <div>
+                        <span class="pc-label">{{ t('cms_automation_status_last_success') }}</span>
+                        <strong>{{ automation.last_successful_archive || t('cms_automation_status_none') }}</strong>
+                    </div>
+                    <div v-if="automation.last_failure" class="pc-audit-automation__failure">
+                        <span class="pc-label">{{ t('cms_automation_status_last_failure') }}</span>
+                        <strong>{{ automation.last_failure }}</strong>
+                    </div>
+                </div>
+            </section>
+
             <div v-if="!canUpdate" class="pc-callout pc-callout--warning" role="status">
                 <UiIcon name="lock" :size="17" />
                 <span>{{ t('cms_settings_no_access') }}</span>
@@ -303,8 +396,26 @@ function submitImage(setting) {
                                     :searchable="false"
                                     :disabled="!canUpdate"
                                 />
+                                <template v-else-if="inputType(setting) === 'select'">
+                                    <SelectionControl
+                                        v-model="form.settings[setting.index].value"
+                                        :label="setting.label"
+                                        :options="selectOptions(setting)"
+                                        :error="valueError(setting)"
+                                        :searchable="setting.type === 'timezone'"
+                                        :disabled="!canUpdate"
+                                    />
+                                    <span v-if="!setting.public" class="pc-badge pc-badge--slate pc-badge--small">
+                                        {{ t('cms_setting_private') }}
+                                    </span>
+                                </template>
                                 <label v-else class="pc-field">
-                                    <span class="pc-label">{{ setting.label }}</span>
+                                    <span class="pc-label">
+                                        {{ setting.label }}
+                                        <span v-if="!setting.public" class="pc-badge pc-badge--slate pc-badge--small">
+                                            {{ t('cms_setting_private') }}
+                                        </span>
+                                    </span>
                                     <span v-if="setting.description" class="pc-hint">{{ setting.description }}</span>
                                     <textarea
                                         v-if="inputType(setting) === 'textarea'"
@@ -320,7 +431,10 @@ function submitImage(setting) {
                                         v-model="form.settings[setting.index].value"
                                         class="pc-input"
                                         :type="inputType(setting)"
-                                        :dir="['url', 'email'].includes(setting.type) ? 'ltr' : undefined"
+                                        :dir="['url', 'email', 'time', 'number'].includes(setting.type) ? 'ltr' : undefined"
+                                        :min="inputType(setting) === 'number' ? numberBounds(setting).min : undefined"
+                                        :max="inputType(setting) === 'number' ? numberBounds(setting).max : undefined"
+                                        step="1"
                                         maxlength="2000"
                                         :disabled="!canUpdate"
                                         :aria-invalid="valueError(setting) ? 'true' : 'false'"

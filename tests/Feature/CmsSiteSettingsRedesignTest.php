@@ -42,7 +42,7 @@ final class CmsSiteSettingsRedesignTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Cms/Settings/Index')
-                ->where('settings', fn ($settings): bool => $settings->count() === 22
+                ->where('settings', fn ($settings): bool => $settings->count() === count(SiteSettingsCatalog::keys())
                     && $settings->pluck('key')->all() === SiteSettingsCatalog::keys()
                     && $settings->every(fn (array $setting): bool => ! str_starts_with($setting['key'], 'app.')
                         && ! str_starts_with($setting['key'], 'mail.')))

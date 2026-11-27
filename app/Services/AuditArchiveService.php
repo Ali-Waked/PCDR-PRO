@@ -6,11 +6,13 @@ namespace App\Services;
 
 use App\Models\AuditArchive;
 use App\Models\AuditLog;
+use App\Models\User;
 use App\Support\AuditRedactor;
 use App\Support\CsvSafeWriter;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -25,7 +27,17 @@ final class AuditArchiveService
 
     private const MANIFEST_NAME = 'manifest.json';
 
-    public function __construct(private readonly AuditLifecycleNotifier $notifier) {}
+    public const SOURCE_MANUAL = 'manual';
+
+    public const SOURCE_AUTOMATIC = 'automatic';
+
+    public const FORMAT_ZIP = 'zip';
+
+    public function __construct(
+        private readonly AuditLifecycleNotifier $notifier,
+        private readonly AuditArchiveStatusService $statuses,
+        private readonly AuditService $audit,
+    ) {}
 
     /**
      * @return array{key: string, start: Carbon, end: Carbon, cutoff: Carbon}
@@ -62,34 +74,116 @@ final class AuditArchiveService
         ];
     }
 
-    public function createArchive(?string $month, ?int $initiatedBy = null, bool $force = false): AuditArchive
+    public function findArchive(int $archiveId): ?AuditArchive
     {
-        $period = $this->resolvePeriod($month);
-        $existing = AuditArchive::query()->where('period_key', $period['key'])->first();
+        return AuditArchive::query()->find($archiveId);
+    }
 
-        if ($existing !== null) {
-            if (! $force || ! in_array($existing->status, [
-                AuditArchive::STATUS_PENDING,
-                AuditArchive::STATUS_PROCESSING,
-                AuditArchive::STATUS_FAILED,
-            ], true)) {
-                throw new RuntimeException('An archive already exists for this period. Use --force to retry a failed attempt.');
-            }
+    public function markJobFailure(AuditArchive $archive, string $error): void
+    {
+        if (in_array($archive->status, [AuditArchive::STATUS_VERIFIED, AuditArchive::STATUS_PRUNED], true)) {
+            return;
+        }
 
-            $archive = $existing;
-            $archive->update([
-                'status' => AuditArchive::STATUS_PROCESSING,
-                'attempts' => $archive->attempts + 1,
-                'error' => null,
-                'cutoff_at' => $period['cutoff'],
-                'initiated_by' => $initiatedBy ?? $archive->initiated_by,
+        $message = Str::limit($error, 1000);
+
+        // processArchive() has already recorded and announced this failure.
+        if ($archive->status === AuditArchive::STATUS_FAILED && $archive->failed_at !== null) {
+            $archive->update(['error' => $message]);
+
+            return;
+        }
+
+        $attempt = null;
+
+        if (in_array($archive->status, [AuditArchive::STATUS_PENDING, AuditArchive::STATUS_PROCESSING], true)) {
+            // processArchive() already counts attempts that reached processing.
+            // A pending failure happened before the worker started, so count it.
+            $attempt = $archive->status === AuditArchive::STATUS_PENDING
+                ? (int) $archive->attempts + 1
+                : (int) $archive->attempts;
+
+            $this->statuses->transition($archive, AuditArchive::STATUS_FAILED, null, null, [
+                'operation' => 'queue_failure',
+                'error' => $message,
+                'attempt' => $attempt,
             ]);
+        }
 
-            if ($archive->file_path !== '' && Storage::disk($this->disk())->exists($archive->file_path)) {
-                Storage::disk($this->disk())->delete($archive->file_path);
+        $archive->update(array_filter([
+            'attempts' => $attempt,
+            'error' => $message,
+            'failed_at' => now(),
+            'finished_at' => now(),
+        ], static fn ($value): bool => $value !== null));
+
+        $this->notifier->archiveFailed($archive->refresh(), $error);
+    }
+
+    /**
+     * Create the durable pending registry row before dispatch. The heavy work
+     * happens only in processArchive(), which is called by the queue worker.
+     */
+    public function prepareArchive(
+        ?string $month,
+        ?int $initiatedBy = null,
+        bool $force = false,
+        string $source = self::SOURCE_MANUAL,
+        ?string $operationKey = null,
+        ?User $actor = null,
+        ?string $reason = null,
+    ): AuditArchive {
+        $period = $this->resolvePeriod($month);
+        $source = in_array($source, [self::SOURCE_MANUAL, self::SOURCE_AUTOMATIC], true)
+            ? $source
+            : self::SOURCE_MANUAL;
+
+        return DB::transaction(function () use ($period, $initiatedBy, $force, $source, $operationKey, $actor, $reason): AuditArchive {
+            $archive = AuditArchive::query()
+                ->where('period_key', $period['key'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($archive !== null) {
+                if (! $force) {
+                    throw new RuntimeException('An archive already exists for this period. Use --force to retry a failed attempt.');
+                }
+
+                if (! in_array($archive->status, [AuditArchive::STATUS_PENDING, AuditArchive::STATUS_FAILED], true)) {
+                    throw new RuntimeException('An archive already exists for this period. Only pending or failed archives can be retried.');
+                }
+
+                if ($operationKey !== null) {
+                    $claimed = AuditArchive::query()
+                        ->where('operation_key', $operationKey)
+                        ->whereKeyNot($archive->id)
+                        ->exists();
+
+                    if ($claimed) {
+                        throw new RuntimeException('Another operation has already claimed this archive period.');
+                    }
+                }
+
+                if ($archive->status === AuditArchive::STATUS_FAILED) {
+                    $this->statuses->transition($archive, AuditArchive::STATUS_PENDING, $actor, $reason, [
+                        'operation' => 'retry',
+                        'source' => $source,
+                    ]);
+                }
+
+                $archive->update([
+                    'cutoff_at' => $period['cutoff'],
+                    'initiated_by' => $initiatedBy ?? $archive->initiated_by,
+                    'source' => $source,
+                    'operation_key' => $operationKey ?? $archive->operation_key,
+                    'queued_at' => now(),
+                    'error' => null,
+                ]);
+
+                return $archive->refresh();
             }
-        } else {
-            $archive = AuditArchive::create([
+
+            return AuditArchive::create([
                 'period_key' => $period['key'],
                 'name' => 'audit-logs-'.$period['key'].'.zip',
                 'period_start' => $period['start'],
@@ -97,13 +191,61 @@ final class AuditArchiveService
                 'cutoff_at' => $period['cutoff'],
                 'record_count' => 0,
                 'file_path' => $this->storagePath($period['key']),
-                'status' => AuditArchive::STATUS_PROCESSING,
+                'status' => AuditArchive::STATUS_PENDING,
                 'schema_version' => (string) config('audit_archive.export.schema_version', '1.0'),
-                'attempts' => 1,
+                'format' => self::FORMAT_ZIP,
+                'source' => $source,
+                'operation_key' => $operationKey,
+                'queued_at' => now(),
+                'attempts' => 0,
                 'initiated_by' => $initiatedBy,
             ]);
-        }
+        });
+    }
 
+    public function processArchive(
+        int $archiveId,
+        ?string $month = null,
+        ?int $initiatedBy = null,
+        string $source = self::SOURCE_MANUAL,
+        int $expectedAttempt = 0,
+    ): AuditArchive {
+        $archive = DB::transaction(function () use ($archiveId, $month, $initiatedBy, $source, $expectedAttempt): AuditArchive {
+            $locked = AuditArchive::query()->lockForUpdate()->findOrFail($archiveId);
+            $period = $this->resolvePeriod($month ?? $locked->period_key);
+
+            if ($period['key'] !== $locked->period_key) {
+                throw new RuntimeException('The requested month does not match this archive.');
+            }
+
+            if ($locked->status !== AuditArchive::STATUS_PENDING) {
+                throw new RuntimeException('This archive is not queued for generation.');
+            }
+
+            $attempt = (int) $locked->attempts + 1;
+            if ($expectedAttempt > 0 && $expectedAttempt !== $attempt) {
+                throw new RuntimeException('This generation attempt is no longer current.');
+            }
+
+            $this->statuses->transition($locked, AuditArchive::STATUS_PROCESSING, null, null, [
+                'attempt' => $attempt,
+                'source' => $source,
+            ]);
+
+            $locked->update([
+                'attempts' => $attempt,
+                'started_at' => now(),
+                'cutoff_at' => $period['cutoff'],
+                'initiated_by' => $initiatedBy ?? $locked->initiated_by,
+                'source' => in_array($source, [self::SOURCE_MANUAL, self::SOURCE_AUTOMATIC], true)
+                    ? $source
+                    : self::SOURCE_MANUAL,
+            ]);
+
+            return $locked->refresh();
+        });
+
+        $period = $this->resolvePeriod($archive->period_key);
         $tempDir = $this->temporaryDirectory();
 
         try {
@@ -123,7 +265,6 @@ final class AuditArchiveService
             $this->buildZip($zipPath, [$csvPath => self::CSV_NAME, $jsonlPath => self::JSONL_NAME, $manifestPath => self::MANIFEST_NAME]);
 
             $inspection = $this->inspectZip($zipPath, $checksums, $manifest, $exportedCount);
-
             $this->storeArchive($archive->file_path, $zipPath);
 
             DB::transaction(function () use ($archive, $period, $exportedCount, $checksums, $manifest, $inspection): void {
@@ -136,26 +277,37 @@ final class AuditArchiveService
                 }
 
                 $archive->update([
-                    'status' => AuditArchive::STATUS_VERIFIED,
                     'record_count' => $exportedCount,
                     'file_size' => $inspection['file_size'],
                     'checksums' => $checksums,
                     'manifest' => $manifest,
-                    'verified_at' => now(),
                     'error' => null,
+                ]);
+
+                $this->statuses->transition($archive, AuditArchive::STATUS_VERIFIED, null, null, [
+                    'record_count' => $exportedCount,
+                    'checksums' => $checksums,
+                    'finished_at' => now(),
                 ]);
             });
 
             $this->notifier->archiveCreated($archive->refresh());
 
-            return $archive;
+            return $archive->refresh();
         } catch (Throwable $exception) {
+            if ($archive->status !== AuditArchive::STATUS_FAILED) {
+                $this->statuses->transition($archive, AuditArchive::STATUS_FAILED, null, null, [
+                    'error' => Str::limit($exception->getMessage(), 1000),
+                ]);
+            }
+
             $archive->update([
-                'status' => AuditArchive::STATUS_FAILED,
                 'error' => Str::limit($exception->getMessage(), 1000),
+                'failed_at' => now(),
+                'finished_at' => now(),
             ]);
 
-            $this->notifier->archiveFailed($archive, $exception->getMessage());
+            $this->notifier->archiveFailed($archive->refresh(), $exception->getMessage());
 
             throw $exception;
         } finally {
@@ -163,9 +315,37 @@ final class AuditArchiveService
         }
     }
 
+    public function createArchive(
+        ?string $month,
+        ?int $initiatedBy = null,
+        bool $force = false,
+        string $source = self::SOURCE_MANUAL,
+        ?string $operationKey = null,
+        ?User $actor = null,
+        ?string $reason = null,
+    ): AuditArchive {
+        $archive = $this->prepareArchive($month, $initiatedBy, $force, $source, $operationKey, $actor, $reason);
+
+        return $this->processArchive(
+            $archive->id,
+            $month,
+            $initiatedBy,
+            $source,
+            (int) $archive->attempts + 1,
+        );
+    }
+
     /** @return array<string, mixed> */
-    public function verifyArchive(AuditArchive $archive, bool $persist = true): array
-    {
+    public function verifyArchive(
+        AuditArchive $archive,
+        bool $persist = true,
+        ?User $actor = null,
+        ?string $reason = null,
+    ): array {
+        if ($archive->status === AuditArchive::STATUS_PRUNED) {
+            throw new RuntimeException('A pruned archive cannot be verified or restored.');
+        }
+
         $disk = Storage::disk($this->disk());
 
         if (! $disk->exists($archive->file_path)) {
@@ -194,19 +374,18 @@ final class AuditArchiveService
                 (int) $archive->record_count,
             );
 
-            if ($persist) {
-                $archive->update([
-                    'status' => AuditArchive::STATUS_VERIFIED,
-                    'verified_at' => now(),
-                    'error' => null,
+            if ($persist && $archive->status !== AuditArchive::STATUS_VERIFIED) {
+                $this->statuses->transition($archive, AuditArchive::STATUS_VERIFIED, $actor, $reason, [
+                    'operation' => 'verification',
+                    'record_count' => $inspection['record_count'],
                 ]);
             }
 
             return $inspection;
         } catch (Throwable $exception) {
-            if ($persist) {
-                $archive->update([
-                    'status' => AuditArchive::STATUS_FAILED,
+            if ($persist && $archive->status !== AuditArchive::STATUS_FAILED) {
+                $this->statuses->transition($archive, AuditArchive::STATUS_FAILED, null, null, [
+                    'operation' => 'verification',
                     'error' => Str::limit($exception->getMessage(), 1000),
                 ]);
             }
@@ -215,6 +394,27 @@ final class AuditArchiveService
         } finally {
             File::deleteDirectory($tempDir);
         }
+    }
+
+    public function updateName(AuditArchive $archive, string $name, User $actor): AuditArchive
+    {
+        Gate::authorize('manage', $archive);
+
+        $archive->update(['name' => trim($name)]);
+
+        $this->audit->record(
+            'audit_archives.updated',
+            'audit_archives',
+            (string) $archive->id,
+            ['name' => $archive->getOriginal('name')],
+            ['name' => $archive->name],
+            [
+                'period' => $archive->period_key,
+                'description' => 'Archive display name updated',
+            ],
+        );
+
+        return $archive->refresh();
     }
 
     /** @return array<string, mixed> */
@@ -226,11 +426,18 @@ final class AuditArchiveService
             'period_key' => $archive->period_key,
             'period_start' => $archive->period_start?->toISOString(),
             'period_end' => $archive->period_end?->toISOString(),
+            'period_end_inclusive' => $archive->period_end?->copy()->subSecond()->toISOString(),
             'cutoff_at' => $archive->cutoff_at?->toISOString(),
             'record_count' => $archive->record_count,
             'file_size' => $archive->file_size,
             'status' => $archive->status,
+            'source' => $archive->source ?? self::SOURCE_MANUAL,
+            'format' => $archive->format ?? self::FORMAT_ZIP,
             'attempts' => $archive->attempts,
+            'queued_at' => $archive->queued_at?->toISOString(),
+            'started_at' => $archive->started_at?->toISOString(),
+            'finished_at' => $archive->finished_at?->toISOString(),
+            'failed_at' => $archive->failed_at?->toISOString(),
             'checksums' => $archive->checksums,
             'manifest' => $archive->manifest,
             'error' => $archive->error,
@@ -326,6 +533,8 @@ final class AuditArchiveService
         return [
             'archive_id' => $archive->id,
             'archive_name' => $archive->name,
+            'archive_source' => $archive->source ?? self::SOURCE_MANUAL,
+            'format' => self::FORMAT_ZIP,
             'period' => $period['key'],
             'period_start' => $period['start']->toISOString(),
             'period_end' => $period['end']->toISOString(),

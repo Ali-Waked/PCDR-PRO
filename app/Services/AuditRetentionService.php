@@ -21,6 +21,7 @@ final class AuditRetentionService
 
     public function __construct(
         private readonly AuditArchiveService $archives,
+        private readonly AuditArchiveStatusService $statuses,
         private readonly AuditService $audit,
         private readonly AuditLifecycleNotifier $notifier,
     ) {}
@@ -204,10 +205,17 @@ final class AuditRetentionService
                 ];
 
                 $pruned = $remaining === 0;
+
+                if ($pruned) {
+                    $this->statuses->transition($archive, AuditArchive::STATUS_PRUNED, null, null, [
+                        'operation' => 'retention',
+                        'deleted_count' => $deletedCount,
+                    ]);
+                }
+
                 $archive->update([
-                    'status' => $pruned ? AuditArchive::STATUS_PRUNED : AuditArchive::STATUS_VERIFIED,
-                    'pruned_at' => $pruned ? now() : null,
                     'last_cleanup_at' => now(),
+                    'pruned_at' => $pruned ? $archive->pruned_at : null,
                 ]);
 
                 $run->update([
