@@ -7,9 +7,9 @@ const props = defineProps({
     sections: { type: Array, default: () => [] },
 })
 
-const { locale } = useI18n()
+const { locale, site } = useI18n()
 const content = useHomepageContent(() => props.sections)
-const logo = '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg'
+const logo = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg')
 
 const chrome = computed(() => (locale.value === 'ar' ? {
     group: 'رسالتنا وأهدافنا ورؤيتنا',

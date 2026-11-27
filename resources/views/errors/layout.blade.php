@@ -2,8 +2,24 @@
     $error ??= \App\Support\ErrorPage::context(request(), 404);
     $locale = $error['locale'];
     $direction = $error['direction'];
-    $organization = (string) config('website.name.'.$locale, $locale === 'ar' ? 'جمعية العمل التشاركي في الأزمات والكوارث الخيرية' : 'Participatory Community for Disaster Response');
-    $region = (string) config('website.region.'.$locale, $locale === 'ar' ? 'قطاع غزة' : 'Gaza Strip');
+    try {
+        $siteIdentity = app(\App\Services\SiteSettings::class)->cachedPublicIdentity($locale);
+    } catch (\Throwable) {
+        $siteIdentity = null;
+    }
+
+    if (! is_array($siteIdentity)) {
+        $siteIdentity = [
+            'name' => config('website.name.'.$locale),
+            'shortName' => config('website.short_name.'.$locale, 'PCDR'),
+            'logo' => null,
+            'region' => config('website.region.'.$locale),
+        ];
+    }
+    $organization = (string) ($siteIdentity['name'] ?? '');
+    $shortName = (string) ($siteIdentity['shortName'] ?? 'PCDR');
+    $logo = (string) (($siteIdentity['logo'] ?? null) ?: asset('assets/pcdr-homepage/logo/pcdr-logo.png'));
+    $region = (string) ($siteIdentity['region'] ?? '');
     $homeUrl = \App\Support\ErrorPage::homeUrl($locale);
     $homeLabel = $error['homeLabel'];
     $localeLabel = $error['localeLabel'];
@@ -425,14 +441,14 @@
             <header class="pcdr-error__header">
                 <a class="pcdr-error__brand" href="{{ $homeUrl }}" aria-label="{{ $organization }} — {{ $homeLabel }}">
                     <img
-                        src="{{ asset('assets/pcdr-homepage/logo/pcdr-logo.png') }}"
+                        src="{{ $logo }}"
                         alt=""
                         width="48"
                         height="48"
                         decoding="async"
                     >
                     <span class="pcdr-error__brand-text">
-                        <strong>PCDR</strong>
+                        <strong>{{ $shortName }}</strong>
                         <small>{{ $organization }}</small>
                     </span>
                 </a>

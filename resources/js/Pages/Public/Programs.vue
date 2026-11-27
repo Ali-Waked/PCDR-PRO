@@ -54,7 +54,7 @@ const COPY = {
 
 const copy = computed(() => COPY[locale.value] ?? COPY.en)
 const title = computed(() => (typeof props.meta?.title === 'string' && props.meta.title.trim()) ? props.meta.title : copy.value.title)
-const description = computed(() => props.meta?.description || site.value?.slogan || '')
+const description = computed(() => props.meta?.description || site.value?.description || '')
 const loading = computed(() => props.programs === null)
 const areas = computed(() => Array.isArray(props.programs?.areas) ? props.programs.areas : [])
 const programs = computed(() => Array.isArray(props.programs?.programs) ? props.programs.programs : [])

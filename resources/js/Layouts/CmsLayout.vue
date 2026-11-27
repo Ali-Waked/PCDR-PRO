@@ -13,7 +13,7 @@ defineProps({
     subtitle: { type: String, default: '' },
 })
 
-const { page, t: siteT, localPath, direction, locale } = useI18n()
+const { page, t: siteT, localPath, direction, locale, site } = useI18n()
 const { t } = useLocale()
 const { canInstitutionalApprove } = usePermission()
 const mobileNavigationOpen = ref(false)
@@ -26,6 +26,8 @@ let mql = null
 let onMql = null
 
 const user = computed(() => page.props.auth?.user || null)
+const brandLogo = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-logo.png')
+const brandName = computed(() => site.value?.shortName || 'PCDR')
 const currentPath = computed(() => (page.url || '/').split('?')[0])
 const userInitials = computed(() => {
     const name = String(user.value?.name || '').trim()
@@ -170,8 +172,8 @@ onBeforeUnmount(() => {
                 </button>
 
                 <Link :href="hrefFor('cms')" class="admin-brand-link focus-ring admin-brand-link--compact">
-                    <img class="admin-brand-logo" src="/assets/pcdr-homepage/logo/pcdr-logo.png" alt="" aria-hidden="true" width="40" height="40">
-                    <span class="admin-brand-name">PCDR</span>
+                    <img class="admin-brand-logo" :src="brandLogo" alt="" aria-hidden="true" width="40" height="40">
+                    <span class="admin-brand-name">{{ brandName }}</span>
                 </Link>
 
                 <div class="admin-topbar__context admin-topbar__context--desktop" aria-hidden="true">

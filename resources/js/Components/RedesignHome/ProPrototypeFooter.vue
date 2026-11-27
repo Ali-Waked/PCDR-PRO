@@ -10,7 +10,7 @@ const props = defineProps({
     anchorBase: { type: String, default: '' },
 })
 
-const { locale, localPath } = useI18n()
+const { locale, localPath, site } = useI18n()
 const content = useHomepageContent(() => props.sections)
 
 const SOCIAL_KINDS = {
@@ -18,6 +18,21 @@ const SOCIAL_KINDS = {
     'social-youtube': 'youtube',
     'social-x': 'text-x',
     'social-facebook': 'text-f',
+    'social-instagram': 'text-ig',
+    'social-linkedin': 'text-in',
+    'social-tiktok': 'text-tt',
+    'social-snapchat': 'text-sn',
+    'social-whatsapp': 'text-wa',
+}
+
+const SOCIAL_GLYPHS = {
+    'text-x': 'X',
+    'text-f': 'f',
+    'text-ig': 'IG',
+    'text-in': 'in',
+    'text-tt': 'TT',
+    'text-sn': 'SN',
+    'text-wa': 'WA',
 }
 
 const chrome = computed(() => (locale.value === 'ar' ? {
@@ -75,18 +90,60 @@ const videoCaption = computed(() => sectionText('videoCaption')
 const videoUrl = computed(() => content.safeUrl(sectionText('videoUrl') || content.text(videoItem.value, 'url')))
 const videoAlt = computed(() => content.mediaAlt(videoItem.value))
 
-const copyright = computed(() => content.text(copyrightItem.value, 'title') || chrome.value.copyright)
+const legalNoteItem = computed(() => itemFor('legal'))
 
-const social = computed(() => content.items('footer', 'social-').map((item) => {
-    const key = content.text(item, 'key')
-    const kind = SOCIAL_KINDS[key] || 'link'
-    return {
-        key,
-        kind,
-        label: content.text(item, 'title') || content.text(item, 'label') || kind,
-        url: content.safeUrl(content.text(item, 'url')),
+const copyright = computed(() => content.text(copyrightItem.value, 'title')
+    || site.value?.footerCopyright
+    || chrome.value.copyright)
+
+const legalNote = computed(() => content.text(legalNoteItem.value, 'title')
+    || site.value?.footerLegalNote
+    || '')
+
+const social = computed(() => {
+    const editorial = content.items('footer', 'social-').map((item) => {
+        const key = content.text(item, 'key')
+        const kind = SOCIAL_KINDS[key] || 'link'
+        return {
+            key,
+            kind,
+            glyph: SOCIAL_GLYPHS[kind] || String(content.text(item, 'title') || kind).slice(0, 2),
+            label: content.text(item, 'title') || content.text(item, 'label') || kind,
+            url: content.safeUrl(content.text(item, 'url')),
+        }
+    })
+
+    if (editorial.length) {
+        return editorial
     }
-}))
+
+    return (Array.isArray(site.value?.social) ? site.value.social : []).map((item) => {
+        const key = `social-${item.platform}`
+        const kind = SOCIAL_KINDS[key] || 'link'
+        return {
+            key,
+            kind,
+            glyph: SOCIAL_GLYPHS[kind] || String(item.label || item.platform).slice(0, 2),
+            label: item.label || item.platform,
+            url: content.safeUrl(item.url),
+        }
+    })
+})
+
+const footerContact = computed(() => {
+    const contact = site.value?.contact || {}
+    const whatsapp = (Array.isArray(site.value?.social) ? site.value.social : [])
+        .find((item) => item.platform === 'whatsapp')
+    const phoneDigits = String(contact.phone || '').replace(/[^\d+]/g, '')
+
+    return [
+        contact.email ? { label: contact.email, href: `mailto:${contact.email}` } : null,
+        phoneDigits ? { label: contact.phone, href: `tel:${phoneDigits}` } : null,
+        whatsapp?.url ? { label: whatsapp.label || 'WhatsApp', href: whatsapp.url } : null,
+        contact.address ? { label: contact.address, href: null } : null,
+        contact.hours ? { label: contact.hours, href: null } : null,
+    ].filter((item) => item !== null)
+})
 
 const values = computed(() => content.items('footer', 'value-')
     .map((item) => content.text(item, 'title') || content.text(item, 'label'))
@@ -116,12 +173,12 @@ function photoStyle() {
                             <a v-if="item.url" :href="item.url" :aria-label="item.label">
                                 <svg v-if="item.kind === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="1.6" fill="currentColor"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/></svg>
                                 <svg v-else-if="item.kind === 'youtube'" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l5-2.8z" style="fill:var(--deep)"/></svg>
-                                <template v-else>{{ item.kind === 'text-x' ? 'X' : 'f' }}</template>
+                                <template v-else>{{ item.glyph }}</template>
                             </a>
                             <span v-else :aria-label="item.label" :title="item.label">
                                 <svg v-if="item.kind === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="1.6" fill="currentColor"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/></svg>
                                 <svg v-else-if="item.kind === 'youtube'" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l5-2.8z" style="fill:var(--deep)"/></svg>
-                                <template v-else>{{ item.kind === 'text-x' ? 'X' : 'f' }}</template>
+                                <template v-else>{{ item.glyph }}</template>
                             </span>
                         </template>
                     </div>
@@ -151,7 +208,17 @@ function photoStyle() {
                 </section>
             </div>
             <div class="wrap foot-base">
-                <span>{{ copyright }}</span>
+                <span>
+                    <span>{{ copyright }}</span>
+                    <span v-if="legalNote" class="foot-legal">{{ legalNote }}</span>
+                </span>
+                <span v-if="footerContact.length" class="foot-contact">
+                    <template v-for="(item, index) in footerContact" :key="`${item.label}-${index}`">
+                        <a v-if="item.href" :href="item.href">{{ item.label }}</a>
+                        <b v-else>{{ item.label }}</b>
+                        <template v-if="index < footerContact.length - 1"> · </template>
+                    </template>
+                </span>
                 <span v-if="values.length">
                     <b v-for="(value, index) in values" :key="`${value}-${index}`">{{ value }}<template v-if="index < values.length - 1"> · </template></b>
                 </span>
@@ -162,3 +229,26 @@ function photoStyle() {
         </Link>
     </div>
 </template>
+
+<style scoped>
+.foot-legal {
+    display: block;
+    margin-top: 4px;
+    opacity: 0.82;
+}
+
+.foot-contact {
+    max-width: 46ch;
+}
+
+.foot-contact a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.foot-contact b {
+    color: inherit;
+    font-weight: 500;
+}
+</style>

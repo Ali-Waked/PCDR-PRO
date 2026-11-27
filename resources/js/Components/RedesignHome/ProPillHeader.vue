@@ -11,9 +11,7 @@ defineProps({
     partnersUrl: { type: String, default: '' },
 })
 
-const { locale, alternateUrl, localPath } = useI18n()
-
-const logo = '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg'
+const { locale, alternateUrl, localPath, site } = useI18n()
 
 const homeHref = computed(() => localPath())
 const aboutHref = computed(() => localPath('about'))
@@ -65,6 +63,11 @@ const copy = computed(() => (locale.value === 'ar' ? {
     arabic: 'العربية',
     english: 'English',
 }))
+
+const logo = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg')
+const brand = computed(() => String(site.value?.name || '').trim() || copy.value.brand)
+const brandSub = computed(() => site.value?.region || site.value?.slogan || copy.value.brandSub)
+const brandLabel = computed(() => `${brand.value} — ${locale.value === 'ar' ? 'الصفحة الرئيسية' : 'home page'}`)
 
 const menuOpen = ref(false)
 const openGroups = ref({ about: true, media: false })
@@ -121,13 +124,13 @@ onBeforeUnmount(() => {
         <div class="wrap">
             <div class="head-in">
                 <div class="pill">
-                    <Link class="brand" :href="homeHref" :aria-label="copy.brandLabel" @click="closeMenu">
+                    <Link class="brand" :href="homeHref" :aria-label="brandLabel" @click="closeMenu">
                         <span class="logo">
                             <img :src="logo" alt="" width="76" height="76">
                         </span>
                         <span class="brand-t">
-                            <b>{{ copy.brand }}</b>
-                            <small>{{ copy.brandSub }}</small>
+                            <b>{{ brand }}</b>
+                            <small>{{ brandSub }}</small>
                         </span>
                     </Link>
                     <button

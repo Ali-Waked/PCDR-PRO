@@ -102,6 +102,7 @@ export function waitForAuthSurfaceReady({
     schedule = defaultSchedule,
     cancel = defaultCancel,
     fallbackMs = AUTH_INTRO_READY_FALLBACK_MS,
+    logoSource = ANIMATED_LOGO_SRC,
     signal = null,
 } = {}) {
     if (!win || !doc) {
@@ -166,7 +167,7 @@ export function waitForAuthSurfaceReady({
         }
         image.onload = () => settleImage(false)
         image.onerror = () => settleImage(true)
-        image.src = ANIMATED_LOGO_SRC
+        image.src = logoSource
         if (image.complete) {
             settleImage(Boolean(image.naturalWidth === 0))
         }

@@ -66,7 +66,7 @@ const COPY = {
 
 const copy = computed(() => COPY[locale.value] ?? COPY.en)
 const title = computed(() => (typeof props.meta?.title === 'string' && props.meta.title.trim()) ? props.meta.title : copy.value.title)
-const description = computed(() => props.meta?.description || site.value?.slogan || '')
+const description = computed(() => props.meta?.description || site.value?.description || '')
 const overview = computed(() => props.about?.overview ?? {})
 const vision = computed(() => props.about?.vision ?? {})
 const mission = computed(() => props.about?.mission ?? {})
@@ -77,7 +77,7 @@ const pillars = computed(() => Array.isArray(props.about?.pillars) ? props.about
 const image = computed(() => props.about?.image ?? null)
 const heroTitle = computed(() => props.about?.title || copy.value.title)
 const heroBody = computed(() => props.about?.body || copy.value.lead)
-const logo = '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg'
+const logo = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg')
 
 const anchors = computed(() => [
     { id: 'vision', label: copy.value.visionAnchor },

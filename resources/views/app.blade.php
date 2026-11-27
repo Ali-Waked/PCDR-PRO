@@ -1,18 +1,13 @@
 @php
-    $seoLocale = \App\Support\Locale::sanitize(request()->route('locale'));
+    $seoLocale = \App\Support\Locale::sanitize(request()->route('locale')) ?: app()->getLocale();
+    $siteIdentity = app(\App\Services\SiteSettings::class)->publicIdentity($seoLocale);
     $seoPath = ltrim(preg_replace('#^/(ar|en)(?=/|$)#', '', '/'.ltrim(request()->path(), '/')) ?? '', '/');
     $seoSuffix = $seoPath ? '/'.$seoPath : '';
     $isHome = $seoPath === '';
     $seoTitle = $isHome
-        ? ($seoLocale === 'ar'
-            ? 'PCDR | جمعية العمل التشاركي في الأزمات والكوارث'
-            : 'PCDR | Participatory Action in Crises and Disasters')
-        : ($seoLocale === 'ar'
-            ? config('website.name.ar').' | PCDR'
-            : config('website.name.en').' | PCDR');
-    $seoDescription = $isHome && $seoLocale === 'ar'
-        ? 'من الاستجابة الإنسانية إلى التعافي والتنمية المستدامة — PCDR، قطاع غزة.'
-        : (string) config('website.description.'.$seoLocale);
+        ? $siteIdentity['shortName'].' | '.$siteIdentity['name']
+        : $siteIdentity['name'].' | '.$siteIdentity['shortName'];
+    $seoDescription = (string) $siteIdentity['description'];
 
     // Build localized links from the matched route and its parameters so the
     // same page is addressed in every locale, including model-bound routes.
@@ -48,6 +43,9 @@
 @php
     $iconV = trim((string) @file_get_contents(public_path('icons-version.txt'))) ?: '1';
     $bootLoginIntro = request()->routeIs('login.show');
+    $bootIntroLogo = $siteIdentity['logo'] ?: '/assets/pcdr-homepage/logo/pcdr-logo-animated.svg';
+    $cssSafeLogo = str_replace(['\'', '\\', "\n", "\r"], ['%27', '%5C', '', ''], (string) $bootIntroLogo);
+    $bootIntroBackground = "url('{$cssSafeLogo}'), url('/assets/pcdr-homepage/logo/pcdr-logo.png')";
     $fontStylesheet = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap';
 @endphp
 <!DOCTYPE html>
@@ -68,11 +66,11 @@
         <link rel="stylesheet" href="{{ $fontStylesheet }}" media="print" onload="this.media='all'">
         <noscript><link rel="stylesheet" href="{{ $fontStylesheet }}"></noscript>
         @if ($bootLoginIntro)
-            <link rel="preload" as="image" href="/assets/pcdr-homepage/logo/pcdr-logo-animated.svg" fetchpriority="high">
+            <link rel="preload" as="image" href="{{ $bootIntroLogo }}" fetchpriority="high">
             <style>
                 .pcdr-boot-intro{position:fixed;inset:0;z-index:1599;display:grid;place-items:center;background:#3E5172;overflow:hidden}
                 .pcdr-boot-intro__disc{box-sizing:border-box;display:grid;place-items:center;inline-size:clamp(156px,30vmin,300px);block-size:clamp(156px,30vmin,300px);padding:10px;border-radius:50%;background:#fff;box-shadow:0 24px 60px rgba(24,34,50,.28),0 0 0 1px rgba(218,195,163,.62)}
-                .pcdr-boot-intro__mark{inline-size:100%;block-size:100%;background-image:url('/assets/pcdr-homepage/logo/pcdr-logo-animated.svg'),url('/assets/pcdr-homepage/logo/pcdr-logo.png');background-position:center;background-repeat:no-repeat;background-size:contain;animation:pcdr-boot-mark 900ms cubic-bezier(.16,1,.3,1) 180ms both}
+                .pcdr-boot-intro__mark{inline-size:100%;block-size:100%;background-image:{{ $bootIntroBackground }};background-position:center;background-repeat:no-repeat;background-size:contain;animation:pcdr-boot-mark 900ms cubic-bezier(.16,1,.3,1) 180ms both}
                 @keyframes pcdr-boot-mark{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:scale(1)}}
                 @media(prefers-reduced-motion:reduce){.pcdr-boot-intro__mark{animation:none}}
             </style>
@@ -85,19 +83,22 @@
         @endforeach
         <link rel="alternate" inertia hreflang="x-default" href="{{ $alternateUrls[$defaultLocale] }}">
         <meta property="og:type" inertia content="website">
-        <meta property="og:site_name" inertia content="PCDR">
+        <meta property="og:site_name" inertia content="{{ $siteIdentity['seoTitle'] }}">
         <meta property="og:locale" inertia content="{{ $seoLocale }}">
         <meta property="og:title" inertia content="{{ $seoTitle }}">
         <meta property="og:description" inertia content="{{ $seoDescription }}">
+        @if ($siteIdentity['ogImage'])
+            <meta property="og:image" inertia content="{{ $siteIdentity['ogImage'] }}">
+        @endif
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <script type="application/ld+json">
             {!! json_encode([
                 '@' . 'context' => 'https://schema.org',
                 '@' . 'type' => 'Organization',
-                'name' => config('website.name.'.app()->getLocale()),
-                'alternateName' => 'PCDR',
-                'url' => url('/'.app()->getLocale()),
-                'description' => config('website.description.'.app()->getLocale()),
+                'name' => $siteIdentity['name'],
+                'alternateName' => $siteIdentity['shortName'],
+                'url' => $canonicalUrl,
+                'description' => $seoDescription,
                 'inLanguage' => config('website.locales'),
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) !!}
         </script>

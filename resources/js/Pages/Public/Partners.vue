@@ -19,7 +19,7 @@ const homeUrl = computed(() => localPath(''))
 const title = computed(() => (typeof props.meta?.title === 'string' && props.meta.title.trim())
     ? props.meta.title
     : t('ui.partner_directory.seo_title', 'PCDR | Partners'))
-const description = computed(() => props.meta?.description || t('ui.partner_directory.seo_description', ''))
+const description = computed(() => props.meta?.description || site.value?.description || t('ui.partner_directory.seo_description', ''))
 const skipLabel = computed(() => t('ui.skip_to_content', locale.value === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'))
 const categories = computed(() => Array.isArray(props.directory?.categories) ? props.directory.categories : [])
 const groups = computed(() => Array.isArray(props.directory?.groups) ? props.directory.groups : [])

@@ -43,7 +43,7 @@ const title = computed(() => (typeof props.meta?.title === 'string' && props.met
         ? 'PCDR | جمعية العمل التشاركي في الأزمات والكوارث'
         : 'PCDR | Participatory Action in Crises and Disasters'))
 
-const description = computed(() => props.meta?.description || site.value?.slogan || '')
+const description = computed(() => props.meta?.description || site.value?.description || '')
 const skipLabel = computed(() => t('ui.skip_to_content', locale.value === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'))
 const ordered = computed(() => content.orderedSections())
 const mainSections = computed(() => ordered.value.filter((section) => section.key !== 'footer'))

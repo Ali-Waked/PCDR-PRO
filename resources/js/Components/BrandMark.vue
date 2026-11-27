@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useLocale } from '../Composables/useLocale'
+import { useI18n } from '../composables/useI18n'
 
 const props = defineProps({
     compact: { type: Boolean, default: false },
@@ -9,10 +10,11 @@ const props = defineProps({
 })
 
 const { t } = useLocale()
+const { site } = useI18n()
 
-// The approved static PNG is referenced in place; it is never copied,
-// regenerated, or replaced by the animated marketing variant.
-const logoSource = '/assets/pcdr-homepage/logo/pcdr-logo.png'
+// The approved static PNG remains the fallback; administrators can replace it
+// through the canonical CMS logo setting.
+const logoSource = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-logo.png')
 
 const sizeClass = computed(() => `pcdr-brand--${props.size}`)
 </script>

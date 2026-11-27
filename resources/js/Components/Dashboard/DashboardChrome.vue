@@ -22,7 +22,7 @@ const props = defineProps({
     breadcrumb: { type: Array, default: () => [] },
 })
 
-const { page, t, localPath, direction, locale } = useI18n()
+const { page, t, localPath, direction, locale, site } = useI18n()
 
 const mobileOpen = ref(false)
 const collapsed = ref(false)
@@ -37,6 +37,8 @@ let mql = null
 let onMql = null
 
 const isCms = computed(() => props.mode === 'cms')
+const brandLogo = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-logo.png')
+const brandName = computed(() => site.value?.shortName || 'PCDR')
 const workspaceLabel = computed(() => t(isCms.value ? 'ui.dashboard_content_studio' : 'ui.dashboard'))
 const user = computed(() => page.props.auth?.user ?? {})
 const currentPath = computed(() => (page.url || '').split('?')[0])
@@ -235,9 +237,9 @@ onBeforeUnmount(() => {
                 :tabindex="mobileOpen && !isDesktop ? -1 : undefined"
             >
                 <Link :href="homePath" class="pc-brand" @click="closeNav">
-                    <img class="pc-brand__logo" src="/assets/pcdr-homepage/logo/pcdr-logo.png" alt="" aria-hidden="true" width="46" height="46">
+                    <img class="pc-brand__logo" :src="brandLogo" alt="" aria-hidden="true" width="46" height="46">
                     <span class="pc-brand__copy">
-                        <span class="pc-brand__name">PCDR</span>
+                        <span class="pc-brand__name">{{ brandName }}</span>
                         <span class="pc-brand__tagline">{{ workspaceLabel }}</span>
                     </span>
                 </Link>

@@ -10,10 +10,10 @@ import {
 
 const emit = defineEmits(['finish'])
 
-const { t } = useI18n()
+const { t, site } = useI18n()
 const authSurface = inject('pcdr-auth-ready', null)
 
-const organizationName = computed(() => t('site.name', 'PCDR'))
+const organizationName = computed(() => site.value?.name || t('site.name', 'PCDR'))
 const tagline = computed(() => t('site.slogan', ''))
 
 const reducedMotion = typeof window !== 'undefined'
@@ -21,7 +21,7 @@ const reducedMotion = typeof window !== 'undefined'
 
 const visible = ref(!reducedMotion)
 const leaving = ref(false)
-const logoSrc = ref(ANIMATED_LOGO_SRC)
+const logoSrc = ref(site.value?.logo || ANIMATED_LOGO_SRC)
 
 let finished = false
 let mainElement = null

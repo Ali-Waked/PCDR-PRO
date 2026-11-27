@@ -1,12 +1,16 @@
 <script setup>
-import { onBeforeUnmount, onMounted, provide, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { useI18n } from '../composables/useI18n'
-import { waitForAuthSurfaceReady } from '../Support/authIntro'
+import { ANIMATED_LOGO_SRC, STATIC_LOGO_SRC, waitForAuthSurfaceReady } from '../Support/authIntro'
 import AdminToastProvider from '../Components/Dashboard/AdminToastProvider.vue'
 import LanguageSwitcher from '../Components/LanguageSwitcher.vue'
 
-const { t, direction } = useI18n()
+const { t, direction, site } = useI18n()
 const isReady = ref(false)
+const logo = computed(() => site.value?.logo || STATIC_LOGO_SRC)
+const animatedLogo = computed(() => site.value?.logo || ANIMATED_LOGO_SRC)
+const shortName = computed(() => site.value?.shortName || 'PCDR')
+const name = computed(() => site.value?.name || t('site.name'))
 
 let resolveReady = () => {}
 const readyPromise = new Promise((resolve) => {
@@ -20,7 +24,7 @@ onMounted(() => {
     const controller = new AbortController()
     readinessController = controller
 
-    waitForAuthSurfaceReady({ signal: controller.signal }).then((result) => {
+    waitForAuthSurfaceReady({ signal: controller.signal, logoSource: animatedLogo.value }).then((result) => {
         if (controller.signal.aborted) {
             return
         }
@@ -44,10 +48,10 @@ onBeforeUnmount(() => {
         <section class="pc-auth__brand" aria-labelledby="pc-auth-intro">
             <span class="pc-auth__geometry" aria-hidden="true"></span>
             <div class="pc-auth__logo">
-                <img src="/assets/pcdr-homepage/logo/pcdr-logo.png" alt="" aria-hidden="true" width="56" height="56">
+                <img :src="logo" alt="" aria-hidden="true" width="56" height="56">
                 <span class="pc-auth__logo-copy">
-                    <strong>PCDR</strong>
-                    <span>{{ t('site.name') }}</span>
+                    <strong>{{ shortName }}</strong>
+                    <span>{{ name }}</span>
                 </span>
             </div>
 

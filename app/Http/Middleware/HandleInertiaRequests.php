@@ -68,17 +68,7 @@ class HandleInertiaRequests extends Middleware
             'translations' => [
                 'ui' => __('ui'),
             ],
-            'site' => [
-                'name' => $siteSettings->value('organization.name', config("website.name.{$locale}"), $locale),
-                'shortName' => $siteSettings->value('organization.short_name', config('website.short_name.en'), $locale),
-                'logo' => $siteSettings->value('organization.logo', null, $locale),
-                'region' => config("website.region.{$locale}"),
-                'slogan' => config("website.slogan.{$locale}"),
-                'footerCopyright' => $siteSettings->value('footer.copyright', null, $locale),
-                'footerLegalNote' => $siteSettings->value('footer.legal_note', null, $locale),
-                'contact' => $siteSettings->contactDetails($locale),
-                'social' => $siteSettings->socialLinks($locale),
-            ],
+            'site' => $siteSettings->publicIdentity($locale),
             'navigation' => app(NavigationService::class)->all($locale),
             'ui' => fn () => __('website.ui', [], $locale),
             'nav' => fn () => __('website.navigation', [], $locale),

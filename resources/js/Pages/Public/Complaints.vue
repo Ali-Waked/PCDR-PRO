@@ -34,7 +34,11 @@ const attachmentLimits = computed(() => props.complaintConfig?.attachmentLimits 
 const title = computed(() => (typeof props.meta?.title === 'string' && props.meta.title.trim())
     ? props.meta.title
     : t('ui.complaints.title', t('nav.complaints')))
-const description = computed(() => props.meta?.description || site.value?.slogan || '')
+const description = computed(() => props.meta?.description || site.value?.description || '')
+const complaintsEmail = computed(() => String(site.value?.complaintsEmail || '').trim())
+const complaintsEmailLabel = computed(() => locale.value === 'ar'
+    ? 'البريد الإلكتروني لصندوق الشكاوى'
+    : 'Complaints email')
 const skipLabel = computed(() => t('ui.skip_to_content', locale.value === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'))
 
 const form = useForm({
@@ -385,6 +389,10 @@ function submit() {
                         <section class="axis">
                             <h3>{{ t('ui.complaints.anonymity_title') }}</h3>
                             <p>{{ t('ui.complaints.anonymity_body') }}</p>
+                        </section>
+                        <section v-if="complaintsEmail" class="axis">
+                            <h3>{{ complaintsEmailLabel }}</h3>
+                            <p><a :href="`mailto:${complaintsEmail}`" dir="ltr">{{ complaintsEmail }}</a></p>
                         </section>
                     </aside>
                 </div>
