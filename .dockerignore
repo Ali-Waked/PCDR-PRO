@@ -1,0 +1,39 @@
+.git
+.gitignore
+.env
+.env.*
+*.log
+
+# Installed dependencies and prebuilt assets are recreated inside the image.
+node_modules
+vendor
+public/build
+public/hot
+public/storage
+public/fonts-manifest.dev.json
+
+# Local runtime state never belongs in an image.
+storage/*.key
+storage/pail
+storage/framework/cache/data/*
+storage/logs/*
+database/*.sqlite*
+bootstrap/cache/*.php
+
+# Development/test/IDE files are not needed at runtime.
+tests
+test-results
+scripts
+docs
+.agents
+.claude
+.editorconfig
+.gitattributes
+.mcp.json
+opencode.json
+boost.json
+phpunit.xml
+.phpunit.result.cache
+README.md
+AGENTS.md
+CLAUDE.md

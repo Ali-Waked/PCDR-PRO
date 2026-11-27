@@ -1,0 +1,48 @@
+server {
+    listen ${PORT} default_server;
+    server_name _;
+
+    root /var/www/html/public;
+    index index.php;
+    charset utf-8;
+
+    # Matches the project's documented 10 MB upload policy.
+    client_max_body_size 10m;
+    keepalive_timeout 30s;
+
+    access_log /dev/stdout combined;
+    error_log /dev/stderr warn;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    # Never serve .env, .git, .user.ini or other hidden files.
+    location ~ /\.(?!well-known) {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Public uploads are served through public/storage; never execute code there.
+    location ~ ^/storage/.+\.php$ {
+        deny all;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_read_timeout 300;
+    }
+
+    location ~* \.(?:css|js|mjs|json|svg|png|jpe?g|gif|ico|webp|avif|woff2?|ttf|eot|map)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+}
