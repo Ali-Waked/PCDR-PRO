@@ -20,14 +20,13 @@ final class Seo
         ?Media $image = null,
         array $overrides = [],
     ): array {
-        $description ??= $this->value('seo.default_description', $locale)
-            ?: (string) config('website.description.'.$locale, '');
-        $shortName = $this->value('organization.short_name', $locale)
-            ?: (string) config('website.short_name.'.$locale, 'PCDR');
-        $siteTitle = $this->value('seo.site_title', $locale) ?: $shortName;
+        $identity = $this->settings->publicIdentity($locale);
+        $description ??= $identity['description'];
+        $shortName = $identity['shortName'];
+        $siteTitle = $identity['seoTitle'];
         $path ??= request()->path();
         $alternates = Locale::alternates($path);
-        $ogImage = $this->value('seo.og_image', $locale) ?: $image?->url();
+        $ogImage = $identity['ogImage'] ?: $image?->url();
 
         $data = [
             'title' => $title.' — '.$shortName,
@@ -60,10 +59,9 @@ final class Seo
     public function organizationJsonLd(array $meta): string
     {
         $locale = (string) ($meta['locale'] ?? config('website.default_locale', 'ar'));
-        $name = $this->value('organization.name', $locale)
-            ?: (string) config('website.name.'.$locale, 'PCDR');
-        $shortName = $this->value('organization.short_name', $locale)
-            ?: (string) config('website.short_name.'.$locale, 'PCDR');
+        $identity = $this->settings->publicIdentity($locale);
+        $name = $identity['name'];
+        $shortName = $identity['shortName'];
 
         return json_encode([
             '@context' => 'https://schema.org',
@@ -74,18 +72,5 @@ final class Seo
             'description' => $meta['description'],
             'inLanguage' => [config('website.locales')],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-    }
-
-    private function value(string $key, string $locale): ?string
-    {
-        $default = match ($key) {
-            'organization.name' => config('website.name.'.$locale),
-            'organization.short_name' => config('website.short_name.'.$locale, 'PCDR'),
-            'seo.site_title' => config('website.short_name.'.$locale, 'PCDR'),
-            'seo.default_description' => config('website.description.'.$locale, ''),
-            default => null,
-        };
-
-        return $this->settings->value($key, $default === null ? null : (string) $default, $locale);
     }
 }

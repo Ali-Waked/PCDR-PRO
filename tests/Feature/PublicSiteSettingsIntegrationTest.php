@@ -421,6 +421,8 @@ final class PublicSiteSettingsIntegrationTest extends TestCase
     public function test_public_display_locations_all_consume_the_central_site_payload(): void
     {
         $sources = [
+            'app/Services/Seo.php' => ['publicIdentity'],
+            'app/Http/Controllers/Public/HomepageApiController.php' => ['publicIdentity'],
             'resources/js/Components/RedesignHome/ProPillHeader.vue' => ['site.value?.logo', 'site.value?.name'],
             'resources/js/Components/RedesignHome/ProPrototypeFooter.vue' => [
                 'site.value?.contact',

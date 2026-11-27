@@ -23,19 +23,15 @@ final class HomepageApiController extends Controller
         ]);
 
         $locale = (string) ($validated['locale'] ?? config('website.default_locale', 'ar'));
-        $logo = $settings->value('organization.logo', null, $locale);
+        $identity = $settings->publicIdentity($locale);
 
         $payload = [
             'locale' => $locale,
             'dir' => $locale === 'ar' ? 'rtl' : 'ltr',
             'organization' => [
-                'name' => $settings->value(
-                    'organization.name',
-                    (string) config("website.name.{$locale}", 'PCDR'),
-                    $locale,
-                ),
-                'tagline' => (string) config("website.slogan.{$locale}", ''),
-                'logo' => $logo ? url($logo) : null,
+                'name' => $identity['name'],
+                'tagline' => $identity['slogan'],
+                'logo' => $identity['logo'] ? url($identity['logo']) : null,
             ],
             'sections' => $homepage->sections($locale),
         ];
