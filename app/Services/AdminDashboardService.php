@@ -84,7 +84,7 @@ final class AdminDashboardService
             'projects' => $this->cms->allows($user, 'programs.view'),
             'publications' => $this->cms->allows($user, 'publications.view'),
             'pillars' => $this->cms->allows($user, 'pillars.view'),
-            'homepage' => $this->cms->allows($user, 'homepage.view'),
+            'website_structure' => $this->cms->allows($user, 'website_structure.view'),
             'media' => $this->cms->allows($user, 'media.view'),
             'inquiries' => $this->cms->allows($user, 'inquiries.view'),
             'email_templates' => $this->cms->allows($user, 'email_templates.view'),
@@ -155,10 +155,10 @@ final class AdminDashboardService
             );
         }
 
-        if ($permissions['homepage']) {
+        if ($permissions['website_structure']) {
             $rows[] = [
-                'key' => 'homepage',
-                'href' => '/cms/homepage',
+                'key' => 'content_management',
+                'href' => '/cms/content-management',
                 'metrics' => [
                     ['key' => 'total', 'value' => HomepageSection::query()->count()],
                     ['key' => 'enabled', 'value' => HomepageSection::query()->where('is_enabled', true)->count()],

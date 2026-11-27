@@ -382,7 +382,7 @@ final class HomepageService
             'items' => $section->items
                 ->filter(fn (HomepageSectionItem $item) => $includeUnpublished || $item->isEligibleNow())
                 ->sortBy(fn (HomepageSectionItem $item) => [(int) $item->sort_order, (int) $item->id])
-                ->map(fn (HomepageSectionItem $item) => $this->serializeItem($item, $locale))
+                ->map(fn (HomepageSectionItem $item) => $this->serializeItem($item, $locale, $section->key))
                 ->filter()
                 ->values()
                 ->all(),
@@ -392,9 +392,10 @@ final class HomepageService
     /**
      * @return array<string, mixed>|null
      */
-    private function serializeItem(HomepageSectionItem $item, string $locale): ?array
+    private function serializeItem(HomepageSectionItem $item, string $locale, string $sectionKey): ?array
     {
         $media = $this->serializeMedia($item->media, $locale);
+        $isSlide = $sectionKey === 'hero' && $item->isHeroSlide();
 
         if ($item->isInline()) {
             return [
@@ -402,6 +403,7 @@ final class HomepageService
                 'key' => $item->item_key ?: 'item-'.$item->id,
                 'type' => 'inline',
                 'sortOrder' => (int) $item->sort_order,
+                'slide' => $isSlide,
                 'title' => $this->translated($item, 'title', $locale),
                 'label' => $this->translated($item, 'label', $locale),
                 'body' => $this->translated($item, 'body', $locale),
@@ -433,6 +435,7 @@ final class HomepageService
             'key' => $item->item_key ?: $item->item_type.'-'.$model->id,
             'type' => $item->item_type,
             'sortOrder' => (int) $item->sort_order,
+            'slide' => $isSlide,
             'title' => $this->translated($model, 'title', $locale) ?? $this->translated($model, 'name', $locale),
             'label' => $this->translated($model, 'short_title', $locale)
                 ?? $this->translated($model, 'title', $locale)

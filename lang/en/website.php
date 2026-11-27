@@ -405,7 +405,6 @@ return [
         'cms_news' => 'News',
         'cms_publications' => 'Publications',
         'cms_media' => 'Media library',
-        'cms_homepage' => 'Homepage',
         'cms_settings' => 'Site settings',
         'cms_inquiries' => 'Inquiries',
         'cms_email_templates' => 'Email templates',

@@ -9,6 +9,7 @@ use App\Http\Requests\Cms\ReorderSectionContentRequest;
 use App\Http\Requests\Cms\SaveSectionContentRequest;
 use App\Http\Requests\Cms\ToggleSectionContentRequest;
 use App\Http\Requests\Cms\UpdateOrganizationContentRequest;
+use App\Http\Requests\Cms\UpdateSectionPresentationRequest;
 use App\Models\HomepageSectionItem;
 use App\Services\AuditService;
 use App\Services\CmsAccess;
@@ -139,6 +140,24 @@ final class SectionContentController extends Controller
             'cms.organization.updated',
             'website_organization',
             (string) $organization->id,
+        );
+
+        return $this->saved($locale);
+    }
+
+    public function presentation(
+        string $locale,
+        string $section,
+        UpdateSectionPresentationRequest $request,
+    ): RedirectResponse {
+        $this->content->savePresentation($section, $request->validated());
+
+        $this->audit->record(
+            'cms.section_presentation.updated',
+            'homepage_section',
+            $section,
+            null,
+            $request->validated('translations'),
         );
 
         return $this->saved($locale);

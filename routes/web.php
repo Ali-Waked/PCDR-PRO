@@ -24,7 +24,6 @@ use App\Http\Controllers\Cms\DashboardController;
 use App\Http\Controllers\Cms\DirectoryPartnerCategoryController;
 use App\Http\Controllers\Cms\DirectoryPartnerController;
 use App\Http\Controllers\Cms\EmailTemplateController;
-use App\Http\Controllers\Cms\HomepageController as CmsHomepageController;
 use App\Http\Controllers\Cms\InquiryController;
 use App\Http\Controllers\Cms\MediaController as CmsMediaController;
 use App\Http\Controllers\Cms\PillarController as CmsPillarController;
@@ -123,20 +122,10 @@ Route::prefix('{locale}')
             Route::middleware('account.active')->group(function () use ($sectionPattern): void {
                 Route::get('/', DashboardController::class)->middleware('cms:pillars.view')->name('dashboard');
 
-                // Structured homepage management: predefined sections only. There are
-                // deliberately no section create/delete routes.
-                Route::get('/homepage', [CmsHomepageController::class, 'index'])
-                    ->middleware('cms:homepage.view')->name('homepage.index');
-                Route::get('/homepage/preview', [CmsHomepageController::class, 'preview'])
-                    ->middleware('cms:homepage.view')->name('homepage.preview');
-                Route::put('/homepage', [CmsHomepageController::class, 'update'])
-                    ->middleware('cms:homepage.update')->name('homepage.update');
-                Route::post('/homepage/reorder', [CmsHomepageController::class, 'reorder'])
-                    ->middleware('cms:homepage.update')->name('homepage.reorder');
-                Route::patch('/homepage/{homepageSection}', [CmsHomepageController::class, 'status'])
-                    ->middleware('cms:homepage.update')->name('homepage.status');
-                Route::post('/homepage/{homepageSection}/toggle', [CmsHomepageController::class, 'toggle'])
-                    ->middleware('cms:homepage.update')->name('homepage.toggle');
+                // Homepage content is managed exclusively through the centralized
+                // structure and typed section routes below. The legacy standalone
+                // /cms/homepage editor has been removed; public rendering and its
+                // shared services remain untouched.
 
                 // Centralized website structure: fixed pages and sections only.
                 Route::get('/content-management', [StructureController::class, 'index'])
@@ -158,6 +147,8 @@ Route::prefix('{locale}')
                     ->middleware('cms:homepage.update')->name('content.reorder')->where('section', $sectionPattern);
                 Route::put('/content/{section}/organization', [SectionContentController::class, 'organization'])
                     ->middleware('cms:homepage.update')->name('content.organization')->where('section', $sectionPattern);
+                Route::put('/content/{section}/presentation', [SectionContentController::class, 'presentation'])
+                    ->middleware('cms:homepage.update')->name('content.presentation')->where('section', $sectionPattern);
                 Route::put('/content/{section}/{sectionItem}', [SectionContentController::class, 'update'])
                     ->middleware('cms:homepage.update')->name('content.update')->where('section', $sectionPattern);
                 Route::delete('/content/{section}/{sectionItem}', [SectionContentController::class, 'destroy'])

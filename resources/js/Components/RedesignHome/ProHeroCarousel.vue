@@ -24,7 +24,10 @@ const labels = computed(() => (locale.value === 'ar' ? {
     slide: 'Slide',
 }))
 
-const slides = computed(() => content.items('hero', 'slide-').map((item, index) => ({
+// The backend decides slide membership from the structure registry. Legacy
+// `slide-` keys, CTA controls and duplicated ticker rows are never inferred
+// from the public key alone.
+const slides = computed(() => content.items('hero').filter((item) => item.slide === true).map((item, index) => ({
     key: content.text(item, 'key', `slide-${index + 1}`),
     label: content.text(item, 'label'),
     title: content.text(item, 'title'),

@@ -173,7 +173,7 @@ final class PublicFooterIntegrationTest extends TestCase
         $this->assertSame('footer', config('cms_structure.sections.footer.content'));
         $this->assertContains('footer-', config('cms_structure.item_prefixes.footer'));
 
-        $source = (string) File::get(resource_path('js/Pages/Cms/ContentManagement/Section.vue'));
+        $source = (string) File::get(resource_path('js/Pages/Cms/ContentManagement/DefaultSection.vue'));
         $this->assertStringContainsString("props.section.key === 'footer'", $source);
         $this->assertStringContainsString("body: ['slides', 'stories', 'objectives'].includes(props.section.key) || isFooter.value", $source);
         $this->assertStringContainsString("caption: props.section.key === 'albums' || isFooter.value", $source);

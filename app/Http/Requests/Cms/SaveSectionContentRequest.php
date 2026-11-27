@@ -13,8 +13,11 @@ use App\Models\Program;
 use App\Models\Project;
 use App\Models\StrategicPillar;
 use App\Services\CmsAccess;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
+use Throwable;
 
 final class SaveSectionContentRequest extends FormRequest
 {
@@ -23,6 +26,43 @@ final class SaveSectionContentRequest extends FormRequest
         $user = $this->user();
 
         return $user !== null && app(CmsAccess::class)->allows($user, 'homepage.update');
+    }
+
+    /**
+     * Scheduling is optional. Empty values stay NULL, while supplied dates are
+     * expanded to full-day boundaries in the application timezone so the public
+     * eligibility check cannot produce off-by-one results.
+     */
+    public function prepareForValidation(): void
+    {
+        $timezone = (string) config('app.timezone', 'UTC');
+
+        foreach (['display_start_at' => true, 'display_end_at' => false] as $field => $startOfDay) {
+            $value = $this->input($field);
+
+            if ($value === null || $value === '') {
+                $this->merge([$field => null]);
+
+                continue;
+            }
+
+            if (! is_string($value)) {
+                continue;
+            }
+
+            try {
+                $date = CarbonImmutable::parse($value, $timezone)->setTimezone($timezone);
+            } catch (Throwable) {
+                // Leave the raw value for the date rule to reject.
+                continue;
+            }
+
+            $this->merge([
+                $field => $startOfDay
+                    ? $date->startOfDay()->format('Y-m-d H:i:s')
+                    : $date->endOfDay()->format('Y-m-d H:i:s'),
+            ]);
+        }
     }
 
     /** @return array<string, mixed> */
@@ -78,16 +118,24 @@ final class SaveSectionContentRequest extends FormRequest
             $expectedSource = (string) ($definition['source'] ?? '');
             $contentType = (string) ($definition['content'] ?? '');
 
-            if ($contentType === 'links' && $itemType !== $expectedSource) {
-                $validator->errors()->add('item_type', 'This section accepts only '.$expectedSource.' records.');
-            }
+            if ($contentType === 'links') {
+                if ($itemType !== $expectedSource) {
+                    $validator->errors()->add('item_type', 'This section accepts only '.$expectedSource.' records.');
+                }
+            } elseif ($contentType === 'announcements') {
+                if (! in_array($itemType, ['inline', 'article'], true)) {
+                    $validator->errors()->add('item_type', 'Ticker items must be inline announcements or published articles.');
+                }
 
-            if ($contentType !== 'links' && $itemType !== 'inline') {
+                if ($itemType === 'article' && $this->integer('item_id') <= 0) {
+                    $validator->errors()->add('item_id', 'Select the article this announcement links to.');
+                }
+            } elseif ($itemType !== 'inline') {
                 $validator->errors()->add('item_type', 'This section accepts inline content only.');
             }
 
             if ($itemType !== 'inline') {
-                $this->validateSourceRecord($validator, $itemType, $this->integer('item_id'));
+                $this->validateSourceRecord($validator, $itemType, $this->integer('item_id'), $contentType);
             }
 
             $mediaId = $this->integer('media_id');
@@ -117,8 +165,12 @@ final class SaveSectionContentRequest extends FormRequest
     }
 
     /** @param Validator<mixed> $validator */
-    private function validateSourceRecord(Validator $validator, string $type, int $id): void
-    {
+    private function validateSourceRecord(
+        Validator $validator,
+        string $type,
+        int $id,
+        string $contentType = '',
+    ): void {
         $model = match ($type) {
             'article' => Article::class,
             'project' => Project::class,
@@ -128,8 +180,19 @@ final class SaveSectionContentRequest extends FormRequest
             default => null,
         };
 
-        if ($model === null || $id <= 0 || ! $model::query()->whereKey($id)->exists()) {
-            $validator->errors()->add('item_id', 'Select an existing content record.');
+        $exists = $model !== null && $id > 0;
+
+        if ($exists && $contentType === 'announcements' && $type === 'article') {
+            $exists = Article::query()->published()->whereKey($id)->exists();
+        } elseif ($exists) {
+            /** @var class-string<Model> $model */
+            $exists = $model::query()->whereKey($id)->exists();
+        }
+
+        if (! $exists) {
+            $validator->errors()->add('item_id', $contentType === 'announcements' && $type === 'article'
+                ? 'Select a published article.'
+                : 'Select an existing content record.');
         }
     }
 

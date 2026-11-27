@@ -16,6 +16,7 @@ use App\Models\StrategicPillar;
 use App\Models\WebsiteOrganization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -46,17 +47,23 @@ final class SectionContentService
         $section = $this->section($key);
         $content = (string) ($definition['content'] ?? '');
 
+        $sectionPayload = [
+            'key' => $key,
+            'name' => $definition['label'][$locale] ?? $key,
+            'pageKey' => $definition['page'],
+            'content' => $definition['content'],
+            'source' => $definition['source'] ?? null,
+            'enabled' => (bool) $section->is_enabled,
+            'status' => $section->status instanceof ContentStatus ? $section->status->value : (string) $section->status,
+            'recordLimit' => $definition['content'] === 'slides' ? 24 : 100,
+        ];
+
+        if ($content === 'announcements') {
+            $sectionPayload['presentation'] = $this->serializePresentation($section);
+        }
+
         return [
-            'section' => [
-                'key' => $key,
-                'name' => $definition['label'][$locale] ?? $key,
-                'pageKey' => $definition['page'],
-                'content' => $definition['content'],
-                'source' => $definition['source'] ?? null,
-                'enabled' => (bool) $section->is_enabled,
-                'status' => $section->status instanceof ContentStatus ? $section->status->value : (string) $section->status,
-                'recordLimit' => $definition['content'] === 'slides' ? 24 : 100,
-            ],
+            'section' => $sectionPayload,
             'items' => $section->items
                 ->sortBy(fn (HomepageSectionItem $item) => [(int) $item->sort_order, (int) $item->id])
                 ->map(fn (HomepageSectionItem $item) => $this->serializeItem($item, $locale))
@@ -83,28 +90,40 @@ final class SectionContentService
     public function save(string $key, array $data, ?HomepageSectionItem $item = null): HomepageSectionItem
     {
         $section = $this->section($key);
-        $definition = $this->definition($key);
+        $content = (string) ($this->definition($key)['content'] ?? '');
 
-        return DB::transaction(function () use ($section, $definition, $data, $item): HomepageSectionItem {
-            $attributes = [
-                'media_id' => $data['media_id'] ?? null,
-                'item_type' => $data['item_type'] ?? 'inline',
-                'item_id' => $data['item_id'] ?? null,
-                'parent_item_id' => ($definition['content'] ?? '') === 'stories' ? ($data['parent_item_id'] ?? null) : null,
-                'item_key' => $data['item_key'] ?? null,
-                'tab' => $data['tab'] ?? null,
-                'is_featured' => (bool) ($data['is_featured'] ?? false),
-                'motif_key' => $data['motif_key'] ?? null,
-                'is_published' => (bool) ($data['is_published'] ?? true),
-                'display_start_at' => $data['display_start_at'] ?? null,
-                'display_end_at' => $data['display_end_at'] ?? null,
-                'numeric_value' => $data['numeric_value'] ?? null,
-                'sort_order' => (int) ($data['sort_order'] ?? 0),
-            ];
-
+        return DB::transaction(function () use ($section, $content, $data, $item): HomepageSectionItem {
             if ($item !== null) {
                 abort_unless($item->homepage_section_id === $section->id, 404);
             }
+
+            $previous = $item !== null ? $item->only([
+                'media_id', 'item_type', 'item_id', 'parent_item_id', 'item_key',
+                'tab', 'is_featured', 'motif_key', 'is_published',
+                'display_start_at', 'display_end_at', 'numeric_value',
+            ]) : [];
+
+            $attributes = [
+                'media_id' => $this->preserved($data, $previous, 'media_id'),
+                'item_type' => $data['item_type'] ?? 'inline',
+                'item_id' => $this->preserved($data, $previous, 'item_id'),
+                'parent_item_id' => $content === 'stories'
+                    ? $this->preserved($data, $previous, 'parent_item_id')
+                    : null,
+                'item_key' => $this->resolveItemKey($content, $data, $previous),
+                'tab' => $this->preserved($data, $previous, 'tab'),
+                'is_featured' => array_key_exists('is_featured', $data)
+                    ? (bool) $data['is_featured']
+                    : (bool) ($previous['is_featured'] ?? false),
+                'motif_key' => $this->preserved($data, $previous, 'motif_key'),
+                'is_published' => array_key_exists('is_published', $data)
+                    ? (bool) $data['is_published']
+                    : (bool) ($previous['is_published'] ?? true),
+                'display_start_at' => $this->preserved($data, $previous, 'display_start_at'),
+                'display_end_at' => $this->preserved($data, $previous, 'display_end_at'),
+                'numeric_value' => $this->preserved($data, $previous, 'numeric_value'),
+                'sort_order' => (int) ($data['sort_order'] ?? 0),
+            ];
 
             $item ??= new HomepageSectionItem;
             $item->fill($attributes);
@@ -116,19 +135,19 @@ final class SectionContentService
                     continue;
                 }
 
-                $item->translations()->updateOrCreate(['locale' => $locale], [
-                    'label' => $values['label'] ?? null,
-                    'title' => $values['title'] ?? null,
-                    'alt_text' => $values['alt_text'] ?? null,
-                    'body' => $values['body'] ?? null,
-                    'summary' => $values['summary'] ?? null,
-                    'display_value' => $values['display_value'] ?? null,
-                    'url' => $values['url'] ?? null,
-                    'date_label' => $values['date_label'] ?? null,
-                    'cta_label' => $values['cta_label'] ?? null,
-                    'caption' => $values['caption'] ?? null,
-                    'unit' => $values['unit'] ?? null,
-                ]);
+                $translation = $item->translations()->where('locale', $locale)->first();
+                $translationValues = [];
+
+                foreach ([
+                    'label', 'title', 'alt_text', 'body', 'summary', 'display_value',
+                    'url', 'date_label', 'cta_label', 'caption', 'unit',
+                ] as $field) {
+                    $translationValues[$field] = array_key_exists($field, $values)
+                        ? $values[$field]
+                        : $translation?->{$field};
+                }
+
+                $item->translations()->updateOrCreate(['locale' => $locale], $translationValues);
             }
 
             $saved = $item->load(['translations', 'media.translations']);
@@ -217,6 +236,32 @@ final class SectionContentService
         });
     }
 
+    /** @param array<string, mixed> $data */
+    public function savePresentation(string $key, array $data): HomepageSection
+    {
+        $definition = $this->definition($key);
+        abort_unless(($definition['content'] ?? '') === 'announcements', 422, 'This section does not manage presentation labels.');
+
+        $section = $this->section($key);
+
+        DB::transaction(function () use ($section, $data): void {
+            foreach (config('website.locales', ['ar', 'en']) as $locale) {
+                $values = $data['translations'][$locale] ?? [];
+                if (! is_array($values)) {
+                    continue;
+                }
+
+                $section->translations()->updateOrCreate(['locale' => $locale], [
+                    'ticker_label' => $values['ticker_label'] ?? null,
+                ]);
+            }
+
+            $this->homepage->flush();
+        });
+
+        return $section->load('translations');
+    }
+
     public function section(string $key): HomepageSection
     {
         $this->definition($key);
@@ -230,6 +275,60 @@ final class SectionContentService
     {
         $section = $this->section($key);
         abort_unless($item->homepage_section_id === $section->id, 404);
+    }
+
+    /**
+     * Keep fields owned by other editors intact when a focused editor does not
+     * submit them. An explicit empty value still clears the stored value.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $previous
+     */
+    private function preserved(array $data, array $previous, string $field): mixed
+    {
+        if (! array_key_exists($field, $data)) {
+            return $previous[$field] ?? null;
+        }
+
+        return $data[$field] === '' ? null : $data[$field];
+    }
+
+    /**
+     * Focused editors do not ask editors to invent identifiers. Hero and
+     * ticker rows still need one so the registry can classify them.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $previous
+     */
+    private function resolveItemKey(string $content, array $data, array $previous): ?string
+    {
+        $key = $this->preserved($data, $previous, 'item_key');
+
+        if (is_string($key) && trim($key) !== '') {
+            return $key;
+        }
+
+        if (! in_array($content, ['slides', 'announcements'], true)) {
+            return $key;
+        }
+
+        $prefix = $content === 'slides' ? 'hero-' : 'ticker-';
+
+        return $prefix.Str::lower(Str::random(10));
+    }
+
+    /** @return array{translations: array<string, array<string, string|null>>} */
+    private function serializePresentation(HomepageSection $section): array
+    {
+        $translations = [];
+
+        foreach ($section->loadMissing('translations')->translations as $translation) {
+            $translations[$translation->locale] = [
+                'tickerLabel' => $translation->ticker_label,
+            ];
+        }
+
+        return ['translations' => $translations];
     }
 
     /** @return array<string, mixed> */
@@ -266,6 +365,7 @@ final class SectionContentService
             'enabled' => (bool) $item->is_published,
             'displayStartAt' => $item->display_start_at?->toISOString(),
             'displayEndAt' => $item->display_end_at?->toISOString(),
+            'isSlide' => $item->isHeroSlide(),
             'sortOrder' => (int) $item->sort_order,
             'translations' => $translations,
         ];
@@ -293,13 +393,20 @@ final class SectionContentService
             ->orderByDesc('id')
             ->limit(200)
             ->get()
-            ->map(fn (Model $record) => [
-                'id' => (int) $record->getKey(),
-                'title' => $record->t('title', $locale)
-                    ?: $record->t('name', $locale)
-                    ?: ('#'.$record->getKey()),
-                'status' => (string) ($record->getAttribute('workflow_status') ?? $record->getAttribute('status') ?? ''),
-            ])
+            ->map(function (Model $record) use ($locale): array {
+                $publishedAt = $record->getAttribute('published_at');
+
+                return [
+                    'id' => (int) $record->getKey(),
+                    'title' => $record->t('title', $locale)
+                        ?: $record->t('name', $locale)
+                        ?: ('#'.$record->getKey()),
+                    'status' => (string) ($record->getAttribute('workflow_status') ?? $record->getAttribute('status') ?? ''),
+                    'publishedAt' => $publishedAt !== null && method_exists($publishedAt, 'toISOString')
+                        ? $publishedAt->toISOString()
+                        : null,
+                ];
+            })
             ->all();
     }
 

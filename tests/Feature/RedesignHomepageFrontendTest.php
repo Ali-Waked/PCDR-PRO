@@ -132,7 +132,7 @@ final class RedesignHomepageFrontendTest extends TestCase
         $this->assertStringNotContainsString("localPath('complaints')", $footerSource, 'Footer must not hardcode the complaints URL.');
 
         $sectionKeys = [
-            'ProHeroCarousel.vue' => "content.items('hero', 'slide-')",
+            'ProHeroCarousel.vue' => "content.items('hero')",
             'ProTicker.vue' => "content.section('ticker')",
             'ProImpact.vue' => "content.section('impact')",
             'ProProgramAxes.vue' => "content.section('programs')",

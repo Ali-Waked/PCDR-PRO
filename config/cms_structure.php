@@ -81,8 +81,11 @@ return [
         'ticker' => [
             'page' => 'home',
             'order' => 1,
-            'label' => ['ar' => 'شريط الأخبار', 'en' => 'News ticker'],
-            'content' => 'links',
+            'label' => ['ar' => 'شريط الإعلانات', 'en' => 'Announcement ticker'],
+            // The public ticker renders standalone announcements (title + URL)
+            // and may also reference a published article. It has no tabs,
+            // icons, images or statistics of its own.
+            'content' => 'announcements',
             'source' => 'article',
         ],
         'stories' => [
@@ -217,11 +220,18 @@ return [
     ],
 
     /**
+     * Hero keys that are presentation controls (CTA buttons), not slides.
+     * Slide membership is decided by this registry and by the ticker prefixes
+     * below, never by the outdated `slide-` naming convention.
+     */
+    'hero_non_slide_keys' => ['primary', 'secondary'],
+
+    /**
      * Item prefixes owned by each typed section. Legacy rows keep their keys
      * so historical content remains identifiable after a section move.
      */
     'item_prefixes' => [
-        'hero' => ['slide-'],
+        'hero' => ['slide-', 'hero-'],
         'ticker' => ['ticker-'],
         'stories' => ['story-'],
         'objectives' => ['objective-', 'value-'],

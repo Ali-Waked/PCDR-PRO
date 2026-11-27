@@ -32,7 +32,6 @@ return [
             'items' => [
                 ['key' => 'cms_dashboard', 'label' => 'cms_dashboard', 'path' => '/cms', 'permission' => 'pillars.view'],
                 ['key' => 'content_management', 'label' => 'content_management', 'path' => '/cms/content-management', 'permission' => 'website_structure.view'],
-                ['key' => 'homepage', 'label' => 'homepage', 'path' => '/cms/homepage', 'permission' => 'homepage.view'],
                 ['key' => 'pillars', 'label' => 'pillars', 'path' => '/cms/pillars', 'permission' => 'pillars.view'],
                 ['key' => 'programs', 'label' => 'programs', 'path' => '/cms/programs', 'permission' => 'programs.view'],
                 ['key' => 'projects', 'label' => 'projects', 'path' => '/cms/projects', 'permission' => 'programs.view'],

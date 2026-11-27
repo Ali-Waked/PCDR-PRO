@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\HasTranslations;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -71,12 +72,14 @@ class HomepageSectionItem extends Model
     /** @param Builder<self> $query */
     public function scopeEligible(Builder $query): Builder
     {
+        $boundary = CarbonImmutable::now($this->scheduleTimezone())->format('Y-m-d H:i:s');
+
         return $query->where('is_published', true)
-            ->where(function (Builder $query): void {
-                $query->whereNull('display_start_at')->orWhere('display_start_at', '<=', now());
+            ->where(function (Builder $query) use ($boundary): void {
+                $query->whereNull('display_start_at')->orWhere('display_start_at', '<=', $boundary);
             })
-            ->where(function (Builder $query): void {
-                $query->whereNull('display_end_at')->orWhere('display_end_at', '>=', now());
+            ->where(function (Builder $query) use ($boundary): void {
+                $query->whereNull('display_end_at')->orWhere('display_end_at', '>=', $boundary);
             });
     }
 
@@ -86,11 +89,30 @@ class HomepageSectionItem extends Model
             return false;
         }
 
-        if ($this->display_start_at !== null && $this->display_start_at->isFuture()) {
+        $now = CarbonImmutable::now($this->scheduleTimezone());
+        $start = $this->scheduleBoundary($this->display_start_at, $now);
+        $end = $this->scheduleBoundary($this->display_end_at, $now);
+
+        if ($start !== null && $start->greaterThan($now)) {
             return false;
         }
 
-        return $this->display_end_at === null || $this->display_end_at->isPast() === false;
+        return $end === null || $end->greaterThanOrEqualTo($now);
+    }
+
+    /** Stored boundaries are full-day strings in the configured timezone. */
+    private function scheduleTimezone(): string
+    {
+        return (string) config('app.timezone', 'UTC');
+    }
+
+    private function scheduleBoundary(mixed $value, CarbonImmutable $now): ?CarbonImmutable
+    {
+        if ($value === null || ! method_exists($value, 'format')) {
+            return null;
+        }
+
+        return CarbonImmutable::parse((string) $value->format('Y-m-d H:i:s'), $now->timezoneName);
     }
 
     public function translationModel(): string
@@ -110,6 +132,32 @@ class HomepageSectionItem extends Model
     public function isInline(): bool
     {
         return $this->item_type === 'inline';
+    }
+
+    /**
+     * Hero slides are inline content except for the two presentation controls
+     * and legacy rows that were seeded into hero by the ticker seeder. Keys are
+     * kept for history, but the registry decides public slide membership.
+     */
+    public function isHeroSlide(): bool
+    {
+        if (! $this->isInline()) {
+            return false;
+        }
+
+        $key = (string) $this->item_key;
+
+        if ($key === '' || in_array($key, (array) config('cms_structure.hero_non_slide_keys', []), true)) {
+            return false;
+        }
+
+        foreach ((array) config('cms_structure.item_prefixes.ticker', []) as $prefix) {
+            if (str_starts_with($key, (string) $prefix)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

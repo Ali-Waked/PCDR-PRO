@@ -62,7 +62,7 @@ Organizational identity (About description, vision and mission, destination link
 
 ### 2.4 Selection-only sections
 
-`news`, `latest_projects`, `ticker`, `program_areas` and `interventions` do not own content. They own **selection relationships** to existing `Article`, `Project`, `StrategicPillar` and `Program` records through `homepage_section_items`. Editing a selection only adds, removes, orders or hides the relationship row. It never edits, publishes or deletes the underlying content record.
+`news`, `latest_projects`, `program_areas` and `interventions` do not own content. They own **selection relationships** to existing `Article`, `Project`, `StrategicPillar` and `Program` records through `homepage_section_items`. Editing a selection only adds, removes, orders or hides the relationship row. It never edits, publishes or deletes the underlying content record. The `ticker` is an announcement section: inline title/URL rows and optional published-article links, not a tabbed or image-based section.
 
 ### 2.5 Publication and date windows
 

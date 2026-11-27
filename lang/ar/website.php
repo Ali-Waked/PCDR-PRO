@@ -405,7 +405,6 @@ return [
         'cms_news' => 'الأخبار',
         'cms_publications' => 'الإصدارات',
         'cms_media' => 'مكتبة الوسائط',
-        'cms_homepage' => 'الرئيسية',
         'cms_settings' => 'إعدادات الموقع',
         'cms_inquiries' => 'الطلبات الواردة',
         'cms_email_templates' => 'قوالب البريد الإلكتروني',
