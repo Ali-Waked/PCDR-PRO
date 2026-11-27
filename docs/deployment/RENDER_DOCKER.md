@@ -124,35 +124,21 @@ Deployment: connect the repository, select Docker runtime, add the variables
 above, and deploy. Rollback is a Render redeploy of the previous image; no
 database rollback is automatic.
 
-### Native PHP runtime (current preview)
+### Root cause of `conf.d/default.conf: nonexistent directory`
 
-The observed failure `etc/nginx/conf.d/default.conf: nonexistent directory`
-shows that Render is **not** running this Docker image. That path is written
-only by `docker/entrypoint.sh` (line 20, the `envsubst` redirect) and the
-`/etc/nginx/conf.d` directory is created by the `nginx` apk package inside the
-image. It does not exist in Render's native PHP runtime. No nginx/Docker file
-was changed for that failure; use this native PHP configuration for the
-preview instead:
+The error was raised by `docker/entrypoint.sh` (the `envsubst` redirect at
+lines 18-20). Because that script only exists at `/usr/local/bin/entrypoint.sh`
+after the Dockerfile `COPY`, this confirms Render **is** building and running
+the intended Docker image. The base is `php:8.4-fpm-alpine`; Alpine's `nginx`
+package loads virtual hosts from `/etc/nginx/http.d` and creates that
+directory, but does **not** create the Debian-style `/etc/nginx/conf.d`. The
+entrypoint wrote the rendered site to the wrong path, so startup failed before
+Laravel ran.
 
-| Render setting | Value |
-|---|---|
-| Runtime | Native PHP (not Docker) |
-| Build Command | `composer install --no-dev --prefer-dist --optimize-autoloader && npm ci --ignore-scripts && npm run build` |
-| Start Command | Below |
-| Health Check Path | `/up` |
-| Pre-Deploy Command / Shell / One-Off Jobs | Not used |
-
-**Exact Start Command:**
-
-```sh
-DB_FILE="${DB_DATABASE:-$PWD/database/database.sqlite}"; mkdir -p "$(dirname "$DB_FILE")"; touch "$DB_FILE"; php artisan pcdr:preview:initialize --no-interaction && php artisan serve --host=0.0.0.0 --port="${PORT:-8080}"
-```
-
-Set the same environment variables as in the table above (including
-`PCDR_PREVIEW_INIT=true` for the preview); `DB_DATABASE` may be left unset to
-use Laravel's `database_path('database.sqlite')` default. See
-`docs/deployment/PREVIEW_INITIALIZATION.md` for details, verification and
-failure handling.
+The fix writes the rendered server block to `/etc/nginx/http.d/default.conf`,
+creates both nginx include directories, and runs `nginx -t` before supervisor
+starts nginx and PHP-FPM. **No Start Command change is required**: keep Docker
+runtime, no Build/Start Command overrides, Health Check `/up`.
 
 ---
 
@@ -261,5 +247,5 @@ These must be run on a Docker-capable host before relying on the preview.
 | 413 on upload | nginx/PHP limit is 10 MB (`client_max_body_size`, `upload_max_filesize`). |
 | Missing CSS/JS | Vite build failed (check the build log); the Bunny font plugin needs network access at build time. |
 | Migration failure at boot | Check the Render log stream; fix the migration and redeploy. Use `RUN_INITIALIZATION=0` (then `RUN_MIGRATIONS=0`) for a shared DB. |
-| `etc/nginx/conf.d/default.conf: nonexistent directory` | Render is using native PHP, not Docker. Use the native PHP Build/Start Commands above, or select the Docker runtime if the image is intended. No nginx file needs editing for this error. |
+| `etc/nginx/conf.d/default.conf: nonexistent directory` | Fixed in the entrypoint: Alpine nginx uses `/etc/nginx/http.d`. Redeploy the rebuilt image; do not add a native PHP Start Command. |
 | 503 on `/up` | Application is in maintenance mode; run `php artisan up` in the container/host. |

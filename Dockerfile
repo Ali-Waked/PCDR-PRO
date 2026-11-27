@@ -37,7 +37,7 @@ RUN apk add --no-cache \
            php -m | grep -qi "^${ext}$" || { echo "Missing PHP extension: ${ext}" >&2; exit 1; }; \
        done \
     && php -m | grep -qi 'Zend OPcache' \
-    && mkdir -p /etc/nginx/templates /run/nginx /var/www/html
+    && mkdir -p /etc/nginx/templates /etc/nginx/http.d /etc/nginx/conf.d /run/nginx /var/www/html
 
 # ---------------------------------------------------------------------------
 # 2. Composer production dependencies only (no dev packages in the image).

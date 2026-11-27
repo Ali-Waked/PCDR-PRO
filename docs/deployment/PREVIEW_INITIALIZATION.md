@@ -89,26 +89,22 @@ on Render Shell or one-off jobs.
 
 ## 3. Render Free configuration
 
-The current deployment failure (`etc/nginx/conf.d/default.conf: nonexistent
-directory`) shows that Render is not running the Docker image: that path is
-written only by `docker/entrypoint.sh` and the nginx directory is created by
-the `nginx` apk package inside the Docker image. On Render's native PHP runtime
-it does not exist. The nginx/Docker files were **not** changed as part of this
-work; use the native PHP configuration below for the preview.
+The preview runs the repository's Docker image (nginx + PHP-FPM under
+supervisor). The earlier `etc/nginx/conf.d/default.conf: nonexistent directory`
+failure came from the entrypoint writing the nginx site to the Debian-style
+path; Alpine nginx reads `/etc/nginx/http.d`. That path is now rendered
+correctly and validated with `nginx -t` at container startup.
 
 | Render setting | Value |
 |---|---|
-| Runtime | Native PHP (not Docker) |
-| Build Command | `composer install --no-dev --prefer-dist --optimize-autoloader && npm ci --ignore-scripts && npm run build` |
-| Start Command | See below |
+| Runtime | Docker (build from repository `Dockerfile`) |
+| Build Command | None (Docker build) |
+| Start Command | None (image `ENTRYPOINT` / `CMD`) |
 | Health Check Path | `/up` |
 | Pre-Deploy / Shell / One-Off Jobs | Not used |
 
-**Exact Start Command:**
-
-```sh
-DB_FILE="${DB_DATABASE:-$PWD/database/database.sqlite}"; mkdir -p "$(dirname "$DB_FILE")"; touch "$DB_FILE"; php artisan pcdr:preview:initialize --no-interaction && php artisan serve --host=0.0.0.0 --port="${PORT:-8080}"
-```
+No Start Command is required or recommended; overriding it would bypass the
+entrypoint that runs migrations and preview initialization.
 
 Required environment variables:
 

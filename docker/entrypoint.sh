@@ -13,11 +13,19 @@ if [ -z "${APP_KEY:-}" ]; then
     exit 1
 fi
 
-# Render PORT -> nginx listen directive. Only PORT is substituted, so nginx
-# variables such as $uri and $document_root are left untouched.
+# Alpine's nginx package loads virtual hosts from /etc/nginx/http.d and does
+# not create the Debian-style /etc/nginx/conf.d. Write the rendered site to
+# the Alpine directory so nginx actually loads it. Only PORT is substituted,
+# so nginx variables such as $uri and $document_root are left untouched.
+NGINX_CONF_DIR=/etc/nginx/http.d
+mkdir -p "$NGINX_CONF_DIR" /etc/nginx/conf.d
 envsubst '${PORT}' \
     < /etc/nginx/templates/default.conf.template \
-    > /etc/nginx/conf.d/default.conf
+    > "$NGINX_CONF_DIR/default.conf"
+
+# Fail fast with a readable log message rather than letting supervisor loop on
+# a broken nginx configuration.
+nginx -t
 
 mkdir -p \
     storage/framework/cache/data \
