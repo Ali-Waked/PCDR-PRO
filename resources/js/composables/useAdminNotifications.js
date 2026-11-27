@@ -62,6 +62,15 @@ let eventsInstalled = false
 const flashedKeys = new Set()
 const visitMethods = new Map()
 const visitLoading = new Map()
+let confirmationTimer = null
+let confirmationVisitId = null
+
+function clearConfirmationTimer() {
+    if (confirmationTimer !== null) {
+        window.clearTimeout(confirmationTimer)
+        confirmationTimer = null
+    }
+}
 
 function configureTranslations(t) {
     labels.notificationsTitle = t('ui.notification.notifications_title') || labels.notificationsTitle
@@ -169,6 +178,8 @@ const notify = {
 }
 
 function closeConfirmation(result) {
+    clearConfirmationTimer()
+    confirmationVisitId = null
     const pending = confirmation.pending
     confirmation.open = false
     confirmation.busy = false
@@ -179,6 +190,8 @@ function closeConfirmation(result) {
 }
 
 function confirm(options = {}) {
+    clearConfirmationTimer()
+    confirmationVisitId = null
     if (typeof confirmation.pending === 'function') {
         closeConfirmation(false)
     }
@@ -209,7 +222,8 @@ function acceptConfirmation() {
     }
 
     // Safety net: never leave the dialog blocking the UI if a caller forgets to finish.
-    window.setTimeout(() => {
+    clearConfirmationTimer()
+    confirmationTimer = window.setTimeout(() => {
         if (confirmation.open && confirmation.busy) {
             closeConfirmation(true)
         }
@@ -295,7 +309,15 @@ function installEvents() {
 
     router.on('start', (event) => {
         const visit = event.detail?.visit
-        if (! visit || visit.method === 'get' || visit.prefetch || visitLoading.has(visit.id)) {
+        if (! visit) {
+            return
+        }
+
+        if (confirmation.busy && confirmationVisitId === null) {
+            confirmationVisitId = visit.id
+        }
+
+        if (visit.method === 'get' || visit.prefetch || visitLoading.has(visit.id)) {
             return
         }
 
@@ -359,6 +381,10 @@ function installEvents() {
             visitLoading.delete(visitId)
         }
         visitMethods.delete(visitId)
+
+        if (confirmationVisitId === visitId) {
+            finishConfirmation()
+        }
     })
 }
 

@@ -77,6 +77,7 @@
 
 .pc-app {
     min-block-size: 100vh;
+    overflow-x: clip;
     background: var(--pc-bg);
 }
 
@@ -969,16 +970,75 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
+    min-inline-size: 0;
 }
 
 .pc-form-grid--2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.pc-card > .pc-form-grid {
+    padding: 20px;
+}
+
+.pc-fieldset {
+    display: grid;
+    gap: 18px;
+    min-inline-size: 0;
+}
+
 .pc-field {
     display: grid;
     gap: 7px;
     min-inline-size: 0;
+}
+
+/* Inline editors use bare controls inside .pc-field / .pc-fieldset, so give
+   them the same base styling as the explicit .pc-input / .pc-select helpers. */
+.pc-form-grid .pc-field :is(input:not([type='checkbox']):not([type='radio']), select, textarea),
+.pc-form-grid .pc-fieldset > :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+    inline-size: 100%;
+    min-inline-size: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--pc-border-strong);
+    border-radius: var(--pc-radius-sm);
+    background: var(--pc-surface);
+    color: var(--pc-text);
+    font: inherit;
+    font-size: 0.86rem;
+}
+
+.pc-form-grid .pc-field textarea,
+.pc-form-grid .pc-fieldset > textarea {
+    min-block-size: 90px;
+    resize: vertical;
+    line-height: 1.65;
+}
+
+.pc-form-grid .pc-field :is(input:not([type='checkbox']):not([type='radio']), select, textarea):focus,
+.pc-form-grid .pc-fieldset > :is(input:not([type='checkbox']):not([type='radio']), select, textarea):focus {
+    outline: none;
+    border-color: var(--pc-teal);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc-teal-bright) 25%, transparent);
+}
+
+.pc-check,
+.pc-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-inline-size: 0;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.pc-check input,
+.pc-toggle input {
+    flex: 0 0 auto;
+    inline-size: 17px;
+    block-size: 17px;
+    margin: 0;
+    accent-color: var(--pc-teal);
 }
 
 .pc-field--full {
@@ -1203,8 +1263,10 @@
 
 .pc-table-wrap {
     inline-size: 100%;
+    min-inline-size: 0;
     overflow-x: auto;
     overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .pc-table {
@@ -2889,7 +2951,11 @@ html[lang='ar'] .auth-intro__identity strong {
     }
 
     .pc-content {
-        padding: 24px 20px 44px;
+        padding: 24px 20px 96px;
+    }
+
+    .pc-card > .pc-form-grid {
+        padding: 16px;
     }
 }
 
