@@ -1,6 +1,7 @@
 import { createApp, h } from 'vue'
 import { createInertiaApp, router } from '@inertiajs/vue3'
 import { applyThemePreference, readStoredPreference } from './composables/useTheme'
+import { legacyRedirectUrl } from './Support/legacyPageRedirect'
 import '../css/app.css'
 import '../css/dashboard.css'
 import '../css/selection.css'
@@ -77,9 +78,22 @@ createInertiaApp({
             syncDocument(event.detail.page.props)
         })
 
-        return createApp({ render: () => h(App, props) })
+        const app = createApp({ render: () => h(App, props) })
             .use(plugin)
             .directive('reveal', revealDirective)
             .mount(el)
+
+        // A direct visit to an old aggregate-page hash lands on its own page.
+        // The query string is preserved and the replacement has no fragment.
+        const legacyTarget = legacyRedirectUrl(
+            window.location.href,
+            props.initialProps?.locale,
+        )
+
+        if (legacyTarget) {
+            router.visit(legacyTarget, { replace: true })
+        }
+
+        return app
     },
 })

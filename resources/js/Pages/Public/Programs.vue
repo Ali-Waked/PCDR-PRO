@@ -200,7 +200,7 @@ function date(value) {
 </template>
 
 <style scoped>
-.programs-hero{background:linear-gradient(150deg,var(--deeper),var(--deep) 58%,#2A3B62);color:#fff}
+.programs-hero{background:var(--brand-hero);color:var(--on-deep)}
 .programs-hero .eyebrow,.programs-hero .h2{color:#fff}
 .programs-hero .eyebrow b{color:var(--sand)}
 .programs-lede{max-width:72ch;margin-top:18px;color:var(--on-deep-soft);font-size:clamp(16px,2.2vw,19px)}

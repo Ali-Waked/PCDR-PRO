@@ -38,6 +38,11 @@ final class WebsiteSeeder extends Seeder
 
     private function seedNavigation(): void
     {
+        // Existing installations keep their navigation rows and translations;
+        // only the structural key changes so old children resolve to the new
+        // independent pages rather than aggregate-page fragments.
+        $this->migrateLegacyChildLinks();
+
         $items = [
             [
                 'key' => 'home', 'ar' => 'الرئيسية', 'en' => 'Home', 'children' => [],
@@ -45,11 +50,10 @@ final class WebsiteSeeder extends Seeder
             [
                 'key' => 'about', 'ar' => 'عن الجمعية', 'en' => 'About PCDR',
                 'children' => [
-                    ['key' => 'about', 'ar' => 'من نحن', 'en' => 'About us'],
-                    ['key' => 'vision', 'ar' => 'رؤيتنا', 'en' => 'Our vision'],
-                    ['key' => 'objectives', 'ar' => 'أهدافنا الاستراتيجية', 'en' => 'Our strategic objectives'],
-                    ['key' => 'achievements', 'ar' => 'إنجازاتنا بالأرقام', 'en' => 'Our achievements in numbers'],
-                    ['key' => 'board', 'ar' => 'مجلس الإدارة', 'en' => 'Board of directors'],
+                    ['key' => 'about_vision', 'ar' => 'رؤيتنا', 'en' => 'Our vision'],
+                    ['key' => 'about_objectives', 'ar' => 'أهدافنا الاستراتيجية', 'en' => 'Our strategic objectives'],
+                    ['key' => 'about_achievements', 'ar' => 'إنجازاتنا بالأرقام', 'en' => 'Our achievements in numbers'],
+                    ['key' => 'about_board', 'ar' => 'مجلس الإدارة', 'en' => 'Board of directors'],
                 ],
             ],
             [
@@ -58,10 +62,9 @@ final class WebsiteSeeder extends Seeder
             [
                 'key' => 'media', 'ar' => 'المركز الإعلامي', 'en' => 'Media centre',
                 'children' => [
-                    ['key' => 'media', 'ar' => 'المركز الإعلامي', 'en' => 'Media centre'],
-                    ['key' => 'news', 'ar' => 'الأخبار والأنشطة', 'en' => 'News & activities'],
-                    ['key' => 'albums', 'ar' => 'ألبوم الصور', 'en' => 'Photo album'],
-                    ['key' => 'stories', 'ar' => 'قصص نجاح', 'en' => 'Success stories'],
+                    ['key' => 'media_news', 'ar' => 'الأخبار والأنشطة', 'en' => 'News & activities'],
+                    ['key' => 'media_albums', 'ar' => 'ألبوم الصور', 'en' => 'Photo album'],
+                    ['key' => 'media_stories', 'ar' => 'قصص نجاح', 'en' => 'Success stories'],
                 ],
             ],
             [
@@ -87,6 +90,18 @@ final class WebsiteSeeder extends Seeder
             }
         }
 
+        // The parent rows remain dropdown labels only; the removed aggregate
+        // landing links are kept as disabled history instead of being shown.
+        $groupParentIds = NavigationItem::query()
+            ->whereNull('parent_id')
+            ->whereIn('link_value', ['about', 'media'])
+            ->pluck('id');
+        NavigationItem::query()
+            ->whereIn('parent_id', $groupParentIds)
+            ->where('link_type', 'internal')
+            ->whereIn('link_value', ['about', 'media'])
+            ->update(['is_enabled' => false]);
+
         // Older seeds exposed retired pages. Keep their rows for history, but
         // stop presenting them in the public menus.
         NavigationItem::query()
@@ -95,6 +110,44 @@ final class WebsiteSeeder extends Seeder
             ->whereNull('parent_id')
             ->whereIn('link_value', ['pillars', 'news', 'publications', 'transparency', 'partnerships', 'involve'])
             ->update(['is_enabled' => false]);
+    }
+
+    private function migrateLegacyChildLinks(): void
+    {
+        $map = [
+            'vision' => 'about_vision',
+            'objectives' => 'about_objectives',
+            'achievements' => 'about_achievements',
+            'board' => 'about_board',
+            'news' => 'media_news',
+            'albums' => 'media_albums',
+            'stories' => 'media_stories',
+        ];
+        $groupParentIds = NavigationItem::query()
+            ->whereNull('parent_id')
+            ->whereIn('link_value', ['about', 'media'])
+            ->pluck('id');
+
+        foreach ($map as $legacyKey => $newKey) {
+            NavigationItem::query()
+                ->whereIn('parent_id', $groupParentIds)
+                ->where('link_type', 'internal')
+                ->where('link_value', $legacyKey)
+                ->get()
+                ->each(function (NavigationItem $item) use ($newKey): void {
+                    $duplicate = NavigationItem::query()
+                        ->where('navigation_menu_id', $item->navigation_menu_id)
+                        ->where('parent_id', $item->parent_id)
+                        ->where('link_type', 'internal')
+                        ->where('link_value', $newKey)
+                        ->whereKeyNot($item->id)
+                        ->exists();
+
+                    $item->update($duplicate
+                        ? ['is_enabled' => false]
+                        : ['link_value' => $newKey, 'is_enabled' => true]);
+                });
+        }
     }
 
     /**

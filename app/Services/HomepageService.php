@@ -374,10 +374,10 @@ final class HomepageService
             'title' => $this->translated($section, 'title', $locale),
             'body' => $this->translated($section, 'body', $locale),
             'ctaLabel' => $this->translated($section, 'cta_label', $locale),
-            'ctaLink' => $this->safeLink($this->translated($section, 'cta_link', $locale)),
+            'ctaLink' => $this->safeLink($this->translated($section, 'cta_link', $locale), $locale),
             'tickerLabel' => $this->translated($section, 'ticker_label', $locale),
             'tabLabels' => $this->translated($section, 'tab_labels', $locale),
-            'videoUrl' => $this->safeLink($this->translated($section, 'video_url', $locale)),
+            'videoUrl' => $this->safeLink($this->translated($section, 'video_url', $locale), $locale),
             'videoCaption' => $this->translated($section, 'video_caption', $locale),
             'items' => $section->items
                 ->filter(fn (HomepageSectionItem $item) => $includeUnpublished || $item->isEligibleNow())
@@ -408,7 +408,7 @@ final class HomepageService
                 'label' => $this->translated($item, 'label', $locale),
                 'body' => $this->translated($item, 'body', $locale),
                 'display' => $this->translated($item, 'display_value', $locale),
-                'url' => $this->safeLink($this->translated($item, 'url', $locale)),
+                'url' => $this->safeLink($this->translated($item, 'url', $locale), $locale),
                 'value' => $item->numeric_value === null ? null : (float) $item->numeric_value,
                 'tab' => $item->tab,
                 'featured' => (bool) $item->is_featured,
@@ -467,7 +467,7 @@ final class HomepageService
             default => null,
         };
 
-        return $path === null ? null : $this->safeLink('/'.$locale.'/'.$path);
+        return $path === null ? null : $this->safeLink('/'.$locale.'/'.$path, $locale);
     }
 
     /**
@@ -510,7 +510,7 @@ final class HomepageService
      * Mirror the CMS link rules at serialization time so the public payload
      * never emits a value a browser could normalize into another scheme.
      */
-    private function safeLink(mixed $value): ?string
+    private function safeLink(mixed $value, string $locale): ?string
     {
         if (! is_string($value) || $value === '' || $value !== trim($value)) {
             return null;
@@ -524,6 +524,25 @@ final class HomepageService
             return null;
         }
 
+        // Stored CMS links created before the child pages existed used hash
+        // fragments. Resolve only the approved set to the new localized routes.
+        $legacyFragments = [
+            '#about' => 'public.about.vision',
+            '#vision' => 'public.about.vision',
+            '#objectives' => 'public.about.objectives',
+            '#achievements' => 'public.about.achievements',
+            '#board' => 'public.about.board',
+            '#news' => 'public.media.news',
+            '#albums' => 'public.media.albums',
+            '#stories' => 'public.media.stories',
+            '#contact' => 'public.contact',
+        ];
+
+        if (isset($legacyFragments[$value])) {
+            return route($legacyFragments[$value], ['locale' => $locale], false);
+        }
+
+        // Other fragments are genuine in-page anchors, not primary navigation.
         if (preg_match('/^#[A-Za-z0-9_:-]+$/', $value) === 1) {
             return $value;
         }

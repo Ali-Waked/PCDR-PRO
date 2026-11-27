@@ -241,7 +241,11 @@ final class LocalizedUrlFallbackTest extends TestCase
             ->values()
             ->all();
 
-        $expected = ['/', '/about', '/complaints', '/contact', '/media', '/partners', '/programs'];
+        $expected = [
+            '/', '/about', '/about/achievements', '/about/board', '/about/objectives', '/about/vision',
+            '/complaints', '/contact', '/media', '/media/albums', '/media/news', '/media/stories',
+            '/partners', '/programs',
+        ];
 
         $this->assertSame($expected, $paths);
 

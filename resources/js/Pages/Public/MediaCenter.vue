@@ -223,8 +223,8 @@ function date(value) {
 </template>
 
 <style scoped>
-.media-hero{background:linear-gradient(155deg,#16233E,#2A3B62 60%,#237E7A);color:#fff}
-.media-hero .eyebrow,.media-hero .h2{color:#fff}
+.media-hero{background:var(--brand-hero);color:var(--on-deep)}
+.media-hero .eyebrow,.media-hero .h2{color:var(--on-deep)}
 .media-hero .eyebrow b{color:var(--sand)}
 .media-lede{max-width:72ch;margin-top:18px;color:var(--on-deep-soft);font-size:clamp(16px,2.2vw,19px)}
 .media-body{background:var(--bg)}

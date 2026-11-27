@@ -347,7 +347,7 @@ function submit() {
 </template>
 
 <style scoped>
-.contact-hero{background:linear-gradient(155deg,var(--deeper),#22345A 56%,#237E7A);color:#fff}
+.contact-hero{background:var(--brand-hero);color:var(--on-deep)}
 .contact-hero__inner{max-width:760px}
 .contact-hero .eyebrow,.contact-hero .h2{color:#fff}
 .contact-hero .eyebrow b{color:var(--sand)}

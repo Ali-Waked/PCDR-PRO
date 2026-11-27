@@ -59,10 +59,19 @@ class NavigationItem extends Model
 
         $key = (string) $this->link_value;
         // Menu keys may use the shorter public wording while the predefined
-        // page registry keeps its stable structural key.
+        // page registry keeps its stable structural key. Legacy child keys are
+        // kept as aliases so existing database rows also resolve to the new
+        // independent pages instead of aggregate-page fragments.
         $aliases = [
             'programs' => 'areas_of_work',
             'media' => 'media_center',
+            'vision' => 'about_vision',
+            'objectives' => 'about_objectives',
+            'achievements' => 'about_achievements',
+            'board' => 'about_board',
+            'news' => 'media_news',
+            'albums' => 'media_albums',
+            'stories' => 'media_stories',
         ];
         $pageKey = $aliases[$key] ?? $key;
         $pages = (array) config('cms_structure.pages', []);
@@ -72,24 +81,8 @@ class NavigationItem extends Model
             return route($route, ['locale' => $locale]);
         }
 
-        // Approved in-page destinations only. Unrecognised keys never become
-        // arbitrary URLs; they fall back to the localized home page.
-        $fragments = [
-            'vision' => ['public.about', 'vision'],
-            'objectives' => ['public.about', 'objectives'],
-            'achievements' => ['public.about', 'achievements'],
-            'board' => ['public.about', 'board'],
-            'news' => ['public.media.center', 'news'],
-            'albums' => ['public.media.center', 'albums'],
-            'stories' => ['public.media.center', 'stories'],
-        ];
-
-        if (isset($fragments[$key])) {
-            [$routeName, $fragment] = $fragments[$key];
-
-            return route($routeName, ['locale' => $locale]).'#'.$fragment;
-        }
-
+        // Unrecognised keys never become arbitrary URLs; they fall back to the
+        // localized home page. Navigation never resolves to a hash fragment.
         return route('public.home', ['locale' => $locale]);
     }
 }

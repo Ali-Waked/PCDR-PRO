@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
                 <div class="pill">
                     <Link class="brand" :href="primary[0]?.url || '/'" :aria-label="brandLabel" @click="closeMenu">
                         <span class="logo">
-                            <img :src="logo" alt="" width="76" height="76">
+                            <img :src="logo" alt="" width="56" height="56">
                         </span>
                         <span class="brand-t">
                             <b>{{ brand }}</b>

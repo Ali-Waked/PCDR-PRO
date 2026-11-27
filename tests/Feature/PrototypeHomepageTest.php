@@ -80,7 +80,7 @@ final class PrototypeHomepageTest extends TestCase
 
         $this->assertSame('أهم الأخبار', $sections->get('ticker')['tickerLabel']);
         $this->assertSame('m-sun', $sections->get('hero')['items'][0]['motifKey']);
-        $this->assertSame('#news', $sections->get('ticker')['items'][0]['url']);
+        $this->assertSame('/media/news', $sections->get('ticker')['items'][0]['url']);
 
         $impact = $sections->get('impact');
         $this->assertSame(

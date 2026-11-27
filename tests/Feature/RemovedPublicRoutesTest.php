@@ -16,7 +16,7 @@ final class RemovedPublicRoutesTest extends TestCase
     use RefreshDatabase;
 
     private const REMOVED_GET_PATHS = [
-        'about/vision', 'strategic-areas', 'strategic-areas/health',
+        'strategic-areas', 'strategic-areas/health',
         'programs/relief', 'projects/relief-project', 'news', 'news/activity',
         'publications', 'publications/report', 'publications/report/download',
         'transparency', 'partnerships', 'get-involved', 'pages/institutional',

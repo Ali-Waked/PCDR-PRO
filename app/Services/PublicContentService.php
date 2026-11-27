@@ -89,6 +89,91 @@ final class PublicContentService
     /**
      * @return array<string, mixed>
      */
+    public function aboutVision(string $locale): array
+    {
+        $about = $this->about($locale);
+
+        return [
+            'vision' => $about['vision'],
+            'mission' => $about['mission'],
+            'body' => $about['body'],
+            'image' => $about['image'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function aboutObjectives(string $locale): array
+    {
+        $about = $this->about($locale);
+
+        return [
+            'objectives' => $about['objectives'],
+            'values' => $about['values'],
+            'pillars' => $about['pillars'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function aboutAchievements(string $locale): array
+    {
+        $about = $this->about($locale);
+
+        return [
+            'achievements' => $about['achievements'],
+            'pillars' => $about['pillars'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function aboutBoard(string $locale): array
+    {
+        $about = $this->about($locale);
+
+        return ['board' => $about['board']];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function mediaNews(string $locale): array
+    {
+        $media = $this->mediaCenter($locale);
+
+        return [
+            'news' => $media['news'],
+            'activities' => $media['activities'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function mediaAlbums(string $locale): array
+    {
+        $media = $this->mediaCenter($locale);
+
+        return ['albums' => $media['albums']];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function mediaStories(string $locale): array
+    {
+        $media = $this->mediaCenter($locale);
+
+        return ['stories' => $media['stories']];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function programs(string $locale, ?string $area = null): array
     {
         $pillars = $this->publishedPillars($locale);

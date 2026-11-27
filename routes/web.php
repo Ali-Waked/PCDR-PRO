@@ -35,12 +35,14 @@ use App\Http\Controllers\Cms\SectionContentController;
 use App\Http\Controllers\Cms\SettingController;
 use App\Http\Controllers\Cms\StructureController;
 use App\Http\Controllers\Phase5\WebhookController;
+use App\Http\Controllers\Public\AboutChildController;
 use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\ComplaintController as PublicComplaintController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\HomepageApiController;
 use App\Http\Controllers\Public\MediaCenterController;
+use App\Http\Controllers\Public\MediaChildController;
 use App\Http\Controllers\Public\MediaController;
 use App\Http\Controllers\Public\PartnersController;
 use App\Http\Controllers\Public\ProgramsController;
@@ -97,8 +99,15 @@ Route::prefix('{locale}')
         Route::get('/media/{uuid}/download', [MediaController::class, 'download'])->name('public.media.download');
 
         Route::get('/about', [AboutController::class, 'index'])->name('public.about');
+        Route::get('/about/vision', [AboutChildController::class, 'vision'])->name('public.about.vision');
+        Route::get('/about/objectives', [AboutChildController::class, 'objectives'])->name('public.about.objectives');
+        Route::get('/about/achievements', [AboutChildController::class, 'achievements'])->name('public.about.achievements');
+        Route::get('/about/board', [AboutChildController::class, 'board'])->name('public.about.board');
         Route::get('/programs', [ProgramsController::class, 'index'])->name('public.programs');
         Route::get('/media', [MediaCenterController::class, 'index'])->name('public.media.center');
+        Route::get('/media/news', [MediaChildController::class, 'news'])->name('public.media.news');
+        Route::get('/media/albums', [MediaChildController::class, 'albums'])->name('public.media.albums');
+        Route::get('/media/stories', [MediaChildController::class, 'stories'])->name('public.media.stories');
         Route::get('/partners', PartnersController::class)->name('public.partners');
         Route::get('/contact', [ContactController::class, 'index'])->name('public.contact');
         Route::post('/contact', [ContactController::class, 'store'])

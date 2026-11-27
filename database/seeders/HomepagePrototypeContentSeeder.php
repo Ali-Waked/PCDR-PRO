@@ -353,12 +353,12 @@ final class HomepagePrototypeContentSeeder extends Seeder
                 'ar' => [
                     'label' => 'أهم الأخبار',
                     'title' => 'الخطة الاستراتيجية والتشغيلية 2027–2029: من الاستجابة الإنسانية إلى التعافي والتنمية المستدامة',
-                    'url' => '#news',
+                    'url' => '/media/news',
                 ],
                 'en' => [
                     'label' => 'Latest news',
                     'title' => 'Strategic and operational plan 2027–2029: from humanitarian response to recovery and sustainable development',
-                    'url' => '#news',
+                    'url' => '/media/news',
                 ],
             ],
             'ticker-2' => [
@@ -366,12 +366,12 @@ final class HomepagePrototypeContentSeeder extends Seeder
                 'ar' => [
                     'label' => 'أهم الأخبار',
                     'title' => 'المرحلة الأولى 2027: التأسيس المؤسسي وبناء الجاهزية الإدارية والفنية',
-                    'url' => '#news',
+                    'url' => '/media/news',
                 ],
                 'en' => [
                     'label' => 'Latest news',
                     'title' => 'Phase one 2027: institutional foundation and administrative and technical readiness',
-                    'url' => '#news',
+                    'url' => '/media/news',
                 ],
             ],
             'ticker-3' => [
@@ -379,12 +379,12 @@ final class HomepagePrototypeContentSeeder extends Seeder
                 'ar' => [
                     'label' => 'أهم الأخبار',
                     'title' => 'إطلاق البرامج الميدانية: المساعدات الغذائية والدعم النفسي والاجتماعي',
-                    'url' => '#news',
+                    'url' => '/media/news',
                 ],
                 'en' => [
                     'label' => 'Latest news',
                     'title' => 'Launch of field programmes: food assistance and psychosocial support',
-                    'url' => '#news',
+                    'url' => '/media/news',
                 ],
             ],
             'ticker-4' => [
@@ -806,13 +806,13 @@ final class HomepagePrototypeContentSeeder extends Seeder
                     'title' => 'عن الجمعية :',
                     'body' => 'جمعية العمل التشاركي في الأزمات والكوارث الخيرية جمعية أهلية في قطاع غزة، تعمل على الانتقال من التدخلات الإغاثية الموسمية إلى نموذج مؤسسي متكامل يجمع بين الاستجابة الإنسانية الفورية والحماية الاجتماعية والتنمية الاقتصادية والتعافي المبكر، وتجعل المجتمع شريكاً أساسياً في تحديد الاحتياجات وتنفيذ التدخلات وتقييم أثرها…',
                     'cta_label' => 'اقرأ المزيد',
-                    'url' => '#about',
+                    'url' => '/about/vision',
                 ],
                 'en' => [
                     'title' => 'About the association:',
                     'body' => 'The Charitable Society for Participatory Action in Crises and Disasters is a civil society organization in Gaza working to move from seasonal relief interventions to an integrated institutional model that combines immediate humanitarian response, social protection, economic development and early recovery, and makes the community a core partner in identifying needs, implementing interventions and evaluating their impact…',
                     'cta_label' => 'Read more',
-                    'url' => '#about',
+                    'url' => '/about/vision',
                 ],
             ],
             'footer-contact' => [
@@ -821,13 +821,13 @@ final class HomepagePrototypeContentSeeder extends Seeder
                     'title' => 'اتصل بنا / الشكاوى :',
                     'body' => 'نوفر قنوات آمنة وسرية لتقديم الشكاوى والملاحظات، ونلتزم بالرد عليها وفق سياسة الشكاوى والتظلمات المعتمدة.',
                     'cta_label' => 'اتصل بنا / الشكاوى',
-                    'url' => '#contact',
+                    'url' => '/contact',
                 ],
                 'en' => [
                     'title' => 'Contact us / complaints:',
                     'body' => 'We provide safe and confidential channels for submitting complaints and feedback, and we commit to responding to them under the approved complaints and grievances policy.',
                     'cta_label' => 'Contact us / complaints',
-                    'url' => '#contact',
+                    'url' => '/contact',
                 ],
             ],
             'footer-video' => [

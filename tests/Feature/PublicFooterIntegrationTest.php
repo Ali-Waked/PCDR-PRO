@@ -67,7 +67,7 @@ final class PublicFooterIntegrationTest extends TestCase
             'navigation_menu_id' => $menu->id,
             'parent_id' => $about->id,
             'link_type' => 'internal',
-            'link_value' => 'board',
+            'link_value' => 'about_board',
         ]);
         $link->forceFill(['is_enabled' => true, 'display_order' => 99])->save();
         $link->translations()->updateOrCreate(['locale' => 'en'], ['label' => 'Updated board link']);
@@ -77,12 +77,15 @@ final class PublicFooterIntegrationTest extends TestCase
         $children = collect($props['navigation']['primary'])
             ->firstWhere('key', 'about')['children'] ?? [];
 
-        $this->assertCount(5, $children);
+        $this->assertCount(4, $children);
         $this->assertSame(
             ['Updated board link'],
-            collect($children)->where('key', 'board')->pluck('label')->values()->all(),
+            collect($children)->where('key', 'about_board')->pluck('label')->values()->all(),
         );
-        $this->assertStringContainsString('#board', collect($children)->firstWhere('key', 'board')['url']);
+        $this->assertSame(
+            url('/en/about/board'),
+            collect($children)->firstWhere('key', 'about_board')['url'],
+        );
     }
 
     public function test_hidden_about_page_is_removed_from_navigation_but_footer_content_is_preserved(): void
@@ -159,11 +162,16 @@ final class PublicFooterIntegrationTest extends TestCase
             'site.value?.footerLegalNote',
             'videoSource(',
             'SocialPlatformIcon',
+            'aboutCtaHref',
+            'mediaCtaHref',
         ] as $needle) {
             $this->assertStringContainsString($needle, $source, $needle);
         }
 
-        foreach (['const chrome', 'SOCIAL_KINDS', 'v-html', "localPath('about')", "localPath('complaints')"] as $needle) {
+        foreach ([
+            'const chrome', 'SOCIAL_KINDS', 'v-html', "localPath('about')", "localPath('complaints')",
+            'aboutGroup?.url', 'mediaLink.url',
+        ] as $needle) {
             $this->assertStringNotContainsString($needle, $source, $needle);
         }
     }
@@ -218,10 +226,16 @@ final class PublicFooterIntegrationTest extends TestCase
 
         $about = collect($items)->firstWhere('key', 'about');
         $aboutChildren = collect($about['children'] ?? []);
-        $expectedChildren = ['about', 'vision', 'objectives', 'achievements', 'board'];
+        $expectedChildren = ['about_vision', 'about_objectives', 'about_achievements', 'about_board'];
+
+        $media = collect($items)->firstWhere('key', 'media');
+        $mediaChildren = collect($media['children'] ?? []);
 
         return $aboutChildren->count() === count($expectedChildren)
             && collect($expectedChildren)->diff($aboutChildren->pluck('key'))->isEmpty()
+            && $aboutChildren->pluck('url')->every(fn (string $url): bool => ! str_contains($url, '#'))
+            && $mediaChildren->pluck('key')->all() === ['media_news', 'media_albums', 'media_stories']
+            && $mediaChildren->pluck('url')->every(fn (string $url): bool => ! str_contains($url, '#'))
             && collect($items)->pluck('url')->contains(url("/{$locale}/media"))
             && collect($items)->pluck('url')->contains(url("/{$locale}/programs"));
     }

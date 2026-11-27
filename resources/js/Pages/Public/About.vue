@@ -224,8 +224,8 @@ const anchors = computed(() => [
 </template>
 
 <style scoped>
-.about-hero{background:linear-gradient(155deg,#16233E 0%,#2A3B62 52%,#3E8A84 100%);color:#fff}
-.about-hero .eyebrow,.about-hero .h2{color:#fff}
+.about-hero{background:var(--brand-hero);color:var(--on-deep)}
+.about-hero .eyebrow,.about-hero .h2{color:var(--on-deep)}
 .about-hero .eyebrow b{color:var(--sand)}
 .about-lede{max-width:74ch;margin-top:18px;color:var(--on-deep-soft);font-size:clamp(16px,2.2vw,19px)}
 .about-jump{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}

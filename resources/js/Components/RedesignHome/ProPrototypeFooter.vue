@@ -32,6 +32,9 @@ const aboutLinks = computed(() => Array.isArray(aboutGroup.value?.children)
     : [])
 const complaintsLink = computed(() => navigationItem('complaints'))
 const mediaLink = computed(() => navigationItem('media'))
+const mediaLinks = computed(() => Array.isArray(mediaLink.value?.children)
+    ? mediaLink.value.children.filter((item) => item && typeof item.url === 'string' && item.url !== '' && item.url !== '#')
+    : [])
 
 const footerSection = computed(() => content.visibleSection('footer'))
 const footerItems = computed(() => content.items('footer'))
@@ -53,6 +56,7 @@ const videoItem = computed(() => itemFor('footer-video', 'video-'))
 const aboutHeading = computed(() => content.text(aboutItem.value, 'title') || sectionText('title'))
 const aboutBody = computed(() => content.text(aboutItem.value, 'body') || sectionText('body'))
 const aboutCta = computed(() => content.text(aboutItem.value, 'ctaLabel') || sectionText('ctaLabel'))
+const aboutCtaHref = computed(() => aboutLinks.value[0]?.url || '')
 
 const complaintsHeading = computed(() => content.text(complaintItem.value, 'title'))
 const complaintsBody = computed(() => content.text(complaintItem.value, 'body'))
@@ -60,6 +64,7 @@ const complaintsCta = computed(() => content.text(complaintItem.value, 'ctaLabel
 const complaintsHref = computed(() => complaintsLink.value?.url || '')
 
 const mediaHeading = computed(() => content.text(videoItem.value, 'title'))
+const mediaCtaHref = computed(() => mediaLinks.value[0]?.url || '')
 const videoCaption = computed(() => sectionText('videoCaption')
     || content.text(videoItem.value, 'caption')
     || content.text(videoItem.value, 'label'))
@@ -185,9 +190,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
                         </li>
                     </ul>
                     <Link
-                        v-if="aboutCta && aboutGroup?.url"
+                        v-if="aboutCta && aboutCtaHref"
                         class="link"
-                        :href="aboutGroup.url"
+                        :href="aboutCtaHref"
                     >{{ aboutCta }}</Link>
                 </section>
 
@@ -239,10 +244,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
                         <em v-if="videoCaption">{{ videoCaption }}</em>
                     </div>
                     <Link
-                        v-if="mediaLink && (videoCaption || mediaLink.label)"
+                        v-if="mediaCtaHref && (videoCaption || mediaLink?.label)"
                         class="link"
-                        :href="mediaLink.url"
-                    >{{ videoCaption || mediaLink.label }}</Link>
+                        :href="mediaCtaHref"
+                    >{{ videoCaption || mediaLink?.label }}</Link>
                 </section>
             </div>
 
