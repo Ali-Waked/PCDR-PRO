@@ -100,7 +100,7 @@ function photoStyle() {
 
 <template>
     <div class="prototype-footer-wrap">
-        <footer class="foot">
+        <footer class="foot surface-dark" data-surface="dark">
             <div class="wrap foot-grid">
                 <section>
                     <h3 v-if="aboutHeading">{{ aboutHeading }}</h3>

@@ -268,6 +268,19 @@ a:hover {
     color: var(--brand-teal);
 }
 
+.surface-dark {
+    color: var(--on-dark);
+}
+
+.surface-dark :is(h1, h2, h3, h4, h5, h6) {
+    color: var(--on-dark);
+}
+
+.surface-dark :focus-visible {
+    outline: 3px solid var(--pcdr-secondary-bright);
+    outline-offset: 3px;
+}
+
 .divider {
     block-size: 1px;
     background: var(--line);
