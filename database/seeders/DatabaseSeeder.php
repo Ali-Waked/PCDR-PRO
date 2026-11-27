@@ -14,9 +14,9 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed technical reference data and website reference content only.
-     * No demo account is created unless the local CMS sign-in shim is
-     * explicitly enabled, or explicit preview seeding is opted in with
-     * PCDR_PREVIEW_INIT=true. Bootstrap the Platform Owner with
+     * The dedicated demo dataset is never invoked here; it is opt-in through
+     * Database\Seeders\Demo\DemoDatabaseSeeder and requires both preview flags.
+     * Bootstrap the Platform Owner with
      * `php artisan pcdr:platform-owner:bootstrap`.
      */
     public function run(): void
@@ -30,11 +30,6 @@ class DatabaseSeeder extends Seeder
         $this->call(HomepagePrototypeContentSeeder::class);
         $this->call(CmsRolesSeeder::class);
         $this->call(EmailTemplatesSeeder::class);
-
-        // Explicit temporary-preview bootstrap only; never implicit in production.
-        if (config('preview.initialize')) {
-            $this->call(DemoAdminSeeder::class);
-        }
 
         // Local development identity only. Never seeded in production and
         // never created unless the development-only CMS shim is enabled.

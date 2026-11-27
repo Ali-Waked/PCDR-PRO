@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\Setting;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\Demo\DemoDatabaseSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,12 @@ final class InitializePreviewDatabaseCommand extends Command
 
     public function handle(): int
     {
+        if (config('preview.demo_seed') && (app()->isProduction() || config('app.env') === 'production')) {
+            $this->error('Refusing demo seeding: APP_ENV=production. Demo data is development/testing only.');
+
+            return self::FAILURE;
+        }
+
         $this->info('Applying database migrations...');
         Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]);
         $this->line(trim(Artisan::output()));
@@ -55,6 +62,14 @@ final class InitializePreviewDatabaseCommand extends Command
                     '--no-interaction' => true,
                 ]);
 
+                if (config('preview.demo_seed')) {
+                    Artisan::call('db:seed', [
+                        '--class' => DemoDatabaseSeeder::class,
+                        '--force' => true,
+                        '--no-interaction' => true,
+                    ]);
+                }
+
                 Setting::query()->updateOrCreate(
                     ['group' => $group, 'key' => $key],
                     [
@@ -65,6 +80,12 @@ final class InitializePreviewDatabaseCommand extends Command
                 );
             });
         } catch (RuntimeException $exception) {
+            if (str_contains($exception->getMessage(), 'Refusing')) {
+                $this->error($exception->getMessage());
+
+                return self::FAILURE;
+            }
+
             // Conflicts (existing owner/email) are reported, never fatal to boot.
             $this->warn($exception->getMessage());
             $this->warn('Preview seeding was skipped; the service can still start.');
