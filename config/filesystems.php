@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Private files are delivered only by signed, permission-checked
+            // controllers. Serving this disk at /storage made missing public
+            // assets fall through to a 403 instead of a normal 404.
             'throw' => false,
             'report' => false,
         ],
@@ -56,6 +58,10 @@ return [
             'root' => storage_path('app/public'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
+            // The symlink remains the primary delivery path. This fallback
+            // keeps public media testable and available if a deployment misses
+            // the link, while private files stay on a separate, unserved disk.
+            'serve' => true,
             'throw' => false,
             'report' => false,
         ],

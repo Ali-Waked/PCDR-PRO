@@ -125,8 +125,11 @@ final class RedesignHomepageFrontendTest extends TestCase
         }
 
         $footerSource = (string) file_get_contents(resource_path('js/Components/RedesignHome/ProPrototypeFooter.vue'));
-        $this->assertStringContainsString("localPath('about')", $footerSource, 'Footer must link to the About page.');
-        $this->assertStringContainsString("localPath('complaints')", $footerSource, 'Footer must link to the complaints page.');
+        $this->assertStringContainsString('page.props.footer', $footerSource, 'Footer must use the shared filtered CMS sections.');
+        $this->assertStringContainsString('page.props.navigation?.primary', $footerSource, 'Footer must use the shared navigation source.');
+        $this->assertStringContainsString("navigationItem('about')", $footerSource, 'Footer About links must come from navigation.');
+        $this->assertStringNotContainsString("localPath('about')", $footerSource, 'Footer must not hardcode the About URL.');
+        $this->assertStringNotContainsString("localPath('complaints')", $footerSource, 'Footer must not hardcode the complaints URL.');
 
         $sectionKeys = [
             'ProHeroCarousel.vue' => "content.items('hero', 'slide-')",
@@ -142,7 +145,10 @@ final class RedesignHomepageFrontendTest extends TestCase
 
         foreach ($sectionKeys as $component => $marker) {
             $source = (string) file_get_contents(resource_path('js/Components/RedesignHome/'.$component));
-            $this->assertStringContainsString('useHomepageContent(() => props.sections)', $source, $component.' must read CMS sections through the composable.');
+            $contentSource = $component === 'ProPrototypeFooter.vue'
+                ? 'useHomepageContent(() => effectiveSections.value)'
+                : 'useHomepageContent(() => props.sections)';
+            $this->assertStringContainsString($contentSource, $source, $component.' must read CMS sections through the composable.');
             $this->assertStringContainsString($marker, $source, $component.' is missing '.$marker.'.');
         }
     }

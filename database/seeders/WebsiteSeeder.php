@@ -39,46 +39,93 @@ final class WebsiteSeeder extends Seeder
     private function seedNavigation(): void
     {
         $items = [
-            ['key' => 'home', 'ar' => 'الرئيسية', 'en' => 'Home'],
-            ['key' => 'about', 'ar' => 'عن الجمعية', 'en' => 'About PCDR'],
-            ['key' => 'pillars', 'ar' => 'المحاور الاستراتيجية', 'en' => 'Strategic areas'],
-            ['key' => 'programs', 'ar' => 'البرامج والمشاريع', 'en' => 'Programs & projects'],
-            ['key' => 'news', 'ar' => 'الأخبار والأنشطة', 'en' => 'News & activities'],
-            ['key' => 'publications', 'ar' => 'التقارير والإصدارات', 'en' => 'Reports & publications'],
-            ['key' => 'transparency', 'ar' => 'الشفافية والمساءلة', 'en' => 'Transparency & accountability'],
-            ['key' => 'partnerships', 'ar' => 'الشراكات', 'en' => 'Partnerships'],
-            ['key' => 'involve', 'ar' => 'شارك معنا', 'en' => 'Get involved'],
-            ['key' => 'contact', 'ar' => 'اتصل بنا', 'en' => 'Contact'],
+            [
+                'key' => 'home', 'ar' => 'الرئيسية', 'en' => 'Home', 'children' => [],
+            ],
+            [
+                'key' => 'about', 'ar' => 'عن الجمعية', 'en' => 'About PCDR',
+                'children' => [
+                    ['key' => 'about', 'ar' => 'من نحن', 'en' => 'About us'],
+                    ['key' => 'vision', 'ar' => 'رؤيتنا', 'en' => 'Our vision'],
+                    ['key' => 'objectives', 'ar' => 'أهدافنا الاستراتيجية', 'en' => 'Our strategic objectives'],
+                    ['key' => 'achievements', 'ar' => 'إنجازاتنا بالأرقام', 'en' => 'Our achievements in numbers'],
+                    ['key' => 'board', 'ar' => 'مجلس الإدارة', 'en' => 'Board of directors'],
+                ],
+            ],
+            [
+                'key' => 'programs', 'ar' => 'برامجنا ومشاريعنا', 'en' => 'Programs & projects', 'children' => [],
+            ],
+            [
+                'key' => 'media', 'ar' => 'المركز الإعلامي', 'en' => 'Media centre',
+                'children' => [
+                    ['key' => 'media', 'ar' => 'المركز الإعلامي', 'en' => 'Media centre'],
+                    ['key' => 'news', 'ar' => 'الأخبار والأنشطة', 'en' => 'News & activities'],
+                    ['key' => 'albums', 'ar' => 'ألبوم الصور', 'en' => 'Photo album'],
+                    ['key' => 'stories', 'ar' => 'قصص نجاح', 'en' => 'Success stories'],
+                ],
+            ],
+            [
+                'key' => 'partners', 'ar' => 'شركاؤنا', 'en' => 'Our partners', 'children' => [],
+            ],
+            [
+                'key' => 'contact', 'ar' => 'اتصل بنا', 'en' => 'Contact us', 'children' => [],
+            ],
+            [
+                'key' => 'complaints', 'ar' => 'صندوق الشكاوى', 'en' => 'Complaints', 'children' => [],
+            ],
         ];
 
         foreach (['primary' => 'Primary menu', 'footer' => 'Footer menu'] as $key => $label) {
             $menu = NavigationMenu::query()->firstOrCreate(['key' => $key], ['label' => $label]);
 
             foreach ($items as $order => $item) {
-                $record = NavigationItem::query()->firstOrCreate(
-                    [
-                        'navigation_menu_id' => $menu->id,
-                        'link_type' => 'internal',
-                        'link_value' => $item['key'],
-                    ],
-                    [
-                        'parent_id' => null,
-                        'is_enabled' => true,
-                        'display_order' => $order,
-                    ],
-                );
+                $root = $this->seedMenuItem($menu, null, $item, $order);
 
-                foreach (self::LOCALES as $locale) {
-                    $translation = $record->translations()->firstOrNew(['locale' => $locale]);
-
-                    if (filled($translation->label)) {
-                        continue;
-                    }
-
-                    $translation->forceFill(['label' => $item[$locale]])->save();
+                foreach ($item['children'] as $childOrder => $child) {
+                    $this->seedMenuItem($menu, $root, $child, $childOrder);
                 }
             }
         }
+
+        // Older seeds exposed retired pages. Keep their rows for history, but
+        // stop presenting them in the public menus.
+        NavigationItem::query()
+            ->whereHas('menu', fn ($query) => $query->whereIn('key', ['primary', 'footer']))
+            ->where('link_type', 'internal')
+            ->whereNull('parent_id')
+            ->whereIn('link_value', ['pillars', 'news', 'publications', 'transparency', 'partnerships', 'involve'])
+            ->update(['is_enabled' => false]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     */
+    private function seedMenuItem(NavigationMenu $menu, ?NavigationItem $parent, array $definition, int $order): NavigationItem
+    {
+        $record = NavigationItem::query()->firstOrCreate(
+            [
+                'navigation_menu_id' => $menu->id,
+                'parent_id' => $parent?->id,
+                'link_type' => 'internal',
+                'link_value' => $definition['key'],
+            ],
+            [
+                'is_enabled' => true,
+                'display_order' => $order,
+            ],
+        );
+
+        foreach (self::LOCALES as $locale) {
+            $translation = $record->translations()->firstOrNew(['locale' => $locale]);
+
+            if (filled($translation->label)) {
+                continue;
+            }
+
+            $translation->forceFill(['label' => $definition[$locale]])->save();
+        }
+
+        return $record;
     }
 
     private function seedPillars(): void

@@ -40,7 +40,9 @@ mkdir -p \
 chown -R www-data:www-data storage bootstrap/cache database
 chmod -R ug+rwX storage bootstrap/cache database
 
-if [ ! -L public/storage ]; then
+PUBLIC_STORAGE_TARGET="$(readlink -f public/storage 2>/dev/null || true)"
+PUBLIC_STORAGE_EXPECTED="$(realpath storage/app/public)"
+if [ "$PUBLIC_STORAGE_TARGET" != "$PUBLIC_STORAGE_EXPECTED" ]; then
     php artisan storage:link --force >/dev/null
 fi
 

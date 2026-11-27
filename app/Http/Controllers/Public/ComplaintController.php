@@ -19,6 +19,8 @@ final class ComplaintController extends PublicController
 {
     public function index(string $locale): Response
     {
+        $this->assertPageVisible('complaints');
+
         $localized = static function (string $name, string $path) use ($locale): string {
             return Route::has($name) ? route($name, ['locale' => $locale]) : $path;
         };
@@ -46,6 +48,8 @@ final class ComplaintController extends PublicController
 
     public function store(StoreComplaintRequest $request, ComplaintService $service): RedirectResponse
     {
+        $this->assertPageVisible('complaints');
+
         $locale = $request->string('locale')->toString();
         $complaint = $service->submit($request->validated(), $request);
 

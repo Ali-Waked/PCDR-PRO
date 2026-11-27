@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use App\Services\AdminNavigationService;
 use App\Services\CmsAccess;
+use App\Services\HomepageService;
 use App\Services\NavigationService;
 use App\Services\RbacService;
 use App\Services\SettingsService;
@@ -23,6 +24,7 @@ class HandleInertiaRequests extends Middleware
         private readonly RbacService $rbac,
         private readonly SettingsService $settings,
         private readonly AdminNavigationService $adminNavigation,
+        private readonly HomepageService $homepage,
     ) {}
 
     public function version(Request $request): ?string
@@ -70,6 +72,13 @@ class HandleInertiaRequests extends Middleware
             ],
             'site' => $siteSettings->publicIdentity($locale),
             'navigation' => app(NavigationService::class)->all($locale),
+            // Already filtered for section status, item publication and page
+            // visibility by HomepageService. Inner pages reuse this instead of
+            // bypassing the CMS with an unconditional footer render.
+            'footer' => fn () => array_values(array_filter(
+                $this->homepage->sections($locale),
+                static fn (array $section): bool => ($section['key'] ?? null) === 'footer',
+            )),
             'ui' => fn () => __('website.ui', [], $locale),
             'nav' => fn () => __('website.navigation', [], $locale),
             'phase5' => fn () => __('phase5', [], $locale),

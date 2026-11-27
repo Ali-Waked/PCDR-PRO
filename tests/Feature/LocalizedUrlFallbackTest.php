@@ -143,7 +143,7 @@ final class LocalizedUrlFallbackTest extends TestCase
         return [
             'favicon' => ['/favicon.ico', 404],
             'manifest' => ['/build/manifest.json', 404],
-            'storage' => ['/storage/foo.png', 403],
+            'storage' => ['/storage/foo.png', 404],
             'health check' => ['/up', 200],
             'robots' => ['/robots.txt', 200],
             'asset extension' => ['/theme.css', 404],

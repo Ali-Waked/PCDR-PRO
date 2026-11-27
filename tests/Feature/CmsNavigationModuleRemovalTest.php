@@ -102,14 +102,14 @@ final class CmsNavigationModuleRemovalTest extends TestCase
                     ->where('navigation.primary', function ($items) use ($homeLabel): bool {
                         $items = is_array($items) ? $items : $items->all();
 
-                        return count($items) === 10
+                        return count($items) === 7
                             && collect($items)->pluck('label')->contains($homeLabel)
                             && collect($items)->pluck('url')->isNotEmpty();
                     })
                     ->where('navigation.footer', function ($items): bool {
                         $items = is_array($items) ? $items : $items->all();
 
-                        return count($items) === 10;
+                        return count($items) === 7;
                     }));
 
             $props = $this->inertiaProps($this->get("/{$locale}"));
@@ -119,8 +119,8 @@ final class CmsNavigationModuleRemovalTest extends TestCase
             $this->assertNotContains(url('/ar/en'), $urls);
             $this->assertNotContains(url('/en/ar'), $urls);
 
-            foreach (['about', 'strategic-areas', 'programs', 'news', 'publications', 'contact'] as $removedPath) {
-                $this->assertStringNotContainsString('/'.$removedPath, implode(' ', $urls));
+            foreach (['pillars', 'news', 'publications', 'transparency', 'partnerships', 'involve'] as $removedPath) {
+                $this->assertNotContains(url("/{$locale}/{$removedPath}"), $urls);
             }
         }
     }

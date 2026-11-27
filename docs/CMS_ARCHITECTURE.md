@@ -34,15 +34,15 @@ There is no arbitrary page creation, no arbitrary section creation and no JSON p
 
 ### 2.1 Predefined pages
 
-`home`, `about`, `areas_of_work`, `projects`, `partners`, `media_center`, `contact`.
+`home`, `about`, `areas_of_work`, `projects`, `partners`, `media_center`, `contact`, `complaints`.
 
 Each page has a stable key, a public route path, a visibility flag, a display order and localized SEO metadata in `website_page_translations`. The page registry is the single source for public route guarding and navigation visibility.
 
 ### 2.2 Predefined homepage sections
 
-`hero`, `ticker`, `stories`, `about`, `vision_mission`, `objectives`, `albums`, `news`, `latest_projects`, `program_areas`, `interventions`.
+`hero`, `ticker`, `stories`, `about`, `vision_mission`, `objectives`, `albums`, `news`, `latest_projects`, `program_areas`, `interventions`, plus the page-bound sections (`about_intro`, `about_identity`, `areas_intro`, `areas_list`, `projects_list`, `partners_list`, `media_news`, `media_albums`, `contact_form`) and the shared `footer`.
 
-Legacy keys (`impact`, `intro`, `areas`, `framework`, `targets`, `community`, `partners`, `knowledge`, `cta`, `footer`) remain in the database as historical, disabled configurations. They are never deleted by a visibility change.
+Legacy keys (`impact`, `intro`, `areas`, `framework`, `targets`, `community`, `partners`, `knowledge`, `cta`) remain in the database as historical, disabled configurations. They are never deleted by a visibility change. The `footer` key is now an active typed section, not a disabled legacy section.
 
 ### 2.3 Typed content sections
 
@@ -54,6 +54,7 @@ Four sections need genuinely typed records rather than generic key/value items:
 | Success stories | `homepage_section_items` in `stories`, with `story-*` keys | Bilingual title, summary, body, image, optional child images, display period. |
 | Objectives | `homepage_section_items` in `objectives` | Bilingual title, description, optional icon image and ordering. |
 | Photo album | `homepage_section_items` in `albums` | Each item is one image with bilingual caption and ordering. |
+| Site footer | `homepage_section_items` in `footer`, with `footer-` prefixes | Bilingual description, CTA, optional video URL and Media Library image. Contact details and social links stay in Site Settings. |
 
 Typed Form Requests, controllers and Inertia forms validate these records. All of them read and write the same item tables used by the public renderer, so there is exactly one source of truth.
 
@@ -119,7 +120,7 @@ No destructive `drop` or `delete` of historical content is used. Migration down 
 
 ## 7. Verification
 
-Automated coverage lives in `tests/Feature/CentralizedCmsTest.php` and extends the existing homepage/public/authorization suites. The verification checklist is:
+Automated coverage lives in `tests/Feature/CentralizedCmsTest.php`, `tests/Feature/PublicFooterIntegrationTest.php`, `tests/Feature/MediaPublicDeliveryTest.php` and the existing homepage/public/authorization suites. The footer-specific data flow and production media checklist are recorded in `docs/FOOTER_CMS_INTEGRATION.md`. The verification checklist is:
 
 - hidden page returns 404 and disappears from navigation;
 - hidden section disappears publicly while its rows remain;
@@ -132,4 +133,6 @@ Automated coverage lives in `tests/Feature/CentralizedCmsTest.php` and extends t
 - Arabic and English payloads and RTL/LTR direction;
 - private inquiries remain inaccessible;
 - homepage queries are eager loaded;
+- footer links follow navigation changes and hidden pages/sections/items do not leak;
+- public media uploads return HTTP 200 as images while private files stay guarded;
 - `php artisan test` and `npm run build` succeed.

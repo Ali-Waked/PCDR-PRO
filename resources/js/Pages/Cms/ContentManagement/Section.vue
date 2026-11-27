@@ -26,6 +26,7 @@ const isLinks = computed(() => props.section.content === 'links')
 const isInline = computed(() => !isLinks.value && props.section.content !== 'organization')
 const isOrganization = computed(() => props.section.content === 'organization')
 const isStories = computed(() => props.section.key === 'stories')
+const isFooter = computed(() => props.section.key === 'footer')
 
 const copy = computed(() => props.locale === 'ar' ? {
     title: props.section.name,
@@ -294,12 +295,12 @@ function submitOrganization() {
 const parentOptions = computed(() => props.items.filter((item) => !item.parentItemId))
 const visibleFields = computed(() => ({
     title: props.section.key !== 'albums',
-    label: ['slides', 'objectives'].includes(props.section.key),
-    body: ['slides', 'stories', 'objectives'].includes(props.section.key),
+    label: ['slides', 'objectives'].includes(props.section.key) || isFooter.value,
+    body: ['slides', 'stories', 'objectives'].includes(props.section.key) || isFooter.value,
     summary: props.section.key === 'stories',
-    url: ['slides', 'stories'].includes(props.section.key),
-    cta: ['slides', 'stories'].includes(props.section.key),
-    caption: props.section.key === 'albums',
+    url: ['slides', 'stories'].includes(props.section.key) || isFooter.value,
+    cta: ['slides', 'stories'].includes(props.section.key) || isFooter.value,
+    caption: props.section.key === 'albums' || isFooter.value,
     display: props.section.key === 'objectives',
 }))
 </script>

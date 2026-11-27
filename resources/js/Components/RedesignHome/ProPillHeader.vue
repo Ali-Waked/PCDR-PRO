@@ -1,79 +1,78 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
+import { LANGUAGE_OPTIONS } from '../../Support/languageSwitcher'
 import { useI18n } from '../../composables/useI18n'
 
 // Kept for compatibility with inner pages that still pass a page-derived
-// anchor base; destinations below are always resolved from the real routes.
+// anchor base. All menu links come from the shared navigation payload.
 defineProps({
     brandUrl: { type: String, default: '' },
     anchorBase: { type: String, default: '' },
     partnersUrl: { type: String, default: '' },
 })
 
-const { locale, alternateUrl, localPath, site } = useI18n()
+const page = usePage()
+const { locale, alternateUrl, site } = useI18n()
 
-const homeHref = computed(() => localPath())
-const aboutHref = computed(() => localPath('about'))
-const programsHref = computed(() => localPath('programs'))
-const mediaHref = computed(() => localPath('media'))
-const partnersHref = computed(() => localPath('partners'))
-const contactHref = computed(() => localPath('contact'))
-const complaintsHref = computed(() => localPath('complaints'))
-const anchored = (base, id) => `${base}#${id}`
+const primary = computed(() => Array.isArray(page.props.navigation?.primary)
+    ? page.props.navigation.primary.filter((item) => item && typeof item.url === 'string' && item.url !== '')
+    : [])
 
 const copy = computed(() => (locale.value === 'ar' ? {
-    brand: 'جمعية العمل التشاركي',
-    brandSub: 'في الأزمات والكوارث – قطاع غزة',
-    brandLabel: 'جمعية العمل التشاركي في الأزمات والكوارث، الصفحة الرئيسية',
+    brandLabel: 'الصفحة الرئيسية',
     menu: 'القائمة الرئيسية',
-    about: 'من نحن',
-    vision: 'رؤيتنا',
-    goals: 'أهدافنا الاستراتيجية',
-    achievements: 'إنجازاتنا بالأرقام',
-    board: 'مجلس الإدارة',
-    programs: 'برامجنا',
-    media: 'المركز الإعلامي',
-    news: 'الأخبار والأنشطة',
-    albums: 'ألبوم الصور',
-    stories: 'قصص نجاح',
-    partners: 'شركاؤنا',
-    contact: 'اتصل بنا',
-    complaints: 'صندوق الشكاوى',
     arabic: 'العربية',
     english: 'English',
 } : {
-    brand: 'Participatory Action Association',
-    brandSub: 'in Crises and Disasters – Gaza Strip',
-    brandLabel: 'Participatory Action in Crises and Disasters, home page',
+    brandLabel: 'home page',
     menu: 'Main menu',
-    about: 'About us',
-    vision: 'Our vision',
-    goals: 'Our strategic objectives',
-    achievements: 'Our achievements in numbers',
-    board: 'Board of directors',
-    programs: 'Our programmes',
-    media: 'Media centre',
-    news: 'News and activities',
-    albums: 'Photo album',
-    stories: 'Success stories',
-    partners: 'Our partners',
-    contact: 'Contact us',
-    complaints: 'Complaints',
     arabic: 'العربية',
     english: 'English',
 }))
 
 const logo = computed(() => site.value?.logo || '/assets/pcdr-homepage/logo/pcdr-prototype-logo.jpg')
-const brand = computed(() => String(site.value?.name || '').trim() || copy.value.brand)
-const brandSub = computed(() => site.value?.region || site.value?.slogan || copy.value.brandSub)
-const brandLabel = computed(() => `${brand.value} — ${locale.value === 'ar' ? 'الصفحة الرئيسية' : 'home page'}`)
+const brand = computed(() => String(site.value?.name || '').trim())
+const brandSub = computed(() => site.value?.region || site.value?.slogan || '')
+const brandLabel = computed(() => `${brand.value} — ${copy.value.brandLabel}`)
 
 const menuOpen = ref(false)
-const openGroups = ref({ about: true, media: false })
-const activeSub = ref('about')
+const openGroups = ref({})
+const activeSub = ref(null)
 const burger = ref(null)
 const menu = ref(null)
+
+function keyFor(item, fallback = '') {
+    const raw = String(item?.key || item?.url || fallback)
+    const normalized = raw.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+
+    return normalized || 'item'
+}
+
+const groups = computed(() => primary.value.filter(
+    (item) => Array.isArray(item.children) && item.children.length > 0,
+))
+const defaultGroupKey = computed(() => (groups.value.length ? keyFor(groups.value[0]) : ''))
+const defaultActiveKey = computed(() => {
+    const group = groups.value[0]
+    return group ? `${keyFor(group)}-${keyFor(group.children[0])}` : ''
+})
+
+function hasChildren(item) {
+    return Array.isArray(item.children) && item.children.length > 0
+}
+
+function isGroupOpen(key) {
+    if (Object.prototype.hasOwnProperty.call(openGroups.value, key)) {
+        return openGroups.value[key] === true
+    }
+
+    return key === defaultGroupKey.value
+}
+
+function isActive(key) {
+    return (activeSub.value || defaultActiveKey.value) === key
+}
 
 function toggleMenu() {
     menuOpen.value = !menuOpen.value
@@ -84,11 +83,11 @@ function closeMenu() {
 }
 
 function toggleGroup(group) {
-    openGroups.value[group] = !openGroups.value[group]
+    openGroups.value[group] = !isGroupOpen(group)
 }
 
-function activate(sub) {
-    activeSub.value = sub
+function activate(key) {
+    activeSub.value = key
     closeMenu()
 }
 
@@ -124,7 +123,7 @@ onBeforeUnmount(() => {
         <div class="wrap">
             <div class="head-in">
                 <div class="pill">
-                    <Link class="brand" :href="homeHref" :aria-label="brandLabel" @click="closeMenu">
+                    <Link class="brand" :href="primary[0]?.url || '/'" :aria-label="brandLabel" @click="closeMenu">
                         <span class="logo">
                             <img :src="logo" alt="" width="76" height="76">
                         </span>
@@ -154,93 +153,63 @@ onBeforeUnmount(() => {
                     :hidden="!menuOpen"
                     :aria-label="copy.menu"
                 >
-                    <div class="mi" :class="{ open: openGroups.about }">
+                    <div
+                        v-for="(item, index) in primary"
+                        :key="keyFor(item, String(index))"
+                        class="mi"
+                        :class="{ open: hasChildren(item) && isGroupOpen(keyFor(item, String(index))) }"
+                    >
                         <button
+                            v-if="hasChildren(item)"
                             class="mi-h"
                             type="button"
-                            :aria-expanded="openGroups.about ? 'true' : 'false'"
-                            aria-controls="sub-about"
-                            @click="toggleGroup('about')"
+                            :aria-expanded="isGroupOpen(keyFor(item, String(index))) ? 'true' : 'false'"
+                            :aria-controls="`sub-${keyFor(item, String(index))}`"
+                            @click="toggleGroup(keyFor(item, String(index)))"
                         >
-                            <span>{{ copy.about }}</span>
+                            <span>{{ item.label }}</span>
                             <svg class="ico" aria-hidden="true"><use href="#i-chev" /></svg>
                         </button>
-                        <ul class="sub" id="sub-about">
-                            <li>
-                                <Link
-                                    :href="aboutHref"
-                                    :class="{ on: activeSub === 'about' }"
-                                    @click="activate('about')"
-                                >{{ copy.about }}</Link>
-                            </li>
-                            <li>
-                                <Link
-                                    :href="anchored(aboutHref, 'vision')"
-                                    :class="{ on: activeSub === 'vision' }"
-                                    @click="activate('vision')"
-                                >{{ copy.vision }}</Link>
-                            </li>
-                            <li>
-                                <Link
-                                    :href="anchored(aboutHref, 'objectives')"
-                                    :class="{ on: activeSub === 'objectives' }"
-                                    @click="activate('objectives')"
-                                >{{ copy.goals }}</Link>
-                            </li>
-                            <li>
-                                <Link
-                                    :href="anchored(aboutHref, 'achievements')"
+                        <a
+                            v-else-if="item.external"
+                            class="mi-h"
+                            :href="item.url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            @click="closeMenu"
+                        >{{ item.label }}</a>
+                        <Link v-else class="mi-h" :href="item.url" @click="closeMenu">{{ item.label }}</Link>
+
+                        <ul v-if="hasChildren(item)" class="sub" :id="`sub-${keyFor(item, String(index))}`">
+                            <li v-for="(child, childIndex) in item.children" :key="keyFor(child, `${index}-${childIndex}`)">
+                                <a
+                                    v-if="child.external"
+                                    :href="child.url"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     @click="closeMenu"
-                                >{{ copy.achievements }}</Link>
-                            </li>
-                            <li>
+                                >{{ child.label }}</a>
                                 <Link
-                                    :href="anchored(aboutHref, 'board')"
-                                    @click="closeMenu"
-                                >{{ copy.board }}</Link>
+                                    v-else
+                                    :href="child.url"
+                                    :class="{ on: isActive(`${keyFor(item, String(index))}-${keyFor(child, String(childIndex))}`) }"
+                                    @click="activate(`${keyFor(item, String(index))}-${keyFor(child, String(childIndex))}`)"
+                                >{{ child.label }}</Link>
                             </li>
                         </ul>
                     </div>
-                    <div class="mi"><Link class="mi-h" :href="programsHref" @click="closeMenu">{{ copy.programs }}</Link></div>
-                    <div class="mi" :class="{ open: openGroups.media }">
-                        <button
-                            class="mi-h"
-                            type="button"
-                            :aria-expanded="openGroups.media ? 'true' : 'false'"
-                            aria-controls="sub-media"
-                            @click="toggleGroup('media')"
-                        >
-                            <span>{{ copy.media }}</span>
-                            <svg class="ico" aria-hidden="true"><use href="#i-chev" /></svg>
-                        </button>
-                        <ul class="sub" id="sub-media">
-                            <li><Link :href="mediaHref" @click="closeMenu">{{ copy.media }}</Link></li>
-                            <li><Link :href="anchored(mediaHref, 'news')" @click="closeMenu">{{ copy.news }}</Link></li>
-                            <li><Link :href="anchored(mediaHref, 'albums')" @click="closeMenu">{{ copy.albums }}</Link></li>
-                            <li><Link :href="anchored(mediaHref, 'stories')" @click="closeMenu">{{ copy.stories }}</Link></li>
-                        </ul>
-                    </div>
-                    <div class="mi"><Link class="mi-h" :href="partnersHref" @click="closeMenu">{{ copy.partners }}</Link></div>
-                    <div class="mi"><Link class="mi-h" :href="contactHref" @click="closeMenu">{{ copy.contact }}</Link></div>
-                    <div class="mi"><Link class="mi-h" :href="complaintsHref" @click="closeMenu">{{ copy.complaints }}</Link></div>
                     <div class="menu-foot">
                         <div class="mi">
                             <div class="mi-h lang-row" role="group" aria-label="Language / اللغة">
                                 <a
-                                    :href="alternateUrl('ar')"
-                                    lang="ar"
-                                    hreflang="ar"
-                                    :aria-current="locale === 'ar' ? 'page' : undefined"
+                                    v-for="option in LANGUAGE_OPTIONS"
+                                    :key="option.code"
+                                    :href="alternateUrl(option.code)"
+                                    :lang="option.lang"
+                                    :hreflang="option.lang"
+                                    :aria-current="locale === option.code ? 'page' : undefined"
                                     @click="closeMenu"
-                                >{{ copy.arabic }}</a>
-                                <span class="sep" aria-hidden="true">·</span>
-                                <a
-                                    :href="alternateUrl('en')"
-                                    lang="en"
-                                    hreflang="en"
-                                    :aria-current="locale === 'en' ? 'page' : undefined"
-                                    @click="closeMenu"
-                                >{{ copy.english }}</a>
+                                >{{ option.code === 'ar' ? copy.arabic : copy.english }}</a>
                             </div>
                         </div>
                     </div>

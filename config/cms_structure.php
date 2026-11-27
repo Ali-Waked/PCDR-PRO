@@ -63,6 +63,12 @@ return [
             'label' => ['ar' => 'اتصل بنا', 'en' => 'Contact us'],
             'order' => 6,
         ],
+        'complaints' => [
+            'path' => '/complaints',
+            'route' => 'public.complaints',
+            'label' => ['ar' => 'صندوق الشكاوى', 'en' => 'Complaints'],
+            'order' => 7,
+        ],
     ],
 
     'sections' => [
@@ -202,6 +208,12 @@ return [
             'label' => ['ar' => 'نموذج التواصل', 'en' => 'Contact form'],
             'content' => 'organization',
         ],
+        'footer' => [
+            'page' => 'home',
+            'order' => 20,
+            'label' => ['ar' => 'تذييل الموقع', 'en' => 'Site footer'],
+            'content' => 'footer',
+        ],
     ],
 
     /**
@@ -215,6 +227,7 @@ return [
         'objectives' => ['objective-', 'value-'],
         'vision_mission' => ['mission', 'vision'],
         'albums' => ['album-'],
+        'footer' => ['footer-', 'social-', 'value-'],
     ],
 
     'link_sources' => [

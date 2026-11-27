@@ -35,6 +35,7 @@ final class NavigationService
     private function serialize(NavigationItem $item, string $locale): array
     {
         return [
+            'key' => (string) $item->link_value,
             'label' => $item->t('label', $locale) ?: $item->link_value,
             'url' => $item->resolvedUrl($locale),
             'external' => $item->link_type === 'external',

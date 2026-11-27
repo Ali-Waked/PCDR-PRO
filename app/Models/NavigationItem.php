@@ -57,12 +57,39 @@ class NavigationItem extends Model
             return str_starts_with($value, 'https://') ? $value : '#';
         }
 
-        $routes = [
-            'home' => 'public.home',
+        $key = (string) $this->link_value;
+        // Menu keys may use the shorter public wording while the predefined
+        // page registry keeps its stable structural key.
+        $aliases = [
+            'programs' => 'areas_of_work',
+            'media' => 'media_center',
+        ];
+        $pageKey = $aliases[$key] ?? $key;
+        $pages = (array) config('cms_structure.pages', []);
+        $route = $pages[$pageKey]['route'] ?? null;
+
+        if (is_string($route) && $route !== '') {
+            return route($route, ['locale' => $locale]);
+        }
+
+        // Approved in-page destinations only. Unrecognised keys never become
+        // arbitrary URLs; they fall back to the localized home page.
+        $fragments = [
+            'vision' => ['public.about', 'vision'],
+            'objectives' => ['public.about', 'objectives'],
+            'achievements' => ['public.about', 'achievements'],
+            'board' => ['public.about', 'board'],
+            'news' => ['public.media.center', 'news'],
+            'albums' => ['public.media.center', 'albums'],
+            'stories' => ['public.media.center', 'stories'],
         ];
 
-        $name = $routes[$this->link_value] ?? 'public.home';
+        if (isset($fragments[$key])) {
+            [$routeName, $fragment] = $fragments[$key];
 
-        return route($name, ['locale' => $locale]);
+            return route($routeName, ['locale' => $locale]).'#'.$fragment;
+        }
+
+        return route('public.home', ['locale' => $locale]);
     }
 }

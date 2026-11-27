@@ -77,7 +77,10 @@ class Media extends Model
 
     public function url(): string
     {
-        if ($this->disk === config('website.uploads.private_disk')) {
+        // A restricted record must never emit a direct public URL, even if it
+        // was written to the public disk by an older installation. Downloads
+        // remain behind the signed, permission-checked controller.
+        if ($this->is_restricted || $this->disk === config('website.uploads.private_disk')) {
             return route('public.media.download', [
                 'locale' => app()->getLocale(),
                 'uuid' => $this->uuid,
