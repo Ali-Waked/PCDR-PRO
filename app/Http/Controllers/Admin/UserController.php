@@ -16,6 +16,7 @@ use App\Services\AuditService;
 use App\Services\RbacService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -134,19 +135,23 @@ final class UserController extends Controller
     {
         $data = $request->validated();
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'status' => $data['status'],
-            'locale' => $data['locale'],
-            'email_verified_at' => now(),
-        ]);
-
         try {
-            if (! empty($data['roles'])) {
-                $this->access->syncRoles($user, $data['roles'], $request->user());
-            }
+            $user = DB::transaction(function () use ($data, $request): User {
+                $user = User::create([
+                    'name' => $data['name'],
+                    'email' => $data['email'],
+                    'password' => Hash::make($data['password']),
+                    'status' => $data['status'],
+                    'locale' => $data['locale'],
+                    'email_verified_at' => now(),
+                ]);
+
+                if (! empty($data['roles'])) {
+                    $this->access->syncRoles($user, $data['roles'], $request->user());
+                }
+
+                return $user;
+            });
         } catch (\RuntimeException $exception) {
             return back()->with('flash', ['error' => $exception->getMessage()])->withInput();
         }

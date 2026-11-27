@@ -334,7 +334,7 @@ onBeforeUnmount(() => {
                     <h2 class="pc-card__title">{{ t('access_page.roles_title') }}</h2>
                     <p class="pc-page-subtitle">{{ t('access_page.roles_hint') }}</p>
                 </div>
-                <label class="pc-access-search">
+                <label class="pc-search pc-access-search-field">
                     <UiIcon name="search" :size="16" />
                     <span class="sr-only">{{ t('access_page.search_roles') }}</span>
                     <input v-model="roleSearch" type="search" :placeholder="t('access_page.search_roles')">
@@ -452,7 +452,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <label class="pc-access-search pc-access-search--full">
+            <label class="pc-search pc-access-search-field pc-access-search-field--full">
                 <UiIcon name="search" :size="16" />
                 <span class="sr-only">{{ t('access_page.search_permissions') }}</span>
                 <input v-model="permissionSearch" type="search" :placeholder="t('access_page.search_permissions')">
@@ -668,22 +668,15 @@ onBeforeUnmount(() => {
     color: var(--pc-muted);
 }
 
-.pc-access-search input {
-    min-inline-size: 220px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--pc-text);
-    font: inherit;
+.pc-access-search-field {
+    flex: 0 1 260px;
+    margin: 0;
 }
 
-.pc-access-search--full {
-    inline-size: 100%;
+.pc-access-search-field--full {
+    flex: 1 1 100%;
+    max-inline-size: none;
     margin-block-end: 16px;
-}
-
-.pc-access-search--full input {
-    inline-size: 100%;
 }
 
 .access-roles-cards {
@@ -861,10 +854,8 @@ onBeforeUnmount(() => {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .pc-access-search input,
-    .pc-access-search--full input {
-        min-inline-size: 0;
-        inline-size: 100%;
+    .pc-access-search-field {
+        flex: 1 1 100%;
     }
 
     .pc-access-catalog-grid {

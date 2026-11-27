@@ -59,10 +59,10 @@ const localeOptions = [
     <div class="pc-stack pcdr-enter">
         <Head :title="t('users_page.new')" />
 
-        <div class="pc-callout pc-callout--sand" role="note">
-            <UiIcon name="shield" :size="17" />
+        <p class="pc-advisory" role="note">
+            <UiIcon name="shield" :size="15" />
             <span>{{ t('users_page.technical_note') }}</span>
-        </div>
+        </p>
 
         <form class="pc-stack" @submit.prevent="form.post(localePath('/admin/users'))">
             <section class="pc-card">
@@ -114,7 +114,6 @@ const localeOptions = [
                         :empty-text="tWebsite('ui.no_results')"
                         clearable
                     />
-                    <p class="pc-hint pc-field--full">{{ t('users_page.technical_note') }}</p>
                 </div>
             </section>
 

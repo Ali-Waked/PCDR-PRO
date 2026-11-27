@@ -35,6 +35,13 @@
         <link rel="icon" href="/favicon.ico">
         <title>@yield('page-title')</title>
         <style>
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                background: #f7f2ea;
+            }
+
             .pcdr-error {
                 --pcdr-error-navy-900: #25334b;
                 --pcdr-error-navy-800: #30415e;
@@ -54,6 +61,7 @@
 
                 min-height: 100vh;
                 min-height: 100svh;
+                min-height: 100dvh;
                 display: flex;
                 flex-direction: column;
                 background: var(--pcdr-error-sand-100);
@@ -297,8 +305,8 @@
                 content: '';
                 position: absolute;
                 inset-block-start: 4%;
-                inset-inline-end: -4%;
-                inline-size: min(28rem, 72vw);
+                inset-inline-end: 2%;
+                inline-size: min(22rem, 58vw);
                 aspect-ratio: 1;
                 border-radius: 50%;
                 background: var(--pcdr-error-teal-100);
@@ -318,16 +326,14 @@
             }
 
             .pcdr-error__code {
-                position: absolute;
-                inset-block-start: 33%;
-                inset-inline-start: 13%;
-                color: var(--pcdr-error-navy-900);
-                font-size: clamp(5rem, 13vw, 9rem);
+                fill: var(--pcdr-error-navy-900);
+                stroke: var(--pcdr-error-sand-100);
+                stroke-width: 12px;
+                stroke-linejoin: round;
+                paint-order: stroke fill;
+                font-family: var(--pcdr-error-font);
+                font-size: 150px;
                 font-weight: 700;
-                letter-spacing: -0.08em;
-                line-height: 1;
-                opacity: 0.12;
-                pointer-events: none;
             }
 
             .pcdr-error__footer {
@@ -415,11 +421,6 @@
                 .pcdr-error__visual {
                     min-block-size: 220px;
                 }
-
-                .pcdr-error__code {
-                    inset-block-start: 29%;
-                    inset-inline-start: 10%;
-                }
             }
 
             @media (prefers-reduced-motion: reduce) {
@@ -483,7 +484,6 @@
                     <div class="pcdr-error__visual">
                         <div class="pcdr-error__art" aria-hidden="true">
                             @yield('artwork')
-                            <span class="pcdr-error__code">@yield('status')</span>
                         </div>
                     </div>
                 </div>

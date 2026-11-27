@@ -7,6 +7,7 @@ namespace App\Http\Requests\Admin;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 final class StoreUserRequest extends FormRequest
@@ -22,6 +23,15 @@ final class StoreUserRequest extends FormRequest
         }
 
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $email = $this->input('email');
+
+        if (is_string($email)) {
+            $this->merge(['email' => Str::lower(trim($email))]);
+        }
     }
 
     /** @return array<string, mixed> */

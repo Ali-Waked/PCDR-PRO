@@ -31,6 +31,19 @@ final class ErrorPagesTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{string, int, string, string, string}> */
+    public static function errorPageProvider(): array
+    {
+        return [
+            'arabic 403' => ['/ar/__pcdr-403-probe', 403, '403', 'ar', 'rtl'],
+            'arabic 404' => ['/ar/pcdr-missing-page-probe', 404, '404', 'ar', 'rtl'],
+            'arabic 500' => ['/ar/__pcdr-500-probe', 500, '500', 'ar', 'rtl'],
+            'english 403' => ['/en/__pcdr-403-probe', 403, '403', 'en', 'ltr'],
+            'english 404' => ['/en/pcdr-missing-page-probe', 404, '404', 'en', 'ltr'],
+            'english 500' => ['/en/__pcdr-500-probe', 500, '500', 'en', 'ltr'],
+        ];
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -151,6 +164,36 @@ final class ErrorPagesTest extends TestCase
             $html,
         );
         $this->assertNoDebugDetails($html);
+    }
+
+    #[DataProvider('errorPageProvider')]
+    public function test_error_pages_share_an_edge_to_edge_layout_and_responsive_artwork(
+        string $path,
+        int $status,
+        string $code,
+        string $locale,
+        string $direction,
+    ): void {
+        config()->set('app.debug', false);
+        Log::spy();
+
+        $html = (string) $this->get($path)->assertStatus($status)->getContent();
+
+        $this->assertStringContainsString('<html lang="'.$locale.'" dir="'.$direction.'"', $html);
+        $this->assertMatchesRegularExpression('/html,\s*body\s*\{\s*margin:\s*0;\s*padding:\s*0;\s*background:\s*#f7f2ea;/', $html);
+        $this->assertStringContainsString('min-height: 100dvh;', $html);
+        $this->assertStringNotContainsString('inset-inline-end: -4%', $html);
+        $this->assertStringNotContainsString('<span class="pcdr-error__code">', $html);
+        $this->assertStringContainsString('preserveAspectRatio="xMidYMid meet"', $html);
+        $this->assertStringContainsString(
+            '<text class="pcdr-error__code" x="50%" y="50%" text-anchor="middle" dominant-baseline="central">'.$code.'</text>',
+            $html,
+        );
+
+        if ($code === '404') {
+            $this->assertStringNotContainsString('cx="390" cy="190" r="150"', $html);
+            $this->assertStringContainsString('cx="360" cy="190" r="150"', $html);
+        }
     }
 
     public function test_error_rendering_does_not_require_database_queries(): void

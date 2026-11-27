@@ -60,7 +60,6 @@ const notificationDurations = {
 
 let eventsInstalled = false
 const flashedKeys = new Set()
-const visitMethods = new Map()
 const visitLoading = new Map()
 let confirmationTimer = null
 let confirmationVisitId = null
@@ -321,7 +320,6 @@ function installEvents() {
             return
         }
 
-        visitMethods.set(visit.id, visit.method)
         if (confirmation.busy) {
             return
         }
@@ -332,16 +330,10 @@ function installEvents() {
     router.on('success', (event) => {
         const visitId = event.detail?.visitId
         const flash = event.detail?.page?.props?.flash
-        const method = visitMethods.get(visitId) || 'get'
-        const hadFlash = flash && Object.values(flash).some(Boolean)
 
-        if (hadFlash) {
+        if (flash && Object.values(flash).some(Boolean)) {
             readFlash(flash, visitId || `visit-${++state.sequence}`)
-        } else if (method !== 'get' && ! confirmation.busy) {
-            notify.action('updated')
         }
-
-        visitMethods.delete(visitId)
     })
 
     router.on('error', (event) => {
@@ -380,7 +372,6 @@ function installEvents() {
             dismiss(id)
             visitLoading.delete(visitId)
         }
-        visitMethods.delete(visitId)
 
         if (confirmationVisitId === visitId) {
             finishConfirmation()

@@ -115,7 +115,7 @@ return [
         'locale_en' => 'English',
         'confirm_delete' => 'Delete this account? This action cannot be undone.',
         'no_roles' => 'No roles assigned',
-        'technical_note' => 'Technical access only. Role assignment never grants institutional approval authority.',
+        'technical_note' => 'Technical access only. Assigning roles does not grant institutional approval authority.',
     ],
     'access_page' => [
         'eyebrow' => 'Identity and access',

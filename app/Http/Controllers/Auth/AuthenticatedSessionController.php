@@ -7,8 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
-use App\Services\AuditService;
-use App\Services\RbacService;
+use App\Services\AuthenticationActivityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,10 +17,7 @@ use Inertia\Response;
 
 final class AuthenticatedSessionController extends Controller
 {
-    public function __construct(
-        private readonly AuditService $audit,
-        private readonly RbacService $rbac,
-    ) {}
+    public function __construct(private readonly AuthenticationActivityService $activity) {}
 
     public function show(): Response
     {
@@ -59,15 +55,8 @@ final class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
         $request->session()->put('account.session_reference', bin2hex(random_bytes(16)));
-        $user->forceFill([
-            'previous_login_at' => $user->last_login_at,
-            'last_login_at' => now(),
-            'failed_login_attempts' => 0,
-            'locked_until' => null,
-        ])->save();
+        $this->activity->recordSuccessfulLogin($user);
         RateLimiter::clear($this->throttleKey($request));
-        $this->rbac->forgetUser($user);
-        $this->audit->record('auth.login', 'users', (string) $user->id);
 
         return redirect()->intended(route('dashboard', ['locale' => $request->route('locale')], false));
     }
@@ -77,8 +66,7 @@ final class AuthenticatedSessionController extends Controller
         $user = $request->user();
 
         if ($user !== null) {
-            $this->audit->record('auth.logout', 'users', (string) $user->id);
-            $this->rbac->forgetUser($user);
+            $this->activity->recordLogout($user);
         }
 
         Auth::guard()->logout();
@@ -113,9 +101,7 @@ final class AuthenticatedSessionController extends Controller
         }
 
         $user->save();
-        $this->audit->record('auth.login_failed', 'users', (string) $user->id, null, [
-            'reason' => 'invalid_credentials',
-        ]);
+        $this->activity->recordFailedLogin($user, 'invalid_credentials');
     }
 
     private function throttleKey(LoginRequest $request): string

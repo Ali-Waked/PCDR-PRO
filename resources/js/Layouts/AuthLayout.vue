@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { useI18n } from '../composables/useI18n'
 import { ANIMATED_LOGO_SRC, STATIC_LOGO_SRC, waitForAuthSurfaceReady } from '../Support/authIntro'
-import AdminToastProvider from '../Components/Dashboard/AdminToastProvider.vue'
 import LanguageSwitcher from '../Components/LanguageSwitcher.vue'
 
 const { t, direction, site } = useI18n()
@@ -43,7 +42,6 @@ onBeforeUnmount(() => {
 <template>
     <div class="pc-auth" :class="{ 'is-ready': isReady }" :dir="direction">
         <a href="#pc-auth-main" class="skip-link">{{ t('ui.skip_to_content') }}</a>
-        <AdminToastProvider>
 
         <section class="pc-auth__brand" aria-labelledby="pc-auth-intro">
             <span class="pc-auth__geometry" aria-hidden="true"></span>
@@ -78,6 +76,5 @@ onBeforeUnmount(() => {
                 </main>
             </div>
         </section>
-        </AdminToastProvider>
     </div>
 </template>
