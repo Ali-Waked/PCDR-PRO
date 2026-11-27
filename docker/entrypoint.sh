@@ -53,13 +53,16 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
     chmod 0664 "$DB_DATABASE"
 fi
 
-# Migrations only create/update schema; no seeders run here. For a shared
-# external database, set RUN_MIGRATIONS=0 and run migrations once separately.
-if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
+# Explicit preview initialization: migrations always run; seeders run only
+# once and only when PCDR_PREVIEW_INIT=true. No destructive commands are used.
+if [ "${RUN_INITIALIZATION:-1}" = "1" ]; then
+    echo "[entrypoint] Initializing preview database..."
+    su-exec www-data php artisan pcdr:preview:initialize --no-interaction
+elif [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
     echo "[entrypoint] Applying Laravel migrations (no seeding)..."
     su-exec www-data php artisan migrate --force --no-interaction
 else
-    echo "[entrypoint] Skipping migrations (RUN_MIGRATIONS != 1)."
+    echo "[entrypoint] Skipping database initialization."
 fi
 
 # Warm caches on every boot so runtime environment values are captured.

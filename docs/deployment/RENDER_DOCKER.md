@@ -111,7 +111,9 @@ Render injects `PORT`; the entrypoint renders nginx to listen on it. `EXPOSE
 | `SESSION_DRIVER` | `database` | Uses framework `sessions` table in SQLite. |
 | `QUEUE_CONNECTION` | `database` | Jobs are stored but **not executed** in this preview. |
 | `LOG_CHANNEL` | `stderr` | Sends Laravel logs to the Render log stream. |
-| `RUN_MIGRATIONS` | `1` | Default; applies migrations at boot, no seeding. |
+| `RUN_INITIALIZATION` | `1` | Default; runs `pcdr:preview:initialize` (migrations + opt-in preview seeding). |
+| `RUN_MIGRATIONS` | `1` | Fallback when `RUN_INITIALIZATION=0`; migrations only. |
+| `PCDR_PREVIEW_INIT` | `true` for the temporary preview | Explicit opt-in for one-time seeding; leave unset in real production. |
 
 Optional variables: `MAIL_MAILER=log` (default, no SMTP needed for preview),
 `APP_LOCALE=ar`, `APP_FALLBACK_LOCALE=en`, `PCDR_HIDDEN_MODULES_ACCESS=false`.
@@ -122,6 +124,36 @@ Deployment: connect the repository, select Docker runtime, add the variables
 above, and deploy. Rollback is a Render redeploy of the previous image; no
 database rollback is automatic.
 
+### Native PHP runtime (current preview)
+
+The observed failure `etc/nginx/conf.d/default.conf: nonexistent directory`
+shows that Render is **not** running this Docker image. That path is written
+only by `docker/entrypoint.sh` (line 20, the `envsubst` redirect) and the
+`/etc/nginx/conf.d` directory is created by the `nginx` apk package inside the
+image. It does not exist in Render's native PHP runtime. No nginx/Docker file
+was changed for that failure; use this native PHP configuration for the
+preview instead:
+
+| Render setting | Value |
+|---|---|
+| Runtime | Native PHP (not Docker) |
+| Build Command | `composer install --no-dev --prefer-dist --optimize-autoloader && npm ci --ignore-scripts && npm run build` |
+| Start Command | Below |
+| Health Check Path | `/up` |
+| Pre-Deploy Command / Shell / One-Off Jobs | Not used |
+
+**Exact Start Command:**
+
+```sh
+DB_FILE="${DB_DATABASE:-$PWD/database/database.sqlite}"; mkdir -p "$(dirname "$DB_FILE")"; touch "$DB_FILE"; php artisan pcdr:preview:initialize --no-interaction && php artisan serve --host=0.0.0.0 --port="${PORT:-8080}"
+```
+
+Set the same environment variables as in the table above (including
+`PCDR_PREVIEW_INIT=true` for the preview); `DB_DATABASE` may be left unset to
+use Laravel's `database_path('database.sqlite')` default. See
+`docs/deployment/PREVIEW_INITIALIZATION.md` for details, verification and
+failure handling.
+
 ---
 
 ## 4. SQLite limitations (read before using the preview)
@@ -131,8 +163,10 @@ database rollback is automatic.
   resets it on redeploy, restart, and after the service sleeps due to
   inactivity. **All content entered through the preview can disappear.**
 - Do not attach a persistent disk: the preview intentionally depends on none.
-- Do not seed real user data. The entrypoint only runs `migrate --force`; no
-  seeder is invoked.
+- Do not seed real user data. The entrypoint/Start Command runs
+  `pcdr:preview:initialize`, which applies migrations and seeds reference/demo
+  data **once per database** only with `PCDR_PREVIEW_INIT=true`. See
+  `docs/deployment/PREVIEW_INITIALIZATION.md`.
 - Do not run multiple instances/replicas. Each would get its own private
   SQLite database and sessions would not be shared.
 - Uploaded files under `storage/app/public` are equally ephemeral (`public/storage`
@@ -226,5 +260,6 @@ These must be run on a Docker-capable host before relying on the preview.
 | Data disappears | Expected with ephemeral SQLite on Render Free; see §4. |
 | 413 on upload | nginx/PHP limit is 10 MB (`client_max_body_size`, `upload_max_filesize`). |
 | Missing CSS/JS | Vite build failed (check the build log); the Bunny font plugin needs network access at build time. |
-| Migration failure at boot | Check the Render log stream; fix the migration and redeploy. Use `RUN_MIGRATIONS=0` for a shared DB. |
+| Migration failure at boot | Check the Render log stream; fix the migration and redeploy. Use `RUN_INITIALIZATION=0` (then `RUN_MIGRATIONS=0`) for a shared DB. |
+| `etc/nginx/conf.d/default.conf: nonexistent directory` | Render is using native PHP, not Docker. Use the native PHP Build/Start Commands above, or select the Docker runtime if the image is intended. No nginx file needs editing for this error. |
 | 503 on `/up` | Application is in maintenance mode; run `php artisan up` in the container/host. |
