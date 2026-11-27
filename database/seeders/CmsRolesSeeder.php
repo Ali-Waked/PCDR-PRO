@@ -62,8 +62,8 @@ final class CmsRolesSeeder extends Seeder
                 'description' => 'Manages the public website CMS, its content, inquiries and authorized users.',
                 'permissions' => array_values(array_unique(array_merge(
                     $view, $editContent, $publish, $inquiries, $complaints, $templates, $access,
-                    ['homepage.view', 'homepage.update', 'directory_partners.delete',
-                        'media.delete', 'settings.view', 'settings.update'],
+                    ['directory_partners.delete', 'media.delete', 'settings.view', 'settings.update',
+                        'website_structure.view', 'website_structure.update'],
                 ))),
             ],
             'content_editor' => [

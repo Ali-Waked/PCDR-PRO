@@ -45,6 +45,8 @@ return [
         'media.delete' => 'Delete media',
         'homepage.view' => 'View homepage sections',
         'homepage.update' => 'Edit homepage sections',
+        'website_structure.view' => 'View website pages and sections',
+        'website_structure.update' => 'Manage page and section visibility',
         'directory_partners.view' => 'View partners directory',
         'directory_partners.create' => 'Create partners directory entries',
         'directory_partners.update' => 'Edit partners directory entries',

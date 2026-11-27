@@ -12,6 +12,8 @@ final class AboutController extends PublicController
 {
     public function index(string $locale, PublicContentService $content): Response
     {
+        $this->assertPageVisible('about');
+
         $copy = $locale === 'ar'
             ? [
                 'title' => 'من نحن',
@@ -24,8 +26,9 @@ final class AboutController extends PublicController
 
         return Inertia::render('Public/About', [
             'about' => $content->about($locale),
-            'meta' => $this->seo(
+            'meta' => $this->pageSeo(
                 $locale,
+                'about',
                 $copy['title'],
                 $copy['description'],
                 path: "{$locale}/about",

@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Enums\ContentStatus;
+use App\Models\HomepageSection;
+use App\Models\WebsitePage;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Owns the predefined page/section registry and its presentation state.
+ * It never writes to content tables: visibility changes are reversible.
+ */
+final class WebsiteStructureService
+{
+    public function __construct(
+        private HomepageService $homepage,
+        private NavigationService $navigation,
+    ) {}
+
+    /** @return array{pages: list<array<string, mixed>>, sections: list<array<string, mixed>>} */
+    public function structure(string $locale): array
+    {
+        $registry = config('cms_structure.sections', []);
+        $pageRegistry = config('cms_structure.pages', []);
+
+        $sections = HomepageSection::query()
+            ->with(['translations', 'items.media.translations'])
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $pages = WebsitePage::query()
+            ->with('translations')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (WebsitePage $page) use ($locale, $pageRegistry, $registry, $sections): array {
+                $key = (string) $page->key;
+
+                return [
+                    'id' => (int) $page->id,
+                    'key' => $key,
+                    'path' => $page->path,
+                    'name' => $page->t('name', $locale) ?: ($pageRegistry[$key]['label'][$locale] ?? $key),
+                    'enabled' => (bool) $page->is_enabled,
+                    'order' => (int) $page->display_order,
+                    'sections' => $sections
+                        ->where('page_key', $key)
+                        ->values()
+                        ->map(fn (HomepageSection $section): array => $this->serializeSection($section, $locale, $registry))
+                        ->all(),
+                ];
+            })
+            ->all();
+
+        return [
+            'pages' => $pages,
+            'sections' => $sections
+                ->map(fn (HomepageSection $section): array => $this->serializeSection($section, $locale, $registry))
+                ->all(),
+        ];
+    }
+
+    public function setPageVisibility(WebsitePage $page, bool $enabled): WebsitePage
+    {
+        $page->update(['is_enabled' => $enabled]);
+        $this->flush();
+
+        return $page->refresh();
+    }
+
+    public function setSectionVisibility(HomepageSection $section, bool $enabled): HomepageSection
+    {
+        $section->update(['is_enabled' => $enabled]);
+        $this->flush();
+
+        return $section->refresh();
+    }
+
+    /** @param list<array{id: int, display_order: int}> $order */
+    public function reorderSections(array $order): void
+    {
+        DB::transaction(function () use ($order): void {
+            foreach ($order as $entry) {
+                HomepageSection::query()->findOrFail($entry['id'])->update([
+                    'display_order' => $entry['display_order'],
+                ]);
+            }
+        });
+
+        $this->flush();
+    }
+
+    private function flush(): void
+    {
+        $this->homepage->flush();
+        $this->navigation->flush();
+    }
+
+    /**
+     * @param  array<string, mixed>  $registry
+     * @return array<string, mixed>
+     */
+    private function serializeSection(HomepageSection $section, string $locale, array $registry): array
+    {
+        $key = (string) $section->key;
+        $definition = $registry[$key] ?? [];
+        $content = (string) ($definition['content'] ?? 'content');
+        $source = (string) ($definition['source'] ?? '');
+
+        return [
+            'id' => (int) $section->id,
+            'key' => $key,
+            'pageKey' => (string) $section->page_key,
+            'name' => ($definition['label'][$locale] ?? $section->t('title', $locale)) ?: $key,
+            'content' => $content,
+            'source' => $source,
+            'enabled' => (bool) $section->is_enabled,
+            'status' => $section->status instanceof ContentStatus ? $section->status->value : (string) $section->status,
+            'order' => (int) $section->display_order,
+            'recordCount' => $section->items->count(),
+            'manageUrl' => route('cms.content.index', ['locale' => $locale, 'section' => $key]),
+        ];
+    }
+}

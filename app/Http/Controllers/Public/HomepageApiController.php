@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Public\HomepageResource;
+use App\Models\WebsitePage;
 use App\Services\HomepageService;
 use App\Services\SiteSettings;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,8 @@ final class HomepageApiController extends Controller
 {
     public function __invoke(Request $request, HomepageService $homepage, SiteSettings $settings): JsonResponse
     {
+        abort_unless(WebsitePage::isVisible('home'), 404);
+
         $validated = $request->validate([
             'locale' => ['sometimes', 'string', 'in:'.implode(',', config('website.locales', ['ar', 'en']))],
         ]);

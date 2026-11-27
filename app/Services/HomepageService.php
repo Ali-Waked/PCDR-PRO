@@ -5,9 +5,19 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ContentStatus;
+use App\Models\Article;
+use App\Models\DirectoryPartner;
 use App\Models\HomepageSection;
 use App\Models\HomepageSectionItem;
 use App\Models\Media;
+use App\Models\Page;
+use App\Models\Program;
+use App\Models\Project;
+use App\Models\Publication;
+use App\Models\StrategicPillar;
+use App\Models\WebsitePage;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -40,12 +50,44 @@ final class HomepageService
             ->with($this->relations());
 
         if (! $includeUnpublished) {
-            $query->published();
+            $query->published()->where('is_enabled', true);
+            $this->applyVisiblePages($query);
         }
 
         $section = $query->first();
 
-        return $section ? $this->serializeSection($section, $locale) : null;
+        if ($section === null) {
+            return null;
+        }
+
+        $sections = new EloquentCollection([$section]);
+        $this->preloadResolutions($sections);
+
+        return $this->serializeSection($section, $locale, $includeUnpublished);
+    }
+
+    /**
+     * A single section for internal public pages. It honours section and item
+     * visibility but does not inherit the homepage page-level flag.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function visibleSection(string $key, string $locale): ?array
+    {
+        $section = HomepageSection::query()
+            ->where('key', $key)
+            ->published()
+            ->where('is_enabled', true)
+            ->with($this->relations())
+            ->first();
+
+        if ($section === null) {
+            return null;
+        }
+
+        $this->preloadResolutions(new EloquentCollection([$section]));
+
+        return $this->serializeSection($section, $locale, false);
     }
 
     public function flush(): void
@@ -84,14 +126,45 @@ final class HomepageService
 
         if (! $includeUnpublished) {
             $query->published();
+            $this->applyVisiblePages($query);
         }
 
-        return $query
+        /** @var EloquentCollection<int, HomepageSection> $sections */
+        $sections = $query
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get()
-            ->map(fn (HomepageSection $section) => $this->serializeSection($section, $locale))
+            ->get();
+
+        $this->preloadResolutions($sections);
+
+        $payload = $sections
+            ->map(fn (HomepageSection $section) => $this->serializeSection($section, $locale, $includeUnpublished))
             ->all();
+
+        return $this->mergePresentationSections($payload, $locale);
+    }
+
+    /**
+     * Restrict public sections to visible predefined pages. Installations
+     * without the page registry keep their existing public pages.
+     *
+     * @param  Builder<HomepageSection>  $query
+     */
+    private function applyVisiblePages(Builder $query): void
+    {
+        $allKeys = WebsitePage::query()->pluck('key')->all();
+
+        if ($allKeys === []) {
+            return;
+        }
+
+        $visibleKeys = WebsitePage::query()->visible()->pluck('key')->all();
+
+        $query->where(static function (Builder $query) use ($allKeys, $visibleKeys): void {
+            $query->whereIn('page_key', $visibleKeys)
+                ->orWhereNotIn('page_key', $allKeys)
+                ->orWhereNull('page_key');
+        });
     }
 
     private function cacheKey(string $locale, bool $onlyEnabled, bool $includeUnpublished): string
@@ -104,10 +177,186 @@ final class HomepageService
         );
     }
 
+    /** @param EloquentCollection<int, HomepageSection> $sections */
+    private function preloadResolutions(EloquentCollection $sections): void
+    {
+        $items = $sections->pluck('items')->flatten()->filter(
+            static fn (HomepageSectionItem $item): bool => ! $item->isInline() && $item->item_id !== null,
+        );
+
+        foreach ($items->groupBy('item_type') as $type => $group) {
+            $modelClass = match ((string) $type) {
+                'article' => Article::class,
+                'project' => Project::class,
+                'pillar' => StrategicPillar::class,
+                'program' => Program::class,
+                'partner' => DirectoryPartner::class,
+                'publication' => Publication::class,
+                'page' => Page::class,
+                default => null,
+            };
+
+            if ($modelClass === null) {
+                continue;
+            }
+
+            /** @var class-string<Model> $modelClass */
+            $relations = match ((string) $type) {
+                'article' => ['translations', 'cover'],
+                'project' => ['translations', 'featuredImage'],
+                'pillar' => ['translations', 'featuredImage'],
+                'program' => ['translations', 'featuredImage'],
+                'partner' => ['translations', 'logo'],
+                default => ['translations'],
+            };
+
+            $records = $modelClass::query()
+                ->published()
+                ->whereIn('id', $group->pluck('item_id')->all())
+                ->with($relations)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($group as $item) {
+                $item->useResolved($records->get((int) $item->item_id));
+            }
+        }
+    }
+
+    /**
+     * The public prototype renders several required sections inside one
+     * component. Merge canonical child sections into those presentation
+     * containers in the backend so independent visibility stays server-side.
+     *
+     * @param  list<array<string, mixed>>  $sections
+     * @return list<array<string, mixed>>
+     */
+    private function mergePresentationSections(array $sections, string $locale): array
+    {
+        $merges = (array) config('cms_structure.presentation_merges', []);
+
+        if ($merges === []) {
+            return $sections;
+        }
+
+        $result = $sections;
+        $indexes = [];
+
+        foreach ($result as $index => $section) {
+            $indexes[(string) ($section['key'] ?? '')] = $index;
+        }
+
+        foreach ($merges as $targetKey => $sourceKeys) {
+            $sources = [];
+
+            foreach ((array) $sourceKeys as $sourceKey) {
+                $sourceIndex = $indexes[(string) $sourceKey] ?? null;
+                if ($sourceIndex !== null) {
+                    $sources[] = $result[$sourceIndex];
+                }
+            }
+
+            if ($sources === []) {
+                continue;
+            }
+
+            $targetIndex = $indexes[(string) $targetKey] ?? null;
+
+            if ($targetIndex === null) {
+                $target = $this->syntheticSection((string) $targetKey, $sources[0], $locale);
+                $result[] = $target;
+                $indexes[(string) $targetKey] = array_key_last($result);
+                $targetIndex = $indexes[(string) $targetKey];
+            }
+
+            /** @var array<string, mixed> $target */
+            $target = $result[$targetIndex];
+            $tabLabels = is_array($target['tabLabels'] ?? null) ? $target['tabLabels'] : [];
+
+            foreach ($sources as $source) {
+                foreach (is_array($source['tabLabels'] ?? null) ? $source['tabLabels'] : [] as $key => $label) {
+                    if (! array_key_exists($key, $tabLabels)) {
+                        $tabLabels[$key] = $label;
+                    }
+                }
+            }
+
+            foreach ($this->defaultTabLabels((string) $targetKey, $locale) as $key => $label) {
+                if (! array_key_exists($key, $tabLabels)) {
+                    $tabLabels[$key] = $label;
+                }
+            }
+
+            $items = array_merge(
+                is_array($target['items'] ?? null) ? $target['items'] : [],
+                ...array_map(static fn (array $source): array => is_array($source['items'] ?? null) ? $source['items'] : [], $sources),
+            );
+
+            usort($items, static function (array $first, array $second): int {
+                return [(int) ($first['sortOrder'] ?? 0), (int) ($first['id'] ?? 0)]
+                    <=> [(int) ($second['sortOrder'] ?? 0), (int) ($second['id'] ?? 0)];
+            });
+
+            $target['items'] = $items;
+            $target['tabLabels'] = $tabLabels;
+            $result[$targetIndex] = $target;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $source
+     * @return array<string, mixed>
+     */
+    private function syntheticSection(string $key, array $source, string $locale): array
+    {
+        $registry = (array) config('cms_structure.sections.'.$key, []);
+
+        return [
+            'id' => -abs(crc32($key)),
+            'key' => $key,
+            'type' => $key,
+            'status' => 'published',
+            'publishedAt' => null,
+            'enabled' => true,
+            'order' => (int) ($source['order'] ?? 0),
+            'eyebrow' => $source['eyebrow'] ?? null,
+            'title' => $source['title'] ?? ($registry['label'][$locale] ?? $key),
+            'body' => $source['body'] ?? null,
+            'ctaLabel' => null,
+            'ctaLink' => null,
+            'tickerLabel' => null,
+            'tabLabels' => $this->defaultTabLabels($key, $locale),
+            'videoUrl' => null,
+            'videoCaption' => null,
+            'items' => [],
+        ];
+    }
+
+    /** @return array<string, string> */
+    private function defaultTabLabels(string $key, string $locale): array
+    {
+        $arabic = $locale === 'ar';
+
+        return match ($key) {
+            'about' => [
+                'mission' => $arabic ? 'الرسالة' : 'Mission',
+                'objectives' => $arabic ? 'الأهداف' : 'Objectives',
+                'vision' => $arabic ? 'الرؤية' : 'Vision',
+            ],
+            'news' => [
+                'news' => $arabic ? 'الأخبار' : 'News',
+                'projects' => $arabic ? 'المشاريع' : 'Projects',
+            ],
+            default => [],
+        };
+    }
+
     /**
      * @return array<string, mixed>
      */
-    private function serializeSection(HomepageSection $section, string $locale): array
+    private function serializeSection(HomepageSection $section, string $locale, bool $includeUnpublished): array
     {
         $status = $section->status instanceof ContentStatus
             ? $section->status->value
@@ -131,7 +380,7 @@ final class HomepageService
             'videoUrl' => $this->safeLink($this->translated($section, 'video_url', $locale)),
             'videoCaption' => $this->translated($section, 'video_caption', $locale),
             'items' => $section->items
-                ->filter(fn (HomepageSectionItem $item) => (bool) $item->is_published)
+                ->filter(fn (HomepageSectionItem $item) => $includeUnpublished || $item->isEligibleNow())
                 ->sortBy(fn (HomepageSectionItem $item) => [(int) $item->sort_order, (int) $item->id])
                 ->map(fn (HomepageSectionItem $item) => $this->serializeItem($item, $locale))
                 ->filter()
@@ -177,16 +426,22 @@ final class HomepageService
             return null;
         }
 
+        $fallbackMedia = $model->cover ?? $model->featuredImage ?? $model->logo ?? null;
+
         return [
             'id' => (int) $model->id,
             'key' => $item->item_key ?: $item->item_type.'-'.$model->id,
             'type' => $item->item_type,
             'sortOrder' => (int) $item->sort_order,
-            'title' => $this->translated($model, 'title', $locale),
-            'label' => $this->translated($model, 'short_title', $locale) ?? $this->translated($model, 'title', $locale),
-            'body' => $this->translated($model, 'summary', $locale) ?? $this->translated($model, 'description', $locale),
+            'title' => $this->translated($model, 'title', $locale) ?? $this->translated($model, 'name', $locale),
+            'label' => $this->translated($model, 'short_title', $locale)
+                ?? $this->translated($model, 'title', $locale)
+                ?? $this->translated($model, 'name', $locale),
+            'body' => $this->translated($model, 'summary', $locale)
+                ?? $this->translated($model, 'description', $locale)
+                ?? $this->translated($model, 'excerpt', $locale),
             'display' => null,
-            'url' => null,
+            'url' => $this->publicRecordUrl((string) $item->item_type, $locale),
             'value' => null,
             'tab' => $item->tab,
             'featured' => (bool) $item->is_featured,
@@ -195,9 +450,21 @@ final class HomepageService
             'ctaLabel' => $this->translated($item, 'cta_label', $locale),
             'caption' => $this->translated($item, 'caption', $locale),
             'unit' => $this->translated($item, 'unit', $locale),
-            'media' => $media,
+            'media' => $media ?? $this->serializeMedia($fallbackMedia, $locale),
             'published' => true,
         ];
+    }
+
+    private function publicRecordUrl(string $type, string $locale): ?string
+    {
+        $path = match ($type) {
+            'article' => 'media',
+            'project', 'pillar', 'program' => 'programs',
+            'partner' => 'partners',
+            default => null,
+        };
+
+        return $path === null ? null : $this->safeLink('/'.$locale.'/'.$path);
     }
 
     /**

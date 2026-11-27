@@ -12,6 +12,8 @@ final class MediaCenterController extends PublicController
 {
     public function index(string $locale, PublicContentService $content): Response
     {
+        $this->assertPageVisible('media_center');
+
         $copy = $locale === 'ar'
             ? [
                 'title' => 'المركز الإعلامي',
@@ -24,8 +26,9 @@ final class MediaCenterController extends PublicController
 
         return Inertia::render('Public/MediaCenter', [
             'media' => $content->mediaCenter($locale),
-            'meta' => $this->seo(
+            'meta' => $this->pageSeo(
                 $locale,
+                'media_center',
                 $copy['title'],
                 $copy['description'],
                 path: "{$locale}/media",

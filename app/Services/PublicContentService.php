@@ -9,6 +9,7 @@ use App\Models\Media;
 use App\Models\Program;
 use App\Models\Project;
 use App\Models\StrategicPillar;
+use App\Models\WebsiteOrganization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
@@ -32,27 +33,56 @@ final class PublicContentService
      */
     public function about(string $locale): array
     {
-        $section = $this->homepage->section('about', $locale);
+        $section = $this->homepage->visibleSection('about', $locale);
         $items = $this->sectionItems($section);
+
+        foreach (['vision_mission', 'objectives'] as $sectionKey) {
+            $items = array_merge($items, $this->sectionItems($this->homepage->visibleSection($sectionKey, $locale)));
+        }
+
+        $organization = WebsiteOrganization::query()->with(['translations', 'logo.translations'])->first();
+        $translation = $organization?->translate($locale);
         $configOverview = (string) config('website.description.'.$locale, '');
-        $body = $this->text($section, 'body') ?: $configOverview;
+        $body = ($translation?->description ?: null)
+            ?? $this->text($section, 'body')
+            ?? $configOverview;
+        $title = $this->text($section, 'title')
+            ?? ($translation?->title ?: null)
+            ?? $this->defaultTitle($locale, 'من نحن', 'About us');
+
+        $vision = $this->textItem($items, 'vision', (string) config('website.vision.'.$locale, ''));
+        $mission = $this->textItem($items, 'mission', (string) config('website.mission.'.$locale, ''));
+
+        if (filled($translation?->vision)) {
+            $vision = [
+                'title' => $translation->vision_title ?: $vision['title'],
+                'body' => $translation->vision,
+            ];
+        }
+
+        if (filled($translation?->mission)) {
+            $mission = [
+                'title' => $translation->mission_title ?: $mission['title'],
+                'body' => $translation->mission,
+            ];
+        }
 
         return [
-            'title' => $this->text($section, 'title') ?: $this->defaultTitle($locale, 'من نحن', 'About us'),
+            'title' => $title,
             'eyebrow' => $this->text($section, 'eyebrow'),
             'body' => $body,
             'overview' => [
-                'title' => $this->text($section, 'title') ?: $this->defaultTitle($locale, 'من نحن', 'About us'),
+                'title' => $title,
                 'body' => $body,
             ],
-            'vision' => $this->textItem($items, 'vision', (string) config('website.vision.'.$locale, '')),
-            'mission' => $this->textItem($items, 'mission', (string) config('website.mission.'.$locale, '')),
+            'vision' => $vision,
+            'mission' => $mission,
             'objectives' => $this->namedItems($items, ['objective-', 'goal-']),
             'board' => $this->namedItems($items, ['board-']),
             'achievements' => $this->namedItems($items, ['achievement-', 'stat-']),
             'values' => $this->namedItems($items, ['value-']),
             'pillars' => $this->publishedPillars($locale),
-            'image' => $this->firstImage($items, $locale),
+            'image' => $this->firstImage($items, $locale) ?? $this->serializeMedia($organization?->logo, $locale),
         ];
     }
 
@@ -152,7 +182,7 @@ final class PublicContentService
     public function contact(string $locale): array
     {
         $details = $this->settings->contactDetails($locale);
-        $footer = $this->homepage->section('footer', $locale);
+        $footer = $this->homepage->visibleSection('footer', $locale);
         $footerItems = $this->sectionItems($footer);
 
         $socialLinks = $this->footerSocialLinks($footerItems);
@@ -293,7 +323,7 @@ final class PublicContentService
      */
     private function homepageCollection(string $key, string $locale): array
     {
-        $section = $this->homepage->section($key, $locale);
+        $section = $this->homepage->visibleSection($key, $locale);
 
         return [
             'title' => $this->text($section, 'title'),

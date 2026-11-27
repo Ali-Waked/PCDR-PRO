@@ -367,6 +367,7 @@ return [
         'platform_settings' => 'Platform settings',
         'cms_dashboard' => 'Content dashboard',
         'homepage' => 'Homepage',
+        'content_management' => 'Content Management',
         'pillars' => 'Strategic pillars',
         'programs' => 'Programmes',
         'projects' => 'Projects',

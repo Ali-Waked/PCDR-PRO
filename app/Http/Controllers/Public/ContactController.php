@@ -17,6 +17,8 @@ final class ContactController extends PublicController
 {
     public function index(string $locale, PublicContentService $content): Response
     {
+        $this->assertPageVisible('contact');
+
         $copy = $locale === 'ar'
             ? [
                 'title' => 'اتصل بنا',
@@ -29,8 +31,9 @@ final class ContactController extends PublicController
 
         return Inertia::render('Public/Contact', [
             'contact' => $content->contact($locale),
-            'meta' => $this->seo(
+            'meta' => $this->pageSeo(
                 $locale,
+                'contact',
                 $copy['title'],
                 $copy['description'],
                 path: "{$locale}/contact",
@@ -43,6 +46,8 @@ final class ContactController extends PublicController
         StoreContactMessageRequest $request,
         InquiryMailService $mailService,
     ): RedirectResponse {
+        $this->assertPageVisible('contact');
+
         $validated = $request->validated();
 
         $message = ContactMessage::query()->create([

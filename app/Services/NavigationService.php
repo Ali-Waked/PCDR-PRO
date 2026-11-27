@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\NavigationItem;
 use App\Models\NavigationMenu;
+use App\Models\WebsitePage;
 use Illuminate\Support\Facades\Cache;
 
 final class NavigationService
@@ -20,6 +21,7 @@ final class NavigationService
                 $result[$menu->key] = $menu->items
                     ->where('is_enabled', true)
                     ->whereNull('parent_id')
+                    ->filter(fn (NavigationItem $item) => WebsitePage::isPathVisible((string) $item->resolvedUrl($locale)))
                     ->map(fn (NavigationItem $item) => $this->serialize($item, $locale))
                     ->values()
                     ->all();
@@ -37,6 +39,7 @@ final class NavigationService
             'url' => $item->resolvedUrl($locale),
             'external' => $item->link_type === 'external',
             'children' => $item->children->where('is_enabled', true)
+                ->filter(fn (NavigationItem $child) => WebsitePage::isPathVisible((string) $child->resolvedUrl($locale)))
                 ->map(fn (NavigationItem $child) => $this->serialize($child, $locale))
                 ->values()
                 ->all(),

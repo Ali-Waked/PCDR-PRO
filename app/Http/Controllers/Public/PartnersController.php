@@ -15,6 +15,8 @@ final class PartnersController extends PublicController
 
     public function __invoke(string $locale, Request $request): Response
     {
+        $this->assertPageVisible('partners');
+
         $category = trim($request->string('category')->toString());
         $category = mb_strcut($category, 0, 120);
 
@@ -23,8 +25,9 @@ final class PartnersController extends PublicController
 
         return Inertia::render('Public/Partners', [
             'directory' => $this->directory->overview($locale, $category !== '' ? $category : null),
-            'meta' => $this->seo(
+            'meta' => $this->pageSeo(
                 $locale,
+                'partners',
                 $title,
                 $description,
                 path: "{$locale}/partners",

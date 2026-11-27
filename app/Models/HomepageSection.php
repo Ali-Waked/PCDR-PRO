@@ -18,7 +18,7 @@ class HomepageSection extends Model
     use Publishable;
 
     protected $fillable = [
-        'key', 'type', 'status', 'published_at', 'is_enabled', 'display_order',
+        'key', 'page_key', 'type', 'status', 'published_at', 'is_enabled', 'display_order',
     ];
 
     protected function casts(): array

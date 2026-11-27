@@ -32,6 +32,7 @@ $supported = [
     'pillars.view', 'pillars.create', 'pillars.update', 'pillars.delete', 'pillars.publish',
     'media.view', 'media.upload', 'media.update', 'media.delete',
     'homepage.view', 'homepage.update',
+    'website_structure.view', 'website_structure.update',
     'directory_partners.view', 'directory_partners.create', 'directory_partners.update',
     'directory_partners.delete', 'directory_partners.publish', 'directory_partners.unpublish',
     'inquiries.view', 'inquiries.view_all', 'inquiries.view_assigned',
@@ -58,7 +59,7 @@ $moduleFor = static function (string $key): string {
         'users', 'roles', 'permissions' => 'iam',
         'settings', 'audit_logs', 'audit_archives' => 'platform',
         'news', 'programs', 'projects', 'publications', 'pillars', 'media',
-        'homepage', 'directory_partners', 'inquiries', 'complaints', 'email_templates' => 'website',
+        'homepage', 'website_structure', 'directory_partners', 'inquiries', 'complaints', 'email_templates' => 'website',
         'content' => 'content',
         'locations', 'interventions', 'activities', 'distributions', 'inventory',
         'volunteers', 'committees', 'partners', 'partner_contacts', 'grants',
@@ -152,6 +153,7 @@ $arabicResources = [
     'pillars' => 'المحاور الاستراتيجية',
     'media' => 'الوسائط',
     'homepage' => 'الصفحة الرئيسية',
+    'website_structure' => 'هيكل الموقع',
     'directory_partners' => 'دليل الشركاء',
     'inquiries' => 'الاستفسارات',
     'complaints' => 'الشكاوى',
@@ -308,6 +310,9 @@ $definitions = [
 
     'homepage.view' => ['View homepage content', false],
     'homepage.update' => ['Edit homepage content', false],
+
+    'website_structure.view' => ['View website pages and sections', false],
+    'website_structure.update' => ['Manage website page and section visibility', false],
 
     'directory_partners.view' => ['View partners directory', false],
     'directory_partners.create' => ['Create partners directory entries', false],

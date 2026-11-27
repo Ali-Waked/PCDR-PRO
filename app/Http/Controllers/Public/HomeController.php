@@ -12,9 +12,17 @@ final class HomeController extends PublicController
 {
     public function __invoke(string $locale, HomepageService $homepage): Response
     {
+        $this->assertPageVisible('home');
+
         return Inertia::render('Public/Home', [
             'sections' => $homepage->sections($locale),
-            'meta' => $this->seo($locale, (string) config("website.slogan.{$locale}"), path: "{$locale}"),
+            'meta' => $this->pageSeo(
+                $locale,
+                'home',
+                (string) config("website.slogan.{$locale}"),
+                (string) config("website.description.{$locale}", ''),
+                path: "{$locale}",
+            ),
         ]);
     }
 }

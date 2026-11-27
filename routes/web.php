@@ -32,7 +32,9 @@ use App\Http\Controllers\Cms\PreviewController;
 use App\Http\Controllers\Cms\ProgramController as CmsProgramController;
 use App\Http\Controllers\Cms\ProjectController as CmsProjectController;
 use App\Http\Controllers\Cms\PublicationController as CmsPublicationController;
+use App\Http\Controllers\Cms\SectionContentController;
 use App\Http\Controllers\Cms\SettingController;
+use App\Http\Controllers\Cms\StructureController;
 use App\Http\Controllers\Phase5\WebhookController;
 use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\ComplaintController as PublicComplaintController;
@@ -52,6 +54,11 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetWebsiteLocale;
 use App\Services\SiteSettings;
 use Illuminate\Support\Facades\Route;
+
+$sectionPattern = implode('|', array_map(
+    static fn (string $key): string => preg_quote($key, '/'),
+    array_keys((array) config('cms_structure.sections', [])),
+));
 
 Route::get('/', function () {
     $locale = app(SiteSettings::class)->value(
@@ -83,7 +90,7 @@ Route::post('/webhooks/inbound/{integration:key}', [WebhookController::class, 'i
 
 Route::prefix('{locale}')
     ->where(['locale' => 'ar|en'])
-    ->group(function (): void {
+    ->group(function () use ($sectionPattern): void {
         // Single route registration: a duplicate same-URI route overwrites the
         // method/URI match and can drop the earlier name from the route collection.
         Route::get('/', HomeController::class)->name('public.home');
@@ -103,7 +110,7 @@ Route::prefix('{locale}')
             ->middleware('throttle:10,5')
             ->name('public.complaints.store');
 
-        Route::prefix('cms')->name('cms.')->group(function (): void {
+        Route::prefix('cms')->name('cms.')->group(function () use ($sectionPattern): void {
             Route::middleware('throttle:10,5')->group(function (): void {
                 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
                 Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
@@ -113,7 +120,7 @@ Route::prefix('{locale}')
             // Every CMS route is protected by the `cms` middleware below,
             // which redirects guests to the real localized `cms.login` route.
             // Account status is enforced before permission evaluation.
-            Route::middleware('account.active')->group(function (): void {
+            Route::middleware('account.active')->group(function () use ($sectionPattern): void {
                 Route::get('/', DashboardController::class)->middleware('cms:pillars.view')->name('dashboard');
 
                 // Structured homepage management: predefined sections only. There are
@@ -130,6 +137,33 @@ Route::prefix('{locale}')
                     ->middleware('cms:homepage.update')->name('homepage.status');
                 Route::post('/homepage/{homepageSection}/toggle', [CmsHomepageController::class, 'toggle'])
                     ->middleware('cms:homepage.update')->name('homepage.toggle');
+
+                // Centralized website structure: fixed pages and sections only.
+                Route::get('/content-management', [StructureController::class, 'index'])
+                    ->middleware('cms:website_structure.view')->name('content-management.index');
+                Route::patch('/content-management/pages/{websitePage:key}/toggle', [StructureController::class, 'togglePage'])
+                    ->middleware('cms:website_structure.update')->name('content-management.pages.toggle');
+                Route::patch('/content-management/sections/{homepageSection:key}/toggle', [StructureController::class, 'toggleSection'])
+                    ->middleware('cms:website_structure.update')->name('content-management.sections.toggle');
+                Route::post('/content-management/sections/reorder', [StructureController::class, 'reorder'])
+                    ->middleware('cms:website_structure.update')->name('content-management.sections.reorder');
+
+                // Typed content editing for predefined sections. The route
+                // constraint prevents arbitrary section identifiers.
+                Route::get('/content/{section}', [SectionContentController::class, 'index'])
+                    ->middleware('cms:homepage.view')->name('content.index')->where('section', $sectionPattern);
+                Route::post('/content/{section}', [SectionContentController::class, 'store'])
+                    ->middleware('cms:homepage.update')->name('content.store')->where('section', $sectionPattern);
+                Route::post('/content/{section}/reorder', [SectionContentController::class, 'reorder'])
+                    ->middleware('cms:homepage.update')->name('content.reorder')->where('section', $sectionPattern);
+                Route::put('/content/{section}/organization', [SectionContentController::class, 'organization'])
+                    ->middleware('cms:homepage.update')->name('content.organization')->where('section', $sectionPattern);
+                Route::put('/content/{section}/{sectionItem}', [SectionContentController::class, 'update'])
+                    ->middleware('cms:homepage.update')->name('content.update')->where('section', $sectionPattern);
+                Route::delete('/content/{section}/{sectionItem}', [SectionContentController::class, 'destroy'])
+                    ->middleware('cms:homepage.update')->name('content.destroy')->where('section', $sectionPattern);
+                Route::patch('/content/{section}/{sectionItem}/toggle', [SectionContentController::class, 'toggle'])
+                    ->middleware('cms:homepage.update')->name('content.toggle')->where('section', $sectionPattern);
 
                 Route::middleware('cms:pillars.view')->group(function (): void {
                     Route::get('/pillars', [CmsPillarController::class, 'index'])->name('pillars.index');
