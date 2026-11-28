@@ -3,22 +3,30 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import CmsDashboardLayout from '../../../Layouts/CmsDashboardLayout.vue'
 import CmsPagination from '../../../Components/Dashboard/CmsPagination.vue'
-import EmptyState from '../../../Components/Dashboard/EmptyState.vue'
 import MetricCard from '../../../Components/Dashboard/MetricCard.vue'
-import SelectionControl from '../../../Components/Selection/SelectionControl.vue'
 import UiIcon from '../../../Components/Dashboard/UiIcon.vue'
+import MediaDetailsPanel from '../../../Components/Cms/Media/MediaDetailsPanel.vue'
+import MediaEmptyState from '../../../Components/Cms/Media/MediaEmptyState.vue'
+import MediaFilters from '../../../Components/Cms/Media/MediaFilters.vue'
+import MediaGrid from '../../../Components/Cms/Media/MediaGrid.vue'
+import MediaUploadZone from '../../../Components/Cms/Media/MediaUploadZone.vue'
 import { useI18n } from '../../../composables/useI18n'
 import { useAdminNotifications } from '../../../composables/useAdminNotifications'
+import { previewMode } from '../../../Support/mediaKind'
 
 const props = defineProps({
     items: { type: Array, default: () => [] },
     pagination: { type: Object, required: true },
     filters: {
         type: Object,
-        default: () => ({ type: '', visibility: '', q: '', sort: 'newest' }),
+        default: () => ({
+            type: '', kind: '', visibility: '', q: '', date_from: '', date_to: '', sort: 'newest',
+        }),
     },
     stats: { type: Object, default: () => ({ all: 0, images: 0, documents: 0, restricted: 0 }) },
+    kindOptions: { type: Array, default: () => [] },
     sortOptions: { type: Array, default: () => [] },
+    uploadFormats: { type: Object, default: () => ({ image: [], document: [], maxKb: 10240 }) },
     can: {
         type: Object,
         default: () => ({ view: true, upload: false, update: false, delete: false }),
@@ -29,10 +37,16 @@ const { t, localPath } = useI18n()
 const { confirmDelete, finishConfirmation, notify } = useAdminNotifications()
 const basePath = localPath('cms/media')
 
-const searchQuery = ref(props.filters?.q || '')
-const selectedType = ref(props.filters?.type || '')
-const selectedVisibility = ref(props.filters?.visibility || '')
-const selectedSort = ref(props.filters?.sort || 'newest')
+const filters = ref({
+    q: props.filters?.q || '',
+    type: props.filters?.type || '',
+    kind: props.filters?.kind || '',
+    visibility: props.filters?.visibility || '',
+    date_from: props.filters?.date_from || '',
+    date_to: props.filters?.date_to || '',
+    sort: props.filters?.sort || 'newest',
+    view: 'grid',
+})
 
 const typeOptions = computed(() => [
     { value: 'image', label: t('cms_media_type_image', 'Image') },
@@ -45,14 +59,57 @@ const visibilityOptions = computed(() => [
 ])
 
 const hasFilters = computed(() => Boolean(
-    searchQuery.value || selectedType.value || selectedVisibility.value || selectedSort.value !== 'newest',
+    filters.value.q
+    || filters.value.type
+    || filters.value.kind
+    || filters.value.visibility
+    || filters.value.date_from
+    || filters.value.date_to
+    || filters.value.sort !== 'newest',
 ))
 
-watch(() => props.filters, (filters) => {
-    searchQuery.value = filters?.q || ''
-    selectedType.value = filters?.type || ''
-    selectedVisibility.value = filters?.visibility || ''
-    selectedSort.value = filters?.sort || 'newest'
+const emptyState = computed(() => {
+    const total = Number(props.pagination?.total ?? 0)
+    const currentPage = Number(props.pagination?.currentPage ?? 1)
+    const lastPage = Number(props.pagination?.lastPage ?? 1)
+
+    if (total > 0 && currentPage > lastPage) {
+        return {
+            title: t('cms_media_invalid_page_title'),
+            message: t('cms_media_invalid_page_message'),
+            icon: 'refresh',
+            reset: true,
+        }
+    }
+
+    if (total === 0 && ! hasFilters.value) {
+        return {
+            title: t('cms_media_empty_library_title'),
+            message: t('cms_media_empty_library_message'),
+            icon: 'image',
+            reset: false,
+        }
+    }
+
+    return {
+        title: t('cms_media_empty_title'),
+        message: t('cms_media_empty_message'),
+        icon: 'search',
+        reset: true,
+    }
+})
+
+watch(() => props.filters, (value) => {
+    filters.value = {
+        ...filters.value,
+        q: value?.q || '',
+        type: value?.type || '',
+        kind: value?.kind || '',
+        visibility: value?.visibility || '',
+        date_from: value?.date_from || '',
+        date_to: value?.date_to || '',
+        sort: value?.sort || 'newest',
+    }
 }, { deep: true })
 
 function visitOptions() {
@@ -61,18 +118,18 @@ function visitOptions() {
 
 function submitFilters() {
     router.get(basePath, {
-        q: searchQuery.value,
-        type: selectedType.value,
-        visibility: selectedVisibility.value,
-        sort: selectedSort.value,
+        q: filters.value.q,
+        type: filters.value.type,
+        kind: filters.value.kind,
+        visibility: filters.value.visibility,
+        date_from: filters.value.date_from,
+        date_to: filters.value.date_to,
+        sort: filters.value.sort,
     }, visitOptions())
 }
 
 function clearFilters() {
-    searchQuery.value = ''
-    selectedType.value = ''
-    selectedVisibility.value = ''
-    selectedSort.value = 'newest'
+    filters.value = { ...filters.value, q: '', type: '', kind: '', visibility: '', date_from: '', date_to: '', sort: 'newest' }
     router.get(basePath, {}, visitOptions())
 }
 
@@ -85,13 +142,15 @@ const upload = useForm({
     },
 })
 
-const uploadAccept = computed(() => upload.is_restricted
-    ? '.pdf,.doc,.docx,.xls,.xlsx,.txt'
-    : '.jpg,.jpeg,.png,.webp')
+const editForm = useForm({
+    translations: {
+        ar: { alt_text: '', caption: '' },
+        en: { alt_text: '', caption: '' },
+    },
+})
 
-const fileInput = ref(null)
-const editing = ref(null)
 const detailsId = ref(null)
+const editing = ref(null)
 const signedLinks = ref({})
 const copiedId = ref(null)
 const previewItem = ref(null)
@@ -99,19 +158,7 @@ const previewUrl = ref('')
 const previewDialog = ref(null)
 let previousFocus = null
 
-watch(() => upload.is_restricted, () => {
-    upload.file = null
-    if (fileInput.value) {
-        fileInput.value.value = ''
-    }
-})
-
-const editForm = useForm({
-    translations: {
-        ar: { alt_text: '', caption: '' },
-        en: { alt_text: '', caption: '' },
-    },
-})
+const activePreviewMode = computed(() => previewMode(previewItem.value || {}))
 
 function submitUpload() {
     if (! props.can.upload) {
@@ -123,15 +170,16 @@ function submitUpload() {
         onSuccess: () => {
             upload.reset()
             upload.is_restricted = false
-            if (fileInput.value) {
-                fileInput.value.value = ''
-            }
         },
     })
 }
 
-function translatedValue(item, code, field) {
-    return item.translations?.[code]?.[field] ?? (field === 'alt_text' ? item.alt : item.caption) ?? ''
+function detailItem() {
+    return props.items.find((item) => item.id === detailsId.value) || null
+}
+
+function detailsUrl(item) {
+    return item?.accessUrl || item?.url || signedLinks.value[item?.id] || ''
 }
 
 function toggleDetails(item) {
@@ -139,6 +187,10 @@ function toggleDetails(item) {
     if (detailsId.value !== item.id) {
         editing.value = null
     }
+}
+
+function translatedValue(item, code, field) {
+    return item.translations?.[code]?.[field] ?? (field === 'alt_text' ? item.alt : item.caption) ?? ''
 }
 
 function openEditor(item) {
@@ -191,14 +243,17 @@ function signedLink(item) {
             return data.url
         })
         .catch(() => {
-            signedLinks.value[item.id] = ''
             notify.error(t('ui.notification.server_message'), t('ui.notification.server_title'))
             return ''
         })
 }
 
+async function resolveUrl(item) {
+    return detailsUrl(item) || await signedLink(item)
+}
+
 async function copyUrl(item) {
-    const url = item.url || await signedLink(item)
+    const url = await resolveUrl(item)
     if (! url) {
         return
     }
@@ -211,6 +266,21 @@ async function copyUrl(item) {
         copiedId.value = null
         notify.error(t('cms_media_copy_failed'))
     }
+}
+
+async function download(item) {
+    const url = await resolveUrl(item)
+    if (! url) {
+        return
+    }
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = item.name || 'file'
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
 }
 
 function previewFocusables() {
@@ -274,13 +344,11 @@ onBeforeUnmount(() => {
 })
 
 async function openPreview(item) {
-    if (! item.restricted && item.url) {
-        previewItem.value = item
-        previewUrl.value = item.url
+    if (previewMode(item) === '') {
         return
     }
 
-    const url = await signedLink(item)
+    const url = await resolveUrl(item)
     if (! url) {
         return
     }
@@ -292,10 +360,6 @@ async function openPreview(item) {
 function closePreview() {
     previewItem.value = null
     previewUrl.value = ''
-}
-
-function detailItem() {
-    return props.items.find((item) => item.id === detailsId.value) || null
 }
 </script>
 
@@ -320,38 +384,9 @@ function detailItem() {
                         <p class="pc-card__subtitle">{{ t('cms_upload_hint') }}</p>
                     </div>
                 </div>
-                <form class="pc-card__body pc-form-grid" @submit.prevent="submitUpload">
-                    <label class="pc-field">
-                        <span class="pc-label">{{ t('cms_upload') }} <span class="pc-required" aria-hidden="true">*</span></span>
-                        <input
-                            ref="fileInput"
-                            class="pc-input"
-                            type="file"
-                            :accept="uploadAccept"
-                            required
-                            @change="upload.file = $event.target.files[0]"
-                        >
-                        <span v-if="upload.errors.file" class="pc-error" role="alert">{{ upload.errors.file }}</span>
-                    </label>
-                    <label class="pc-checkbox pc-field--action">
-                        <input v-model="upload.is_restricted" type="checkbox">
-                        <span>{{ t('cms_restricted_file') }}</span>
-                    </label>
-                    <label v-for="code in ['ar', 'en']" :key="`upload-alt-${code}`" class="pc-field">
-                        <span class="pc-label">{{ code === 'ar' ? t('cms_arabic') : t('cms_english') }} — {{ t('ui.alt_text') }}</span>
-                        <input v-model="upload.translations[code].alt_text" class="pc-input" type="text" maxlength="255">
-                    </label>
-                    <label v-for="code in ['ar', 'en']" :key="`upload-${code}`" class="pc-field">
-                        <span class="pc-label">{{ code === 'ar' ? t('cms_arabic') : t('cms_english') }} — {{ t('ui.cms_description') }}</span>
-                        <input v-model="upload.translations[code].caption" class="pc-input" type="text" maxlength="500">
-                    </label>
-                    <div class="pc-form-actions">
-                        <button class="pc-btn pc-btn--primary" type="submit" :disabled="upload.processing" :aria-busy="upload.processing">
-                            <UiIcon name="upload" :size="16" />
-                            {{ t('cms_upload') }}
-                        </button>
-                    </div>
-                </form>
+                <div class="pc-card__body">
+                    <MediaUploadZone :form="upload" :formats="uploadFormats" :can-upload="can.upload" @submit="submitUpload" />
+                </div>
             </section>
 
             <section class="pc-card" aria-labelledby="media-library-title">
@@ -364,197 +399,52 @@ function detailItem() {
                 </div>
 
                 <div class="pc-card__body pc-stack">
-                    <form class="pc-form-grid" role="search" @submit.prevent="submitFilters">
-                        <label class="pc-field">
-                            <span class="pc-label">{{ t('ui.search') }}</span>
-                            <input v-model="searchQuery" class="pc-input" type="search" name="q">
-                        </label>
-                        <div class="pc-field">
-                            <SelectionControl
-                                v-model="selectedType"
-                                :label="t('cms_type', t('ui.status'))"
-                                name="type"
-                                :options="typeOptions"
-                                :placeholder="t('ui.all')"
-                                clearable
-                                :searchable="false"
-                            />
-                        </div>
-                        <div class="pc-field">
-                            <SelectionControl
-                                v-model="selectedVisibility"
-                                :label="t('cms_media_visibility', 'Visibility')"
-                                name="visibility"
-                                :options="visibilityOptions"
-                                :placeholder="t('ui.all')"
-                                clearable
-                                :searchable="false"
-                            />
-                        </div>
-                        <div class="pc-field">
-                            <SelectionControl
-                                v-model="selectedSort"
-                                :label="t('ui.cms_content_page.sort', '')"
-                                name="sort"
-                                :options="sortOptions"
-                                :searchable="false"
-                            />
-                        </div>
-                        <div class="pc-field pc-field--action pc-table__actions">
-                            <button class="pc-btn pc-btn--secondary" type="submit">
-                                <UiIcon name="search" :size="16" />
-                                {{ t('ui.search') }}
-                            </button>
-                            <button class="pc-btn pc-btn--ghost" type="button" :disabled="!hasFilters" @click="clearFilters">
-                                <UiIcon name="refresh" :size="16" />
-                                {{ t('ui.cms_content_page.clear_filters', '') }}
-                            </button>
-                        </div>
-                    </form>
+                    <MediaFilters
+                        v-model="filters"
+                        :type-options="typeOptions"
+                        :kind-options="kindOptions"
+                        :visibility-options="visibilityOptions"
+                        :sort-options="sortOptions"
+                        :has-filters="hasFilters"
+                        @submit="submitFilters"
+                        @clear="clearFilters"
+                    />
 
-                    <div v-if="items.length" class="pc-media-grid">
-                        <article v-for="item in items" :key="item.id" class="pc-media-tile">
-                            <div class="pc-media-tile__thumb">
-                                <img
-                                    v-if="item.type === 'image' && item.url"
-                                    :src="item.url"
-                                    :alt="item.alt || item.name"
-                                    loading="lazy"
-                                >
-                                <UiIcon v-else :name="item.restricted ? 'lock' : 'file'" :size="30" />
-                            </div>
-                            <div class="pc-media-tile__body">
-                                <span class="pc-media-tile__name">{{ item.name }}</span>
-                                <span class="pc-list__meta" dir="ltr">{{ item.size }} · {{ item.mime }}</span>
-                                <div class="pc-table__actions">
-                                    <span
-                                        class="pc-badge"
-                                        :class="item.restricted ? 'pc-badge--sand' : 'pc-badge--teal'"
-                                    >
-                                        <UiIcon v-if="item.restricted" name="lock" :size="12" />
-                                        {{ item.restricted ? t('cms_restricted_file') : t('ui.published') }}
-                                    </span>
-                                    <span class="pc-badge pc-badge--slate">{{ t(`cms_media_type_${item.type}`, item.type) }}</span>
-                                </div>
+                    <MediaEmptyState v-if="!items.length" :state="emptyState" @clear="clearFilters" />
+                    <MediaGrid
+                        v-else
+                        :items="items"
+                        :view="filters.view"
+                        :links="signedLinks"
+                        :can="can"
+                        @details="toggleDetails"
+                        @preview="openPreview"
+                        @download="download"
+                        @copy="copyUrl"
+                        @remove="remove"
+                    />
 
-                                <div class="pc-table__actions">
-                                    <button
-                                        class="pc-btn pc-btn--secondary pc-btn--sm"
-                                        type="button"
-                                        :aria-expanded="detailsId === item.id ? 'true' : 'false'"
-                                        @click="toggleDetails(item)"
-                                    >
-                                        <UiIcon name="info" :size="14" />
-                                        {{ t('cms_media_details', 'Details') }}
-                                    </button>
-                                    <button class="pc-btn pc-btn--ghost pc-btn--sm" type="button" @click="openPreview(item)">
-                                        <UiIcon name="eye" :size="14" />
-                                        {{ t('cms_preview') }}
-                                    </button>
-                                    <button class="pc-btn pc-btn--ghost pc-btn--sm" type="button" @click="copyUrl(item)">
-                                        <UiIcon name="copy" :size="14" />
-                                        {{ t('cms_media_copy_url', 'Copy URL') }}
-                                    </button>
-                                    <button
-                                        v-if="can.delete"
-                                        class="pc-btn pc-btn--danger pc-btn--sm"
-                                        type="button"
-                                        @click="remove(item)"
-                                    >
-                                        <UiIcon name="trash" :size="14" />
-                                        {{ t('ui.delete') }}
-                                    </button>
-                                </div>
-                                <span v-if="copiedId === item.id" class="pc-hint" role="status">{{ t('cms_media_copied', '') }}</span>
-                            </div>
-                        </article>
-                    </div>
-                    <EmptyState v-else :title="t('cms_no_records')" :message="t('cms_upload_hint')" icon="image" />
+                    <span v-if="copiedId && items.some((item) => item.id === copiedId)" class="pc-hint" role="status">
+                        {{ t('cms_media_copied') }}
+                    </span>
 
-                    <section
+                    <MediaDetailsPanel
                         v-if="detailItem()"
                         :key="detailItem().id"
-                        class="pc-card pc-media-details"
-                        :aria-label="t('cms_media_details', 'File details')"
-                    >
-                        <div class="pc-card__head">
-                            <div>
-                                <h2 class="pc-card__title">{{ detailItem().name }}</h2>
-                                <p class="pc-card__subtitle" dir="ltr">{{ detailItem().mime }}</p>
-                            </div>
-                            <button class="pc-icon-button" type="button" :aria-label="t('cms_close', t('ui.cancel'))" @click="detailsId = null">
-                                <UiIcon name="close" :size="16" />
-                            </button>
-                        </div>
-                        <div class="pc-card__body pc-stack">
-                            <dl class="pc-detail-list">
-                                <div class="pc-detail-list__item">
-                                    <dt>{{ t('cms_type', t('ui.status')) }}</dt>
-                                    <dd>{{ t(`cms_media_type_${detailItem().type}`, detailItem().type) }}</dd>
-                                </div>
-                                <div class="pc-detail-list__item">
-                                    <dt>{{ t('cms_media_visibility', 'Visibility') }}</dt>
-                                    <dd>{{ detailItem().restricted ? t('cms_media_visibility_restricted', 'Restricted') : t('cms_media_visibility_public', 'Public') }}</dd>
-                                </div>
-                                <div class="pc-detail-list__item">
-                                    <dt>{{ t('ui.alt_text') }}</dt>
-                                    <dd>{{ detailItem().alt || '—' }}</dd>
-                                </div>
-                                <div class="pc-detail-list__item">
-                                    <dt>{{ t('ui.cms_description') }}</dt>
-                                    <dd>{{ detailItem().caption || '—' }}</dd>
-                                </div>
-                                <div v-if="detailItem().width && detailItem().height" class="pc-detail-list__item">
-                                    <dt>{{ t('cms_media_details', 'Dimensions') }}</dt>
-                                    <dd dir="ltr">{{ detailItem().width }} × {{ detailItem().height }}</dd>
-                                </div>
-                            </dl>
-
-                            <div class="pc-table__actions">
-                                <a v-if="detailItem().url" class="pc-btn pc-btn--secondary pc-btn--sm" :href="detailItem().url" target="_blank" rel="noopener noreferrer">
-                                    <UiIcon name="download" :size="14" />
-                                    {{ t('open_original') }}
-                                </a>
-                                <button class="pc-btn pc-btn--ghost pc-btn--sm" type="button" @click="copyUrl(detailItem())">
-                                    <UiIcon name="copy" :size="14" />
-                                    {{ t('cms_media_copy_url', 'Copy URL') }}
-                                </button>
-                                <button v-if="can.update" class="pc-btn pc-btn--secondary pc-btn--sm" type="button" @click="openEditor(detailItem())">
-                                    <UiIcon name="edit" :size="14" />
-                                    {{ t('ui.edit') }}
-                                </button>
-                            </div>
-
-                            <input
-                                v-if="signedLinks[detailItem().id]"
-                                class="pc-input"
-                                type="text"
-                                dir="ltr"
-                                readonly
-                                :value="signedLinks[detailItem().id]"
-                                :aria-label="t('cms_signed_link')"
-                                @focus="$event.target.select()"
-                            >
-
-                            <form v-if="can.update && editing === detailItem().id" class="pc-form-grid pc-form-grid--2 pc-picker" @submit.prevent="saveEditor">
-                                <label v-for="code in ['ar', 'en']" :key="`edit-alt-${code}`" class="pc-field">
-                                    <span class="pc-label">{{ code === 'ar' ? t('cms_arabic') : t('cms_english') }} — {{ t('ui.alt_text') }}</span>
-                                    <input v-model="editForm.translations[code].alt_text" class="pc-input" type="text" maxlength="255">
-                                </label>
-                                <label v-for="code in ['ar', 'en']" :key="`edit-${code}`" class="pc-field">
-                                    <span class="pc-label">{{ code === 'ar' ? t('cms_arabic') : t('cms_english') }} — {{ t('ui.cms_description') }}</span>
-                                    <input v-model="editForm.translations[code].caption" class="pc-input" type="text" maxlength="500">
-                                </label>
-                                <div class="pc-form-actions">
-                                    <button class="pc-btn pc-btn--primary pc-btn--sm" type="submit">
-                                        <UiIcon name="check" :size="14" />
-                                        {{ t('cms_save') }}
-                                    </button>
-                                    <button class="pc-btn pc-btn--ghost pc-btn--sm" type="button" @click="editing = null">{{ t('cms_close', t('ui.cancel')) }}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </section>
+                        :item="detailItem()"
+                        :url="detailsUrl(detailItem())"
+                        :can="can"
+                        :editing="editing === detailItem().id"
+                        :edit-form="editForm"
+                        @close="detailsId = null"
+                        @preview="openPreview(detailItem())"
+                        @download="download(detailItem())"
+                        @copy="copyUrl(detailItem())"
+                        @open-editor="openEditor(detailItem())"
+                        @save="saveEditor"
+                        @cancel-edit="editing = null"
+                        @remove="remove(detailItem())"
+                    />
 
                     <CmsPagination :pagination="pagination" />
                 </div>
@@ -565,17 +455,36 @@ function detailItem() {
             <div ref="previewDialog" class="pc-modal pc-modal--wide" role="dialog" aria-modal="true" :aria-label="t('cms_preview')" tabindex="-1">
                 <div class="pc-modal__head">
                     <h2 class="pc-modal__title">{{ previewItem?.name }}</h2>
-                    <button class="pc-icon-button" type="button" :aria-label="t('cms_close', t('ui.cancel'))" @click="closePreview">
+                    <button class="pc-icon-button" type="button" :aria-label="t('cms_close')" @click="closePreview">
                         <UiIcon name="close" :size="16" />
                     </button>
                 </div>
-                <div class="pc-modal__body">
+                <div class="pc-modal__body pc-media-preview">
                     <img
-                        v-if="previewItem?.type === 'image'"
+                        v-if="activePreviewMode === 'image'"
                         class="pc-media-preview-image"
                         :src="previewUrl"
                         :alt="previewItem?.alt || previewItem?.name"
                     >
+                    <iframe
+                        v-else-if="activePreviewMode === 'pdf'"
+                        class="pc-media-preview-frame"
+                        :src="previewUrl"
+                        :title="previewItem?.name || t('cms_media_preview_pdf')"
+                    />
+                    <video
+                        v-else-if="activePreviewMode === 'video'"
+                        class="pc-media-preview-media"
+                        :src="previewUrl"
+                        controls
+                        playsinline
+                    />
+                    <audio
+                        v-else-if="activePreviewMode === 'audio'"
+                        class="pc-media-preview-audio"
+                        :src="previewUrl"
+                        controls
+                    />
                     <a v-else class="pc-btn pc-btn--secondary" :href="previewUrl" target="_blank" rel="noopener noreferrer">
                         <UiIcon name="download" :size="16" />
                         {{ t('open_original') }}

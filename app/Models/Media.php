@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\MediaKind;
 use App\Enums\MediaType;
 use App\Models\Concerns\HasTranslations;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,6 +61,23 @@ class Media extends Model
         return $query->where('type', MediaType::Document->value);
     }
 
+    public function scopeKind(Builder $query, string $kind): Builder
+    {
+        $resolved = MediaKind::tryFrom($kind);
+
+        if ($resolved === null || $resolved === MediaKind::Other) {
+            foreach (MediaKind::cases() as $case) {
+                if ($case !== MediaKind::Other) {
+                    $this->applyKindConstraint($query, $case, true);
+                }
+            }
+
+            return $query;
+        }
+
+        return $this->applyKindConstraint($query, $resolved, false);
+    }
+
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('is_restricted', false);
@@ -73,6 +91,44 @@ class Media extends Model
     public function isImage(): bool
     {
         return $this->type === MediaType::Image;
+    }
+
+    public function kind(): MediaKind
+    {
+        return MediaKind::fromMetadata((string) $this->mime_type, $this->extension);
+    }
+
+    public function canPreview(): bool
+    {
+        return $this->kind()->isPreviewable((string) $this->mime_type);
+    }
+
+    private function applyKindConstraint(Builder $query, MediaKind $kind, bool $exclude): Builder
+    {
+        $constraint = function (Builder $inner) use ($kind): void {
+            $mimes = $kind->mimes();
+            if ($mimes !== []) {
+                $inner->whereIn('mime_type', $mimes);
+            }
+
+            foreach ($kind->mimePrefixes() as $prefix) {
+                $inner->orWhere('mime_type', 'like', $prefix.'%');
+            }
+
+            $extensions = $kind->extensions();
+            if ($extensions !== []) {
+                $inner->orWhere(function (Builder $fallback) use ($extensions): void {
+                    $fallback->whereIn('extension', $extensions)
+                        ->where(function (Builder $generic): void {
+                            $generic->whereNull('mime_type')
+                                ->orWhere('mime_type', '')
+                                ->orWhere('mime_type', 'application/octet-stream');
+                        });
+                });
+            }
+        };
+
+        return $exclude ? $query->whereNot($constraint) : $query->where($constraint);
     }
 
     public function url(): string

@@ -699,6 +699,8 @@ abstract class ContentController extends Controller
                     : $media->url(),
                 'alt' => $media->t('alt_text', app()->getLocale()),
                 'type' => $media->type->value,
+                'kind' => $media->kind()->value,
+                'extension' => strtolower((string) $media->extension) ?: ($media->kind()->extensions()[0] ?? ''),
                 'restricted' => $media->is_restricted,
                 'size' => $media->humanSize(),
             ])

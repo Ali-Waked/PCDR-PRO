@@ -179,7 +179,7 @@ async function revokeOthers() {
                     <p class="pc-hint">{{ t('account_profile.required_current_password') }}</p>
                 </form>
 
-                <DataTable :columns="columns">
+                <DataTable :columns="columns" :empty="!props.sessions.data?.length">
                     <tr v-for="session in props.sessions.data" :key="session.reference">
                         <td>{{ labelFor('device', session.device) }}</td>
                         <td>{{ labelFor('browser', session.browser) }}</td>

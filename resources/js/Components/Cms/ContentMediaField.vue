@@ -1,7 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import UiIcon from '../Dashboard/UiIcon.vue'
+import MediaVisual from './Media/MediaVisual.vue'
 import { useI18n } from '../../composables/useI18n'
+import { previewMode } from '../../Support/mediaKind'
 
 const props = defineProps({
     modelValue: { type: [String, Number], default: '' },
@@ -43,7 +45,7 @@ watch(() => props.modelValue, () => {
 })
 
 function isImage(item) {
-    return !item.type || item.type === 'image'
+    return item && previewMode(item) === 'image'
 }
 
 function choose(item) {
@@ -73,11 +75,11 @@ function clear() {
         </div>
 
         <div class="pc-content-media__current">
-            <span v-if="selected?.url && isImage(selected)" class="pc-media-cover">
-                <img :src="selected.url" :alt="selected.alt || selected.name" loading="lazy">
+            <span v-if="selected" class="pc-content-media__visual">
+                <MediaVisual :item="selected" :src="selected.url" variant="list" />
             </span>
             <span v-else class="pc-content-media__placeholder" aria-hidden="true">
-                <UiIcon :name="selected ? 'file' : (accept === 'document' ? 'file' : 'image')" :size="18" />
+                <UiIcon :name="accept === 'document' ? 'file' : 'image'" :size="18" />
             </span>
             <span class="pc-content-media__name">{{ selected?.name || labels.select }}</span>
             <span v-if="selected?.restricted" class="pc-badge pc-badge--sand">
@@ -102,8 +104,7 @@ function clear() {
                     @click="choose(item)"
                 >
                     <span class="pc-media-cover pc-content-media__thumbnail">
-                        <img v-if="isImage(item) && item.url" :src="item.url" :alt="item.alt || item.name" loading="lazy">
-                        <UiIcon v-else :name="item.restricted ? 'lock' : 'file'" :size="20" />
+                        <MediaVisual :item="item" :src="item.url" variant="list" />
                     </span>
                     <span class="pc-content-media__name">{{ item.name }}</span>
                     <span class="pc-content-media__insert">{{ labels.insert }}</span>

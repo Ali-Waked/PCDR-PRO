@@ -184,6 +184,53 @@ final class MediaPublicDeliveryTest extends TestCase
         }
     }
 
+    public function test_restricted_library_items_keep_null_url_and_signed_download_requires_permission(): void
+    {
+        $this->loginAsBootstrap();
+        Storage::fake('private');
+
+        $path = 'media/private-library-test.pdf';
+        Storage::disk('private')->put($path, 'confidential');
+
+        $media = Media::factory()->create([
+            'uuid' => 'private-library-test',
+            'disk' => 'private',
+            'path' => $path,
+            'type' => 'document',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'original_name' => 'private-library-test.pdf',
+            'is_restricted' => true,
+        ]);
+
+        try {
+            $this->get(route('cms.media.index', ['locale' => 'ar', 'q' => 'private-library-test.pdf']))
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+                    ->where('items.0.id', $media->getKey())
+                    ->where('items.0.restricted', true)
+                    ->where('items.0.url', null)
+                    ->where('items.0.accessUrl', fn ($url): bool => str_contains((string) $url, 'signature='))
+                    ->where('items.0.canPreview', true));
+
+            $signedUrl = $this->get(route('cms.media.signed', [
+                'locale' => 'ar',
+                'media' => $media->getKey(),
+            ]))->assertOk()->json('url');
+
+            $this->assertIsString($signedUrl);
+            $this->assertStringContainsString('signature=', $signedUrl);
+            $this->assertStringNotContainsString('/storage/', $signedUrl);
+
+            $this->get($signedUrl)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+            auth()->logout();
+            $this->get($signedUrl)->assertForbidden();
+        } finally {
+            Storage::disk('private')->delete($path);
+        }
+    }
+
     private function loginAsBootstrap(): User
     {
         $user = User::factory()->create([

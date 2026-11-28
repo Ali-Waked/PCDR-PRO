@@ -13,6 +13,7 @@ use App\Services\RbacService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
@@ -399,5 +400,193 @@ final class UserManagementWorkflowTest extends TestCase
         $this->assertStringContainsString('inline-size: 100%;', $mobileCss);
         $this->assertStringContainsString('.pc-table__actions {', $mobileCss);
         $this->assertStringContainsString('flex-wrap: wrap;', $mobileCss);
+    }
+
+    public function test_index_lists_existing_users_with_accurate_inertia_props(): void
+    {
+        $owner = $this->owner();
+        User::factory()->create(['name' => 'Indexed First', 'email' => 'indexed-first@example.test']);
+        User::factory()->create(['name' => 'Indexed Second', 'email' => 'indexed-second@example.test']);
+
+        $this->actingAs($owner)->get('/ar/admin/users')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('Admin/Users/Index')
+                ->where('users.total', 3)
+                ->where('users.per_page', 15)
+                ->where('users.data', fn ($rows): bool => count($rows) === 3
+                    && collect($rows)->pluck('name')->contains('Indexed First')
+                    && collect($rows)->pluck('name')->contains('Indexed Second'))
+                ->where('filters', fn ($filters): bool => $filters['search'] === ''
+                    && $filters['status'] === ''
+                    && $filters['role'] === ''
+                    && $filters['sort'] === 'created_at'
+                    && $filters['direction'] === 'desc')
+                ->where('counts.total', 3)
+                ->where('counts.active', 3)
+                ->where('statusOptions', fn ($options): bool => count($options) === 3));
+
+        $table = (string) file_get_contents(base_path('resources/js/Components/Dashboard/DataTable.vue'));
+        $source = (string) file_get_contents(base_path('resources/js/Pages/Admin/Users/Index.vue'));
+
+        $this->assertStringContainsString('v-if="empty && $slots.empty"', $table);
+        $this->assertStringContainsString(':empty="!resultCount"', $source);
+        $this->assertStringContainsString('emptyState.title', $source);
+    }
+
+    public function test_index_search_filters_sort_and_paginate_without_losing_records(): void
+    {
+        $owner = $this->owner();
+        $role = Role::create(['key' => 'operator', 'name' => 'Operator']);
+
+        for ($number = 1; $number <= 18; $number++) {
+            $status = $number % 3 === 0 ? User::STATUS_SUSPENDED
+                : ($number % 2 === 0 ? User::STATUS_INACTIVE : User::STATUS_ACTIVE);
+
+            $user = User::factory()->create([
+                'name' => sprintf('Indexed %02d', $number),
+                'email' => sprintf('indexed%02d@example.test', $number),
+                'status' => $status,
+                'created_at' => now()->subDays(30 - $number),
+            ]);
+
+            if ($number <= 3) {
+                $user->roles()->attach($role);
+            }
+        }
+
+        $this->actingAs($owner)->get('/ar/admin/users')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 19)
+                ->where('users.current_page', 1)
+                ->where('users.last_page', 2)
+                ->where('users.data', fn ($rows): bool => count($rows) === 15));
+
+        $this->actingAs($owner)->get('/ar/admin/users?page=2')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 19)
+                ->where('users.current_page', 2)
+                ->where('users.data', fn ($rows): bool => count($rows) === 4));
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=Indexed%2018')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 1)
+                ->where('filters.search', 'Indexed 18')
+                ->where('users.data.0.email', 'indexed18@example.test'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=indexed07@example.test')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 1)
+                ->where('users.data.0.name', 'Indexed 07'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?status=suspended')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 6)
+                ->where('filters.status', 'suspended'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?role=operator')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 3)
+                ->where('filters.role', 'operator'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=Indexed&sort=name&direction=asc')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 18)
+                ->where('users.data.0.name', 'Indexed 01')
+                ->where('filters.sort', 'name')
+                ->where('filters.direction', 'asc'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=Indexed&sort=name&direction=desc')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.data.0.name', 'Indexed 18'));
+    }
+
+    public function test_index_empty_states_distinguish_no_matches_filters_and_invalid_pages(): void
+    {
+        $owner = $this->owner();
+        $role = Role::create(['key' => 'operator', 'name' => 'Operator']);
+
+        foreach (['Alpha One', 'Alpha Two', 'Beta Three'] as $name) {
+            $user = User::factory()->create(['name' => $name, 'email' => Str::slug($name).'@example.test']);
+            $user->roles()->attach($role);
+        }
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=does-not-exist')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 0)
+                ->where('users.data', []));
+
+        $this->actingAs($owner)->get('/ar/admin/users?role=operator&search=does-not-exist')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 0)
+                ->where('filters.role', 'operator'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?role=operator&status=suspended')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 0)
+                ->where('filters.status', 'suspended')
+                ->where('filters.role', 'operator'));
+
+        $this->actingAs($owner)->get('/ar/admin/users?page=9')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 4)
+                ->where('users.current_page', 9)
+                ->where('users.data', []));
+
+        $this->actingAs($owner)->get('/ar/admin/users')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 4)
+                ->where('users.data', fn ($rows): bool => count($rows) === 4));
+
+        foreach ([
+            'no_users_title',
+            'search_no_results',
+            'filter_no_results',
+            'invalid_page',
+            'reset_filters',
+        ] as $key) {
+            $this->assertNotSame('', (string) __("ui.users_page.{$key}", [], 'ar'));
+            $this->assertNotSame('', (string) __("ui.users_page.{$key}", [], 'en'));
+        }
+    }
+
+    public function test_index_excludes_soft_deleted_users_and_preserves_authorization(): void
+    {
+        $owner = $this->owner();
+        $removed = User::factory()->create(['name' => 'Removed Account', 'email' => 'removed@example.test']);
+        $expired = User::factory()->create(['name' => 'Expired Role', 'email' => 'expired@example.test']);
+        $role = Role::create(['key' => 'temporary', 'name' => 'Temporary']);
+        $expired->roles()->attach($role, ['expires_at' => now()->subDay()]);
+        $removed->delete();
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=Removed%20Account')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 0)
+                ->where('users.data', []));
+
+        $this->actingAs($owner)->get('/ar/admin/users?search=Expired%20Role')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('users.total', 1)
+                ->where('users.data.0.roles', []));
+
+        $this->assertDatabaseHas('users', ['id' => $removed->id]);
+        $this->assertNotNull($removed->fresh()->deleted_at);
+
+        $this->actingAs(User::factory()->create())->get('/ar/admin/users')->assertForbidden();
     }
 }

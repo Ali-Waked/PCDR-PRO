@@ -68,14 +68,37 @@ final class UserController extends Controller
     public function index(string $locale, Request $request): Response
     {
         $search = $request->string('search')->trim()->toString();
+        $status = in_array($request->string('status')->toString(), [
+            User::STATUS_ACTIVE,
+            User::STATUS_INACTIVE,
+            User::STATUS_SUSPENDED,
+        ], true) ? $request->string('status')->toString() : '';
+
+        $role = $request->string('role')->trim()->toString();
+        if (preg_match('/^[a-z0-9_.-]{1,80}$/i', $role) !== 1) {
+            $role = '';
+        }
+
+        $sort = in_array($request->string('sort')->toString(), ['created_at', 'name', 'status'], true)
+            ? $request->string('sort')->toString()
+            : 'created_at';
+        $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
+
+        $escapedSearch = addcslashes($search, '\\%_');
 
         $users = User::query()
-            ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void {
-                $inner->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+            ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($escapedSearch): void {
+                $inner->whereRaw("name LIKE ? ESCAPE '\\'", ["%{$escapedSearch}%"])
+                    ->orWhereRaw("email LIKE ? ESCAPE '\\'", ["%{$escapedSearch}%"]);
             }))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($role !== '', fn ($query) => $query->whereHas(
+                'roles',
+                fn ($query) => $query->where('roles.key', $role),
+            ))
             ->with('roles')
-            ->orderByDesc('created_at')
+            ->orderBy($sort, $direction)
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString()
             ->through(fn (User $user) => [
@@ -92,7 +115,24 @@ final class UserController extends Controller
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
-            'filters' => ['search' => $search],
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'role' => $role,
+                'sort' => $sort,
+                'direction' => $direction,
+            ],
+            'statusOptions' => collect([
+                User::STATUS_ACTIVE,
+                User::STATUS_INACTIVE,
+                User::STATUS_SUSPENDED,
+            ])->map(fn (string $key): array => [
+                'value' => $key,
+                'label' => __("ui.users_page.status_{$key}", [], $locale),
+            ])->all(),
+            'roleOptions' => Role::query()->orderBy('name')->get(['key', 'name'])
+                ->map(fn (Role $item): array => ['value' => $item->key, 'label' => $item->name])
+                ->all(),
             'counts' => [
                 'total' => User::query()->count(),
                 'active' => User::query()->where('status', User::STATUS_ACTIVE)->count(),

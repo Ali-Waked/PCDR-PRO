@@ -10,12 +10,13 @@ use App\Models\WebsiteSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 final class DeleteMedia
 {
     public function handle(Media $media): void
     {
-        if ($this->isReferenced($media)) {
+        if ($this->usage($media)['count'] > 0) {
             throw new MediaInUseException($media->id);
         }
 
@@ -26,19 +27,30 @@ final class DeleteMedia
         });
     }
 
-    private function isReferenced(Media $media): bool
+    /**
+     * @return array{count: int, locations: list<array{label: string, count: int}>}
+     */
+    public function usage(Media $media): array
     {
-        if (WebsiteSetting::query()
-            ->where('key', 'footer.video.poster_media_id')
-            ->where('value', (string) $media->id)
-            ->exists()) {
-            return true;
-        }
+        $locations = [];
 
         foreach (['page_media', 'pillar_media', 'project_media', 'article_media', 'publication_media'] as $pivot) {
-            if (Schema::hasTable($pivot) && DB::table($pivot)->where('media_id', $media->id)->exists()) {
-                return true;
+            if (! Schema::hasTable($pivot)) {
+                continue;
             }
+
+            $count = (int) DB::table($pivot)->where('media_id', $media->id)->count();
+            if ($count > 0) {
+                $locations[] = ['label' => Str::headline($pivot), 'count' => $count];
+            }
+        }
+
+        $posterUsage = WebsiteSetting::query()
+            ->where('key', 'footer.video.poster_media_id')
+            ->where('value', (string) $media->id)
+            ->count();
+        if ($posterUsage > 0) {
+            $locations[] = ['label' => 'Website Settings · Footer video poster', 'count' => $posterUsage];
         }
 
         $columns = [
@@ -69,12 +81,23 @@ final class DeleteMedia
                 continue;
             }
             foreach ($fields as $field) {
-                if (Schema::hasColumn($table, $field) && DB::table($table)->where($field, $media->id)->exists()) {
-                    return true;
+                if (! Schema::hasColumn($table, $field)) {
+                    continue;
+                }
+
+                $count = (int) DB::table($table)->where($field, $media->id)->count();
+                if ($count > 0) {
+                    $locations[] = [
+                        'label' => Str::headline($table).' · '.Str::headline($field),
+                        'count' => $count,
+                    ];
                 }
             }
         }
 
-        return false;
+        return [
+            'count' => array_sum(array_column($locations, 'count')),
+            'locations' => $locations,
+        ];
     }
 }

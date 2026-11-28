@@ -342,7 +342,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="access-roles-table">
-                <DataTable :columns="roleColumns">
+                <DataTable :columns="roleColumns" :empty="!filteredRoles.length">
                     <tr v-for="role in filteredRoles" :key="role.id">
                         <td class="pc-table__primary">
                             <strong>{{ role.name }}</strong>

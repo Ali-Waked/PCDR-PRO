@@ -78,7 +78,7 @@ function decode(value) {
             </div>
 
             <div class="pc-card__body--flush">
-                <DataTable :columns="columns">
+                <DataTable :columns="columns" :empty="!props.activity.data?.length">
                     <tr v-for="row in props.activity.data" :key="row.id">
                         <td>
                             <div class="pc-stack" style="gap: 2px">

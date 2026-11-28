@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Cms;
 
 use App\Actions\DeleteMedia;
 use App\Actions\UploadMedia;
+use App\Enums\MediaKind;
 use App\Exceptions\MediaInUseException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadMediaRequest;
@@ -13,6 +14,7 @@ use App\Models\Media;
 use App\Services\AuditService;
 use App\Services\CmsAccess;
 use App\Services\HomepageService;
+use DateTimeImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +42,27 @@ final class MediaController extends Controller
         return $user !== null && app(CmsAccess::class)->allows($user, $permission);
     }
 
+    private function parseDate(string $value): ?string
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date !== false && $date->format('Y-m-d') === $value ? $value : null;
+    }
+
+    private function displayExtension(Media $media): string
+    {
+        $extension = strtolower((string) $media->extension);
+        if (preg_match('/^[a-z0-9]{1,8}$/', $extension) === 1) {
+            return $extension;
+        }
+
+        return $media->kind()->extensions()[0] ?? '';
+    }
+
     public function index(string $locale, Request $request): Response
     {
         $this->authorize('media.view');
@@ -47,24 +70,36 @@ final class MediaController extends Controller
         $type = in_array($request->string('type')->toString(), ['image', 'document'], true)
             ? $request->string('type')->toString()
             : '';
+        $kind = in_array($request->string('kind')->toString(), MediaKind::values(), true)
+            ? $request->string('kind')->toString()
+            : '';
         $visibility = in_array($request->string('visibility')->toString(), ['public', 'restricted'], true)
             ? $request->string('visibility')->toString()
             : '';
         $search = Str::limit(trim($request->string('q')->toString()), 120, '');
-        $sort = in_array($request->string('sort')->toString(), ['newest', 'oldest', 'name_asc', 'name_desc', 'size_desc'], true)
+        $dateFrom = $this->parseDate($request->string('date_from')->toString());
+        $dateTo = $this->parseDate($request->string('date_to')->toString());
+        $sort = in_array($request->string('sort')->toString(), [
+            'newest', 'oldest', 'name_asc', 'name_desc', 'size_asc', 'size_desc',
+        ], true)
             ? $request->string('sort')->toString()
             : 'newest';
+        $escapedSearch = addcslashes($search, '\\%_');
 
         $media = Media::query()
             ->with('translations')
             ->when($type === 'image', fn ($q) => $q->images())
             ->when($type === 'document', fn ($q) => $q->documents())
+            ->when($kind !== '', fn ($q) => $q->kind($kind))
             ->when($visibility === 'public', fn ($q) => $q->where('is_restricted', false))
             ->when($visibility === 'restricted', fn ($q) => $q->where('is_restricted', true))
-            ->when($search !== '', fn ($q) => $q->where('original_name', 'like', "%{$search}%"))
+            ->when($search !== '', fn ($q) => $q->whereRaw("original_name LIKE ? ESCAPE '\\'", ["%{$escapedSearch}%"]))
+            ->when($dateFrom !== null, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo !== null, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->when($sort === 'oldest', fn ($q) => $q->oldest())
             ->when($sort === 'name_asc', fn ($q) => $q->orderBy('original_name')->orderByDesc('id'))
             ->when($sort === 'name_desc', fn ($q) => $q->orderByDesc('original_name')->orderByDesc('id'))
+            ->when($sort === 'size_asc', fn ($q) => $q->orderBy('size_bytes')->orderByDesc('id'))
             ->when($sort === 'size_desc', fn ($q) => $q->orderByDesc('size_bytes')->orderByDesc('id'))
             ->when($sort === 'newest', fn ($q) => $q->latest())
             ->paginate(24)
@@ -84,10 +119,23 @@ final class MediaController extends Controller
                 'uuid' => $item->uuid,
                 'name' => $item->original_name,
                 'type' => $item->type->value,
+                'kind' => $item->kind()->value,
                 'mime' => $item->mime_type,
+                'extension' => $this->displayExtension($item),
                 'size' => $item->humanSize(),
+                'sizeBytes' => (int) $item->size_bytes,
+                'createdAt' => $item->created_at?->toISOString(),
+                'canPreview' => $item->canPreview(),
+                'usage' => app(DeleteMedia::class)->usage($item),
                 'restricted' => $item->is_restricted,
                 'url' => $item->is_restricted ? null : $item->url(),
+                'accessUrl' => $item->is_restricted
+                    ? URL::temporarySignedRoute(
+                        'public.media.download',
+                        now()->addMinutes(30),
+                        ['locale' => $locale, 'uuid' => $item->uuid],
+                    )
+                    : $item->url(),
                 'width' => $item->width,
                 'height' => $item->height,
                 'alt' => $item->t('alt_text', $locale),
@@ -107,13 +155,38 @@ final class MediaController extends Controller
                 'from' => $media->firstItem(),
                 'to' => $media->lastItem(),
             ],
-            'filters' => ['type' => $type, 'visibility' => $visibility, 'q' => $search, 'sort' => $sort],
+            'filters' => [
+                'type' => $type,
+                'kind' => $kind,
+                'visibility' => $visibility,
+                'q' => $search,
+                'date_from' => $dateFrom ?? '',
+                'date_to' => $dateTo ?? '',
+                'sort' => $sort,
+            ],
             'stats' => $stats,
-            'sortOptions' => collect(['newest', 'oldest', 'name_asc', 'name_desc', 'size_desc'])
-                ->map(fn (string $key) => [
-                    'value' => $key,
-                    'label' => __("website.ui.cms_media_sort_{$key}", [], $locale),
+            'kindOptions' => collect(MediaKind::cases())
+                ->map(fn (MediaKind $case) => [
+                    'value' => $case->value,
+                    'label' => __($case->labelKey(), [], $locale),
                 ])->all(),
+            'sortOptions' => collect([
+                'newest', 'oldest', 'name_asc', 'name_desc', 'size_asc', 'size_desc',
+            ])->map(fn (string $key) => [
+                'value' => $key,
+                'label' => __("website.ui.cms_media_sort_{$key}", [], $locale),
+            ])->all(),
+            'uploadFormats' => [
+                'image' => array_values(array_unique(array_filter(array_map(
+                    fn (string $mime): string => (string) (config('website.uploads.mime_extensions', [])[$mime] ?? ''),
+                    config('website.uploads.allowed_image_mimes', []),
+                )))),
+                'document' => array_values(array_unique(array_filter(array_map(
+                    fn (string $mime): string => (string) (config('website.uploads.mime_extensions', [])[$mime] ?? ''),
+                    config('website.uploads.allowed_document_mimes', []),
+                )))),
+                'maxKb' => (int) config('website.uploads.max_file_size_kb', 10240),
+            ],
             'can' => [
                 'view' => true,
                 'upload' => $this->allowed('media.upload'),

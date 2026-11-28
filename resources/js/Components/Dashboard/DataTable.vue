@@ -1,6 +1,7 @@
 <script setup>
 defineProps({
     columns: { type: Array, required: true },
+    empty: { type: Boolean, default: false },
     emptyTitle: { type: String, default: '' },
     emptyMessage: { type: String, default: '' },
     dense: { type: Boolean, default: false },
@@ -19,7 +20,7 @@ defineProps({
             </thead>
             <tbody>
                 <slot />
-                <tr v-if="$slots.empty">
+                <tr v-if="empty && $slots.empty">
                     <td :colspan="columns.length">
                         <slot name="empty" />
                     </td>
