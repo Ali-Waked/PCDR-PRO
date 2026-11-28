@@ -9,6 +9,14 @@ const YOUTUBE_HOSTS = new Set([
     'www.youtu.be',
 ])
 
+const FACEBOOK_HOSTS = new Set([
+    'facebook.com',
+    'www.facebook.com',
+    'm.facebook.com',
+    'fb.com',
+    'www.fb.com',
+])
+
 const VIMEO_HOSTS = new Set([
     'vimeo.com',
     'www.vimeo.com',
@@ -28,6 +36,23 @@ function youtubeId(url) {
 
     const match = url.pathname.match(/^\/(?:embed|shorts|live)\/([A-Za-z0-9_-]{6,20})/)
     return match ? match[1] : null
+}
+
+function facebookId(url) {
+    const path = url.pathname
+    const video = url.searchParams.get('v') || ''
+
+    if (['/watch', '/watch/', '/video.php', '/photo.php'].includes(path)) {
+        return /^\d{8,20}$/.test(video) ? video : null
+    }
+
+    const reel = path.match(/^\/(?:reel|videos)\/(\d{8,20})(?:\/|$)/)
+    if (reel) {
+        return reel[1]
+    }
+
+    const profileVideo = path.match(/^\/[^/]+\/videos\/(\d{8,20})(?:\/|$)/)
+    return profileVideo ? profileVideo[1] : null
 }
 
 function vimeoId(url) {
@@ -69,6 +94,21 @@ export function videoSource(value) {
     if (YOUTUBE_HOSTS.has(host)) {
         const id = youtubeId(parsed)
         return id ? { type: 'embed', provider: 'youtube', src: `https://www.youtube-nocookie.com/embed/${id}` } : null
+    }
+
+    if (FACEBOOK_HOSTS.has(host)) {
+        const id = facebookId(parsed)
+        if (!id) {
+            return null
+        }
+
+        const canonical = `https://www.facebook.com/watch/?v=${id}`
+
+        return {
+            type: 'embed',
+            provider: 'facebook',
+            src: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonical)}&show_text=false&width=560`,
+        }
     }
 
     if (VIMEO_HOSTS.has(host)) {

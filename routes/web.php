@@ -241,6 +241,7 @@ Route::prefix('{locale}')
 
                 Route::get('/settings', [SettingController::class, 'index'])->middleware('cms:settings.view')->name('settings.index');
                 Route::put('/settings', [SettingController::class, 'update'])->middleware('cms:settings.update')->name('settings.update');
+                Route::post('/settings/video-preview', [SettingController::class, 'previewVideo'])->middleware('cms:settings.update')->name('settings.video-preview');
                 Route::post('/settings/image', [SettingController::class, 'uploadImage'])->middleware('cms:settings.update')->name('settings.upload-image');
 
                 Route::get('/preview/{resource}/{content}', PreviewController::class)->name('preview');

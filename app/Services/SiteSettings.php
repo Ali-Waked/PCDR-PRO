@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Media;
 use App\Models\WebsiteSetting;
 use App\Support\SocialLinkNormalizer;
+use App\Support\VideoEmbed;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -24,7 +26,7 @@ final class SiteSettings
         $locale ??= app()->getLocale();
 
         return Cache::remember("website.settings.public.{$locale}", 300, function () use ($locale): array {
-            return WebsiteSetting::query()
+            $values = WebsiteSetting::query()
                 ->public()
                 ->with('translations')
                 ->get()
@@ -32,6 +34,14 @@ final class SiteSettings
                     $setting->key => $setting->resolvedValue($locale),
                 ])
                 ->all();
+
+            $posterId = $values['footer.video.poster_media_id'] ?? null;
+            $poster = is_scalar($posterId) && (int) $posterId > 0
+                ? Media::query()->images()->public()->find((int) $posterId)
+                : null;
+            $values['footer.video.poster_url'] = $poster?->url();
+
+            return $values;
         });
     }
 
@@ -71,6 +81,34 @@ final class SiteSettings
             'contact' => $this->contactDetails($locale, $values),
             'complaintsEmail' => $value('contact.complaints_email'),
             'social' => $this->socialLinks($locale, $values),
+            'footerVideo' => $this->footerVideo($locale, $values),
+        ];
+    }
+
+    /**
+     * @param  array<string, string|null>|null  $values
+     * @return array{visible: bool, available: bool, provider: ?string, title: string, url: ?string, watchUrl: ?string, embedUrl: ?string, posterUrl: ?string, sandbox: string, allow: string}
+     */
+    public function footerVideo(?string $locale = null, ?array $values = null): array
+    {
+        $locale ??= app()->getLocale();
+        $values ??= $this->publicValues($locale);
+        $value = static fn (string $key): ?string => $values[$key] ?? null;
+
+        $provider = $value('footer.video.provider');
+        $resolved = VideoEmbed::resolve($provider, $value('footer.video.url'));
+
+        return [
+            'visible' => filter_var($value('footer.video.visible'), FILTER_VALIDATE_BOOLEAN),
+            'available' => $resolved !== null,
+            'provider' => $resolved['provider'] ?? null,
+            'title' => $value('footer.video.title') ?: (string) config("website.footer_video.{$locale}", ''),
+            'url' => $resolved['url'] ?? null,
+            'watchUrl' => $resolved['url'] ?? null,
+            'embedUrl' => $resolved['embedUrl'] ?? null,
+            'posterUrl' => $value('footer.video.poster_url'),
+            'sandbox' => $resolved['sandbox'] ?? 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation',
+            'allow' => $resolved['allow'] ?? 'encrypted-media',
         ];
     }
 

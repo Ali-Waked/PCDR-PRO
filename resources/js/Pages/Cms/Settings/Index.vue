@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import CmsDashboardLayout from '../../../Layouts/CmsDashboardLayout.vue'
+import ContentMediaField from '../../../Components/Cms/ContentMediaField.vue'
+import FooterVideoPreview from '../../../Components/Cms/FooterVideoPreview.vue'
 import SelectionControl from '../../../Components/Selection/SelectionControl.vue'
 import UiIcon from '../../../Components/Dashboard/UiIcon.vue'
 import { useI18n } from '../../../composables/useI18n'
@@ -12,11 +14,12 @@ const props = defineProps({
     locales: { type: Array, default: () => ['ar', 'en'] },
     canUpdate: { type: Boolean, default: false },
     uploadKeys: { type: Array, default: () => [] },
+    media: { type: Array, default: () => [] },
     timezones: { type: Array, default: () => [] },
     automation: { type: Object, default: null },
 })
 
-const { t, localPath, formatDate } = useI18n()
+const { locale, t, localPath, formatDate } = useI18n()
 
 const rows = computed(() => props.settings.map((setting, index) => ({ ...setting, index })))
 
@@ -29,7 +32,9 @@ const groupList = computed(() => {
 })
 
 function rowsFor(groupKey) {
-    return rows.value.filter((row) => row.group === groupKey)
+    return rows.value.filter((row) => (
+        row.group === groupKey && !(row.group === 'footer' && row.key.startsWith('footer.video.'))
+    ))
 }
 
 function localeLabel(code) {
@@ -51,6 +56,11 @@ const intervalOptions = [
     { value: '3', label: '3' },
 ]
 
+const videoProviderOptions = [
+    { value: 'youtube', label: 'YouTube' },
+    { value: 'facebook', label: 'Facebook' },
+]
+
 const booleanOptions = computed(() => [
     { value: '1', label: t('cms_automation_status_enabled', 'Enabled') },
     { value: '0', label: t('cms_automation_status_disabled', 'Disabled') },
@@ -67,6 +77,9 @@ function selectOptions(setting) {
     }
     if (setting.type === 'timezone') {
         return timezoneOptions.value
+    }
+    if (setting.type === 'video_provider') {
+        return videoProviderOptions
     }
 
     return []
@@ -101,6 +114,28 @@ const fileInputs = ref({})
 const pendingUploadKey = ref('')
 const clientErrors = ref({})
 
+function videoRow(key) {
+    return rows.value.find((row) => row.key === key) || null
+}
+
+function videoValue(key) {
+    const row = videoRow(key)
+    return row ? (form.settings[row.index]?.value ?? '') : ''
+}
+
+function videoTranslation(key) {
+    const row = videoRow(key)
+    return row ? (form.settings[row.index]?.translations?.[locale.value] ?? '') : ''
+}
+
+const videoProvider = computed(() => String(videoValue('footer.video.provider') || 'youtube'))
+const videoUrl = computed(() => String(videoValue('footer.video.url') || ''))
+const videoTitle = computed(() => String(videoTranslation('footer.video.title') || ''))
+
+const posterOptions = computed(() => props.media.filter((item) => (
+    item && String(item.type) === 'image' && item.restricted !== true
+)))
+
 function inputType(setting) {
     if (setting.type === 'url') {
         return 'text'
@@ -114,7 +149,7 @@ function inputType(setting) {
     if (setting.type === 'locale') {
         return 'locale'
     }
-    if (['boolean', 'interval', 'timezone'].includes(setting.type)) {
+    if (['boolean', 'interval', 'timezone', 'video_provider'].includes(setting.type)) {
         return 'select'
     }
     if (setting.type === 'integer') {
@@ -330,6 +365,92 @@ function submitImage(setting) {
                 <UiIcon name="lock" :size="17" />
                 <span>{{ t('cms_settings_no_access') }}</span>
             </div>
+
+            <section
+                v-if="['footer.video.provider', 'footer.video.url', 'footer.video.title', 'footer.video.poster_media_id', 'footer.video.visible'].every(videoRow)"
+                class="pc-card pc-footer-video"
+                aria-labelledby="footer-video-title"
+                data-cms-footer-video
+            >
+                <div class="pc-card__head">
+                    <div>
+                        <h2 id="footer-video-title" class="pc-card__title">{{ t('cms_footer_video_title') }}</h2>
+                        <p class="pc-card__subtitle">{{ t('cms_footer_video_note') }}</p>
+                    </div>
+                    <UiIcon name="video" :size="18" />
+                </div>
+                <div class="pc-card__body pc-form-grid">
+                    <SelectionControl
+                        v-model="form.settings[videoRow('footer.video.provider').index].value"
+                        :label="t('cms_footer_video_provider')"
+                        :options="videoProviderOptions.map((option) => ({ ...option, label: option.value === 'youtube' ? t('cms_footer_video_youtube') : t('cms_footer_video_facebook') }))"
+                        :error="valueError(videoRow('footer.video.provider'))"
+                        :searchable="false"
+                        :disabled="!canUpdate"
+                        data-testid="cms-footer-video-provider"
+                    />
+                    <label class="pc-field pc-field--full">
+                        <span class="pc-label">{{ t('cms_footer_video_url') }}</span>
+                        <input
+                            v-model="form.settings[videoRow('footer.video.url').index].value"
+                            class="pc-input"
+                            type="text"
+                            dir="ltr"
+                            maxlength="2000"
+                            :disabled="!canUpdate"
+                            :aria-invalid="valueError(videoRow('footer.video.url')) ? 'true' : 'false'"
+                            data-testid="cms-footer-video-url"
+                        >
+                        <span class="pc-hint">{{ t('cms_footer_video_url_hint') }}</span>
+                        <span v-if="valueError(videoRow('footer.video.url'))" class="pc-error" role="alert">
+                            {{ valueError(videoRow('footer.video.url')) }}
+                        </span>
+                    </label>
+                    <fieldset class="pc-field pc-field--full pc-picker">
+                        <legend class="pc-label">{{ t('cms_footer_video_title_label') }}</legend>
+                        <label v-for="code in locales" :key="code" class="pc-field pc-settings-locale">
+                            <span class="pc-label pc-settings-locale__label">{{ localeLabel(code) }}</span>
+                            <input
+                                v-model="form.settings[videoRow('footer.video.title').index].translations[code]"
+                                class="pc-input"
+                                type="text"
+                                maxlength="2000"
+                                :disabled="!canUpdate"
+                                :dir="code === 'ar' ? 'rtl' : 'ltr'"
+                                :data-testid="`cms-footer-video-title-${code}`"
+                            >
+                        </label>
+                    </fieldset>
+                    <div class="pc-field pc-field--full">
+                        <ContentMediaField
+                            :model-value="form.settings[videoRow('footer.video.poster_media_id').index].value"
+                            :label="t('cms_footer_video_poster')"
+                            :options="posterOptions"
+                            accept="image"
+                            :disabled="!canUpdate"
+                            data-testid="cms-footer-video-poster"
+                            @update:model-value="form.settings[videoRow('footer.video.poster_media_id').index].value = $event"
+                        />
+                    </div>
+                    <SelectionControl
+                        v-model="form.settings[videoRow('footer.video.visible').index].value"
+                        :label="t('cms_footer_video_visible')"
+                        :options="booleanOptions"
+                        :error="valueError(videoRow('footer.video.visible'))"
+                        :searchable="false"
+                        :disabled="!canUpdate"
+                        data-testid="cms-footer-video-visible"
+                    />
+                    <div class="pc-field pc-field--full">
+                        <FooterVideoPreview
+                            :provider="videoProvider"
+                            :url="videoUrl"
+                            :title="videoTitle"
+                            :path="localPath('cms/settings/video-preview')"
+                        />
+                    </div>
+                </div>
+            </section>
 
             <section class="pc-card pc-settings-groups" aria-labelledby="settings-groups-title">
                 <div class="pc-card__head">

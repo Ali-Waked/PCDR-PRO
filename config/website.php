@@ -29,6 +29,11 @@ return [
         'en' => 'From humanitarian response to recovery and sustainable development',
     ],
 
+    'footer_video' => [
+        'ar' => 'الفيلم التعريفي بالجمعية',
+        'en' => 'Association Introduction Film',
+    ],
+
     'locales' => ['ar', 'en'],
     'default_locale' => 'ar',
     'fallback_locale' => 'en',

@@ -1,8 +1,7 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import SocialPlatformIcon from './SocialPlatformIcon.vue'
-import { videoSource } from '../../Support/videoEmbed'
 import { useHomepageContent } from '../../composables/useHomepageContent'
 import { useI18n } from '../../composables/useI18n'
 
@@ -13,7 +12,7 @@ const props = defineProps({
 })
 
 const page = usePage()
-const { locale, site, t } = useI18n()
+const { site, t } = useI18n()
 
 // Shared middleware data is the default. Home also passes its sections prop;
 // an empty shared array is respected so a hidden footer is never resurrected.
@@ -31,10 +30,6 @@ const aboutLinks = computed(() => Array.isArray(aboutGroup.value?.children)
     ? aboutGroup.value.children.filter((item) => item && typeof item.url === 'string' && item.url !== '' && item.url !== '#')
     : [])
 const complaintsLink = computed(() => navigationItem('complaints'))
-const mediaLink = computed(() => navigationItem('media'))
-const mediaLinks = computed(() => Array.isArray(mediaLink.value?.children)
-    ? mediaLink.value.children.filter((item) => item && typeof item.url === 'string' && item.url !== '' && item.url !== '#')
-    : [])
 
 const footerSection = computed(() => content.visibleSection('footer'))
 const footerItems = computed(() => content.items('footer'))
@@ -51,7 +46,6 @@ function sectionText(field) {
 
 const aboutItem = computed(() => itemFor('footer-about', 'about-'))
 const complaintItem = computed(() => itemFor('footer-contact', 'complaint-', 'contact-'))
-const videoItem = computed(() => itemFor('footer-video', 'video-'))
 
 const aboutHeading = computed(() => content.text(aboutItem.value, 'title') || sectionText('title'))
 const aboutBody = computed(() => content.text(aboutItem.value, 'body') || sectionText('body'))
@@ -63,14 +57,34 @@ const complaintsBody = computed(() => content.text(complaintItem.value, 'body'))
 const complaintsCta = computed(() => content.text(complaintItem.value, 'ctaLabel') || complaintsLink.value?.label || '')
 const complaintsHref = computed(() => complaintsLink.value?.url || '')
 
-const mediaHeading = computed(() => content.text(videoItem.value, 'title'))
-const mediaCtaHref = computed(() => mediaLinks.value[0]?.url || '')
-const videoCaption = computed(() => sectionText('videoCaption')
-    || content.text(videoItem.value, 'caption')
-    || content.text(videoItem.value, 'label'))
-const video = computed(() => videoSource(sectionText('videoUrl') || content.text(videoItem.value, 'url')))
-const videoAlt = computed(() => content.mediaAlt(videoItem.value))
-const videoLabel = computed(() => videoCaption.value || mediaHeading.value)
+// The introductory film is configured in Website Settings and delivered as a
+// safe, already-resolved embed payload. The footer never builds iframe URLs.
+const footerVideo = computed(() => site.value?.footerVideo || null)
+const videoAvailable = computed(() => Boolean(footerVideo.value?.visible && footerVideo.value?.embedUrl))
+const videoHeading = computed(() => t('footer_video_heading', 'المرئيات'))
+const videoTitle = computed(() => footerVideo.value?.title || '')
+const watchLabel = computed(() => t('footer_watch_video', 'مشاهدة الفيديو'))
+const fallbackMessage = computed(() => t(
+    'footer_video_fallback',
+    'لا يمكن تشغيل هذا الفيديو هنا. يمكنك مشاهدته على موقع المزوّد.',
+))
+const playbackActive = ref(false)
+const playbackFailed = ref(false)
+
+watch(() => footerVideo.value?.embedUrl, () => {
+    playbackActive.value = false
+    playbackFailed.value = false
+})
+
+function startPlayback() {
+    playbackFailed.value = false
+    playbackActive.value = true
+}
+
+function handleIframeError() {
+    playbackFailed.value = true
+    playbackActive.value = false
+}
 
 const copyright = computed(() => site.value?.footerCopyright || '')
 const legalNote = computed(() => site.value?.footerLegalNote || '')
@@ -103,72 +117,6 @@ const footerContact = computed(() => {
 const values = computed(() => content.items('footer', 'value-')
     .map((item) => content.text(item, 'title') || content.text(item, 'label'))
     .filter((value) => value !== ''))
-
-function photoStyle() {
-    const media = content.mediaUrl(videoItem.value)
-    return media ? { '--photo': `url("${media.replace(/"/g, '%22')}")` } : null
-}
-
-const videoOpen = ref(false)
-const videoTrigger = ref(null)
-const dialog = ref(null)
-const dialogClose = ref(null)
-
-function openVideo() {
-    if (video.value !== null) {
-        videoOpen.value = true
-    }
-}
-
-async function closeVideo() {
-    videoOpen.value = false
-    await nextTick()
-    videoTrigger.value?.focus()
-}
-
-function onDialogKeydown(event) {
-    if (!videoOpen.value) {
-        return
-    }
-
-    if (event.key === 'Escape') {
-        event.preventDefault()
-        closeVideo()
-        return
-    }
-
-    if (event.key !== 'Tab' || dialog.value === null) {
-        return
-    }
-
-    const focusable = Array.from(dialog.value.querySelectorAll('button, iframe, video[controls]'))
-        .filter((element) => !element.hasAttribute('disabled'))
-    if (focusable.length === 0) {
-        return
-    }
-
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-    }
-}
-
-watch(videoOpen, async (open) => {
-    if (open) {
-        await nextTick()
-        dialogClose.value?.focus()
-        document.addEventListener('keydown', onDialogKeydown)
-    } else {
-        document.removeEventListener('keydown', onDialogKeydown)
-    }
-})
-
-onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
 </script>
 
 <template>
@@ -219,35 +167,53 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
                     </div>
                 </section>
 
-                <section>
-                    <h3 v-if="mediaHeading">{{ mediaHeading }}</h3>
-                    <button
-                        v-if="video"
-                        ref="videoTrigger"
-                        type="button"
-                        class="video foot-video-trigger"
-                        :aria-label="videoLabel"
-                        :style="photoStyle()"
-                        @click="openVideo"
-                    >
-                        <span class="p"><svg aria-hidden="true"><use href="#i-play" /></svg></span>
-                        <em v-if="videoCaption">{{ videoCaption }}</em>
-                    </button>
-                    <div
-                        v-else
-                        class="video"
-                        role="img"
-                        :aria-label="videoAlt || videoLabel"
-                        :style="photoStyle()"
-                    >
-                        <span class="p"><svg aria-hidden="true"><use href="#i-play" /></svg></span>
-                        <em v-if="videoCaption">{{ videoCaption }}</em>
+                <section v-if="videoAvailable" class="foot-video-section" data-footer-video>
+                    <h3>{{ videoHeading }}</h3>
+                    <p class="foot-video-title" data-footer-video-title>{{ videoTitle }}</p>
+                    <div class="foot-video-frame" data-footer-video-frame>
+                        <button
+                            v-if="!playbackActive"
+                            type="button"
+                            class="foot-video-cover"
+                            :aria-label="`${t('footer_video_play')}: ${videoTitle}`"
+                            data-footer-video-play
+                            @click="startPlayback"
+                        >
+                            <img
+                                v-if="footerVideo.posterUrl"
+                                class="foot-video-poster"
+                                :src="footerVideo.posterUrl"
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                            >
+                            <span class="foot-video-play" aria-hidden="true">
+                                <svg><use href="#i-play" /></svg>
+                            </span>
+                            <span class="foot-video-cover__title">{{ videoTitle }}</span>
+                        </button>
+                        <iframe
+                            v-else
+                            :src="footerVideo.embedUrl"
+                            :title="videoTitle"
+                            :sandbox="footerVideo.sandbox"
+                            :allow="footerVideo.allow"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            loading="lazy"
+                            allowfullscreen
+                            data-footer-video-player
+                            @error="handleIframeError"
+                        ></iframe>
                     </div>
-                    <Link
-                        v-if="mediaCtaHref && (videoCaption || mediaLink?.label)"
-                        class="link"
-                        :href="mediaCtaHref"
-                    >{{ videoCaption || mediaLink?.label }}</Link>
+                    <p v-if="playbackFailed" class="foot-video-fallback" role="status">{{ fallbackMessage }}</p>
+                    <a
+                        v-if="footerVideo.watchUrl"
+                        class="link foot-video-external"
+                        :href="footerVideo.watchUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-footer-video-external
+                    >{{ watchLabel }}</a>
                 </section>
             </div>
 
@@ -277,41 +243,6 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
         >
             <svg aria-hidden="true"><use href="#i-mail" /></svg>{{ complaintsCta || complaintsLink?.label }}
         </Link>
-
-        <div
-            v-if="videoOpen && video"
-            ref="dialog"
-            class="foot-video-dialog"
-            role="dialog"
-            aria-modal="true"
-            :aria-label="videoLabel"
-            @click.self="closeVideo"
-        >
-            <div class="foot-video-dialog__panel">
-                <button
-                    ref="dialogClose"
-                    class="foot-video-dialog__close"
-                    type="button"
-                    :aria-label="t('cms_close', t('ui.cancel'))"
-                    @click="closeVideo"
-                >×</button>
-                <iframe
-                    v-if="video.type === 'embed'"
-                    :src="video.src"
-                    :title="videoLabel"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen
-                    referrerpolicy="strict-origin-when-cross-origin"
-                />
-                <video
-                    v-else
-                    :src="video.src"
-                    :aria-label="videoLabel"
-                    controls
-                    playsinline
-                />
-            </div>
-        </div>
     </div>
 </template>
 
@@ -337,15 +268,6 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
     color: var(--on-dark);
 }
 
-.foot-video-trigger {
-    width: 100%;
-    padding: 0;
-    border: 0;
-    color: inherit;
-    text-align: inherit;
-    cursor: pointer;
-}
-
 .foot-legal {
     display: block;
     margin-top: 4px;
@@ -367,46 +289,119 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDialogKeydown))
     font-weight: 500;
 }
 
-.foot-video-dialog {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    background: rgba(6, 11, 22, 0.82);
+.foot-video-section {
+    min-width: 0;
 }
 
-.foot-video-dialog__panel {
+.foot-video-title {
+    margin: 0 0 12px;
+    color: var(--on-dark);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.foot-video-frame {
     position: relative;
-    width: min(960px, 100%);
-    background: var(--deep);
-    border: 1px solid var(--on-dark-border);
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    border: 1px solid rgba(218, 195, 163, 0.42);
     border-radius: 12px;
-    padding: 12px;
+    background: linear-gradient(135deg, #3e5172 0%, #2a3b62 100%);
+    box-shadow: 0 12px 30px rgba(4, 9, 20, 0.32);
 }
 
-.foot-video-dialog__panel iframe,
-.foot-video-dialog__panel video {
+.foot-video-frame iframe,
+.foot-video-cover {
     display: block;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    height: 100%;
     border: 0;
-    background: #000;
 }
 
-.foot-video-dialog__close {
-    position: absolute;
-    inset-block-start: -18px;
-    inset-inline-end: -18px;
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--sand);
-    border-radius: 50%;
-    background: var(--deep);
-    color: var(--on-dark);
-    font-size: 24px;
-    line-height: 1;
+.foot-video-cover {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(62, 81, 114, 0.96), rgba(42, 59, 98, 0.96));
     cursor: pointer;
+    text-align: center;
+}
+
+.foot-video-poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.82;
+}
+
+.foot-video-play {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border: 2px solid var(--sand);
+    border-radius: 50%;
+    background: rgba(8, 13, 26, 0.62);
+    transition: transform 160ms ease;
+}
+
+.foot-video-cover:hover .foot-video-play,
+.foot-video-cover:focus-visible .foot-video-play {
+    transform: scale(1.08);
+}
+
+.foot-video-play svg {
+    width: 24px;
+    height: 24px;
+    margin-inline-start: -3px;
+}
+
+.foot-video-cover__title {
+    position: absolute;
+    z-index: 1;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    background: linear-gradient(to top, rgba(8, 13, 26, 0.82), transparent);
+}
+
+.foot-video-external {
+    margin-top: 10px;
+}
+
+.foot-video-fallback {
+    margin: 10px 0 0;
+    color: var(--on-dark-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+    .foot-video-play {
+        width: 48px;
+        height: 48px;
+    }
+
+    .foot-video-play svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .foot-video-play {
+        transition: none;
+    }
 }
 </style>

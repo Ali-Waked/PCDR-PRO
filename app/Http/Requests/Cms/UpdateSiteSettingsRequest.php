@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Cms;
 
+use App\Models\Media;
 use App\Services\CmsAccess;
 use App\Support\SiteSettingsCatalog;
 use App\Support\SocialLinkNormalizer;
+use App\Support\VideoEmbed;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -64,6 +66,13 @@ final class UpdateSiteSettingsRequest extends FormRequest
             return $rules;
         }
 
+        $provider = null;
+        foreach ($submitted as $entry) {
+            if (is_array($entry) && ($entry['key'] ?? null) === 'footer.video.provider') {
+                $provider = is_string($entry['value'] ?? null) ? strtolower($entry['value']) : null;
+            }
+        }
+
         foreach ($submitted as $index => $entry) {
             if (! is_array($entry)) {
                 continue;
@@ -77,6 +86,41 @@ final class UpdateSiteSettingsRequest extends FormRequest
             }
 
             $prefix = 'settings.'.$index;
+
+            if ($key === 'footer.video.url') {
+                $rules["{$prefix}.value"] = [
+                    'nullable',
+                    'string',
+                    'max:2000',
+                    function (string $attribute, mixed $value, Closure $fail) use ($provider): void {
+                        if ($value !== null && $value !== '' && VideoEmbed::resolve($provider, is_string($value) ? $value : null) === null) {
+                            $fail(__('website.cms.setting_video_url_invalid'));
+                        }
+                    },
+                ];
+
+                continue;
+            }
+
+            if ($key === 'footer.video.poster_media_id') {
+                $rules["{$prefix}.value"] = [
+                    'nullable',
+                    'string',
+                    'max:64',
+                    function (string $attribute, mixed $value, Closure $fail): void {
+                        if ($value === null || $value === '') {
+                            return;
+                        }
+
+                        if (! is_string($value) || ! ctype_digit($value)
+                            || ! Media::query()->images()->public()->whereKey((int) $value)->exists()) {
+                            $fail(__('website.cms.setting_video_poster_invalid'));
+                        }
+                    },
+                ];
+
+                continue;
+            }
 
             if (str_starts_with($key, 'social.')) {
                 $rules["{$prefix}.value"] = ['nullable', 'string', 'max:2000', $this->socialUrlRule($key)];
@@ -118,6 +162,9 @@ final class UpdateSiteSettingsRequest extends FormRequest
             'integer' => ['nullable', 'integer', 'min:1', 'max:28'],
             'time' => ['nullable', 'string', 'date_format:H:i'],
             'timezone' => ['nullable', 'string', Rule::in(timezone_identifiers_list())],
+            'video_provider' => ['nullable', Rule::in(VideoEmbed::providers())],
+            'video_url' => ['nullable', 'string', 'max:2000'],
+            'media' => ['nullable', 'string', 'max:64'],
             default => ['nullable', 'string', 'max:2000'],
         };
     }

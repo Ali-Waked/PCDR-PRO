@@ -340,6 +340,7 @@ final class PublicSiteSettingsIntegrationTest extends TestCase
                 'contact',
                 'complaintsEmail',
                 'social',
+                'footerVideo',
             ], array_keys($props['site']), $url);
 
             foreach ($markers as $marker) {
@@ -429,6 +430,7 @@ final class PublicSiteSettingsIntegrationTest extends TestCase
                 'site.value?.social',
                 'site.value?.footerCopyright',
                 'site.value?.footerLegalNote',
+                'site.value?.footerVideo',
             ],
             'resources/js/Components/RedesignHome/ProAboutTabs.vue' => ['site.value?.logo'],
             'resources/js/Pages/Public/About.vue' => ['site.value?.logo', 'site.value?.description'],

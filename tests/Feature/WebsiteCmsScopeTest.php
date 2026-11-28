@@ -13,6 +13,7 @@ use App\Models\WebsiteSetting;
 use App\Services\AccessManagementService;
 use App\Services\RbacService;
 use App\Services\SiteSettings;
+use App\Support\SiteSettingsCatalog;
 use Database\Seeders\CmsRolesSeeder;
 use Database\Seeders\EmailTemplatesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -143,7 +144,7 @@ final class WebsiteCmsScopeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Cms/Settings/Index')
-                ->where('settings', fn ($settings): bool => $settings->count() === 22
+                ->where('settings', fn ($settings): bool => $settings->count() === count(SiteSettingsCatalog::keys())
                     && $settings->contains(fn (array $setting): bool => $setting['key'] === 'contact.complaints_email'
                         && $setting['group'] === 'contact'
                         && $setting['type'] === 'email')

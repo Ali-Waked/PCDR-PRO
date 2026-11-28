@@ -11,6 +11,7 @@ use App\Models\StrategicPillar;
 use App\Models\WebsiteSetting;
 use App\Services\HomepageService;
 use App\Services\SiteSettings;
+use App\Support\SiteSettingsCatalog;
 use Database\Seeders\HomepageContentSeeder;
 use Database\Seeders\SiteSettingsSeeder;
 use Database\Seeders\WebsiteSeeder;
@@ -307,9 +308,7 @@ final class HomepageBackendIntegrationTest extends TestCase
         $this->seed(SiteSettingsSeeder::class);
 
         $settings = WebsiteSetting::query()->get()->keyBy('key');
-        // 22 public CMS keys plus 7 private audit-automation keys introduced
-        // by the archive lifecycle feature.
-        $this->assertCount(29, $settings);
+        $this->assertCount(count(SiteSettingsCatalog::keys()), $settings);
 
         $this->assertSame(
             'جمعية العمل التشاركي في الأزمات والكوارث الخيرية – قطاع غزة',

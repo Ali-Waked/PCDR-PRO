@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { videoSource } from '../resources/js/Support/videoEmbed.js'
 
-test('accepts explicit YouTube and Vimeo providers as canonical embeds', () => {
+test('accepts explicit YouTube, Facebook and Vimeo providers as canonical embeds', () => {
     assert.deepEqual(videoSource('https://www.youtube.com/watch?v=abcdefghijk'), {
         type: 'embed',
         provider: 'youtube',
@@ -19,6 +19,18 @@ test('accepts explicit YouTube and Vimeo providers as canonical embeds', () => {
         provider: 'vimeo',
         src: 'https://player.vimeo.com/video/123456789',
     })
+})
+
+test('accepts Facebook watch, reel and profile video URLs', () => {
+    const expected = {
+        type: 'embed',
+        provider: 'facebook',
+        src: 'https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fwatch%2F%3Fv%3D123456789012345&show_text=false&width=560',
+    }
+
+    assert.deepEqual(videoSource('https://www.facebook.com/watch?v=123456789012345'), expected)
+    assert.deepEqual(videoSource('https://www.facebook.com/reel/123456789012345/'), expected)
+    assert.deepEqual(videoSource('https://m.facebook.com/pcdr/videos/123456789012345/'), expected)
 })
 
 test('accepts only same-origin video files', () => {
@@ -47,6 +59,8 @@ test('rejects arbitrary markup, schemes, hosts and malformed provider identifier
         'http://youtube.com/watch?v=abcdefghijk',
         'https://youtube.com.evil.test/watch?v=abcdefghijk',
         'https://youtube.com/watch?v=short',
+        'https://www.facebook.com/watch?v=abc',
+        'https://facebook.com.evil.test/watch?v=123456789012345',
         'https://vimeo.com/not-a-number',
     ]) {
         assert.equal(videoSource(value), null, String(value))

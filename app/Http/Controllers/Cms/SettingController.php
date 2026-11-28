@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Cms;
 
 use App\Actions\UploadMedia;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cms\PreviewFooterVideoRequest;
 use App\Http\Requests\Cms\UpdateSiteSettingsRequest;
 use App\Http\Requests\Cms\UploadSiteSettingImageRequest;
+use App\Models\Media;
 use App\Models\WebsiteSetting;
 use App\Services\AuditArchiveAutomationService;
 use App\Services\AuditService;
@@ -15,6 +17,8 @@ use App\Services\CmsAccess;
 use App\Services\SiteSettings;
 use App\Support\SiteSettingsCatalog;
 use App\Support\SocialLinkNormalizer;
+use App\Support\VideoEmbed;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
@@ -89,6 +93,7 @@ final class SettingController extends Controller
             'locales' => $locales,
             'canUpdate' => app(CmsAccess::class)->allows(auth()->user(), 'settings.update'),
             'uploadKeys' => SiteSettingsCatalog::imageKeys(),
+            'media' => $this->mediaOptions(),
             'timezones' => timezone_identifiers_list(),
             'automation' => $this->automation->status(),
         ]);
@@ -151,6 +156,19 @@ final class SettingController extends Controller
         return back()->with('flash', ['success' => __('website.cms.saved')]);
     }
 
+    public function previewVideo(string $locale, PreviewFooterVideoRequest $request): JsonResponse
+    {
+        $this->authorize('settings.update');
+
+        /** @var array{provider: string, url: string} $validated */
+        $validated = $request->validated();
+        $resolved = VideoEmbed::resolve($validated['provider'], $validated['url']);
+
+        abort_if($resolved === null, 422, __('website.cms.setting_video_url_invalid'));
+
+        return response()->json($resolved);
+    }
+
     public function uploadImage(
         string $locale,
         UploadSiteSettingImageRequest $request,
@@ -189,6 +207,31 @@ final class SettingController extends Controller
         ]);
 
         return back()->with('flash', ['success' => __('website.cms.setting_image_uploaded')]);
+    }
+
+    /** @return list<array{id: int, name: string, url: string, type: string, alt: string, restricted: bool}> */
+    private function mediaOptions(): array
+    {
+        if (! app(CmsAccess::class)->allows(auth()->user(), 'media.view')) {
+            return [];
+        }
+
+        return Media::query()
+            ->with('translations')
+            ->images()
+            ->public()
+            ->latest()
+            ->limit(100)
+            ->get()
+            ->map(fn (Media $media): array => [
+                'id' => $media->id,
+                'name' => $media->original_name,
+                'url' => $media->url(),
+                'type' => $media->type->value,
+                'alt' => $media->t('alt_text', app()->getLocale()),
+                'restricted' => false,
+            ])
+            ->all();
     }
 
     private function normalize(?string $value): ?string

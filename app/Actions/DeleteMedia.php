@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Exceptions\MediaInUseException;
 use App\Models\Media;
+use App\Models\WebsiteSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +28,13 @@ final class DeleteMedia
 
     private function isReferenced(Media $media): bool
     {
+        if (WebsiteSetting::query()
+            ->where('key', 'footer.video.poster_media_id')
+            ->where('value', (string) $media->id)
+            ->exists()) {
+            return true;
+        }
+
         foreach (['page_media', 'pillar_media', 'project_media', 'article_media', 'publication_media'] as $pivot) {
             if (Schema::hasTable($pivot) && DB::table($pivot)->where('media_id', $media->id)->exists()) {
                 return true;

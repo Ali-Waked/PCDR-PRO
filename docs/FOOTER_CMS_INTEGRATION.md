@@ -16,7 +16,7 @@ The public footer is rendered from the same centralized CMS and navigation servi
 | About submenu, complaints and media destinations | `navigation_menus` / `navigation_items`, menu `primary` | `NavigationService::all($locale)` |
 | Organization name, logo, contact details, social links, copyright and legal note | Site Settings (`site.social` for social links) | `SiteSettings::publicIdentity($locale)` |
 | Complaint route and visibility | `config/cms_structure.php` + `website_pages` | `public.complaints`, guarded by `PublicController::assertPageVisible()` |
-| Video playback | CMS footer item URL | `resources/js/Support/videoEmbed.js` allowlist |
+| Introductory video | Website Settings `footer.video.*` | `SiteSettings::footerVideo()` as `site.footerVideo` |
 | Images / thumbnails | Existing Media Library on the `public` disk | `Media::url()` |
 
 `HandleInertiaRequests` shares a lazy `footer` prop containing only the filtered `footer` section. Inner pages may pass `:anchor-base` for legacy anchor compatibility, but they do not pass their own sections to force a footer render.
@@ -45,18 +45,19 @@ Seeded primary/footer roots: `home`, `about`, `programs`, `media`, `partners`, `
 
 Social icons are **not** editable as footer items. They come exclusively from `site.social`; `SocialPlatformIcon.vue` maps normalized platform keys to icons. Adding or removing a social account is a Site Settings change.
 
+The introductory film is also **not** a footer item. It is edited in the dedicated Website Settings card (`footer.video.provider`, `footer.video.url`, localized `footer.video.title`, `footer.video.poster_media_id` and `footer.video.visible`) and delivered as `site.footerVideo`. See `docs/FOOTER_VIDEO_CMS.md` for the payload contract, provider allowlists and embedding limitations.
+
 There is no CMS navigation module. The navigation editor was intentionally removed, and `tests/Feature/CmsNavigationModuleRemovalTest.php` forbids reintroducing it.
 
 ## 6. Video and media safety
 
-`videoSource()` accepts only:
+The public player no longer parses URLs or opens a modal. It renders only the server-resolved `site.footerVideo` payload: a 16:9 click-to-load frame, an optional public Media Library poster, and an always-available external watch link. The iframe uses server-provided `src`, `sandbox` and `allow`, plus fixed `referrerpolicy` and lazy loading. There is no dialog, no `v-html`, no autoplay with sound and no frontend-built provider URL.
 
-- explicit YouTube and Vimeo HTTPS URLs, rewritten to privacy-preserving canonical embed URLs;
-- same-origin `.mp4`, `.webm` or `.ogg` files under the application URL.
+`App\Support\VideoEmbed` is the authoritative allowlist for the central setting: HTTPS YouTube and Facebook URLs only, with IDs parsed strictly and canonicalized to fixed embed endpoints. It rejects arbitrary markup, `javascript:` / `data:` schemes, unsupported hosts, credentials, non-default ports and malformed IDs. The legacy `videoSource()` helper still supports YouTube, Facebook, Vimeo and same-origin video files for older consumers, but is not imported by the public footer.
 
-It rejects arbitrary markup, `javascript:` / `data:` schemes, unsupported hosts and malformed provider IDs. The rendered modal uses `role="dialog"`, focus management, Escape-to-close and no `v-html`.
+Provider-side restrictions are outside this application's control: YouTube and Facebook may refuse third-party embedding for private, restricted, region-locked or copyright-protected videos, and a valid URL may still fail in an iframe. The external watch link remains available because that failure cannot be reliably detected cross-origin. Full details are in `docs/FOOTER_VIDEO_CMS.md`.
 
-Public image delivery uses the existing `public` disk and `public/storage` symlink. Restricted records always resolve to the signed download controller, even if an older installation left them on the public disk. See `tests/Feature/MediaPublicDeliveryTest.php` for the upload → storage → URL → HTTP → gallery lifecycle.
+Public image delivery uses the existing `public` disk and `public/storage` symlink. Restricted records always resolve to the signed download controller, even if an older installation left them on the public disk. Poster validation and cached public resolution accept only public images; `DeleteMedia` blocks deleting an image still referenced by a poster setting. See `tests/Feature/MediaPublicDeliveryTest.php` for the upload → storage → URL → HTTP → gallery lifecycle.
 
 ### Production checklist
 
@@ -70,6 +71,7 @@ Public image delivery uses the existing `public` disk and `public/storage` symli
 ```bash
 php artisan test --compact \
   tests/Feature/PublicFooterIntegrationTest.php \
+  tests/Feature/FooterVideoCmsTest.php \
   tests/Feature/MediaPublicDeliveryTest.php \
   tests/Feature/CmsNavigationModuleRemovalTest.php \
   tests/Feature/RedesignHomepageFrontendTest.php \
@@ -80,4 +82,4 @@ node --test tests/videoEmbed.test.mjs
 npm run build
 ```
 
-The integration suite checks shared payloads in both locales, live About-submenu synchronization, hidden page/section/item behavior, the complaints POST guard, central-source component markers and the dedicated footer editor fields.
+The integration suite checks shared payloads in both locales, live About-submenu synchronization, hidden page/section/item behavior, the complaints POST guard, central-source component markers and the dedicated footer editor fields. `tests/e2e/footer-video-cms.spec.mjs` adds a browser workflow for configuration, visibility, provider switching and responsive RTL/LTR layout; it skips without seeded CMS credentials.

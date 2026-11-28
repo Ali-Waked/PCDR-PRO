@@ -160,17 +160,18 @@ final class PublicFooterIntegrationTest extends TestCase
             'site.value?.social',
             'site.value?.footerCopyright',
             'site.value?.footerLegalNote',
-            'videoSource(',
+            'site.value?.footerVideo',
+            'data-footer-video',
             'SocialPlatformIcon',
             'aboutCtaHref',
-            'mediaCtaHref',
+            'complaintsHref',
         ] as $needle) {
             $this->assertStringContainsString($needle, $source, $needle);
         }
 
         foreach ([
             'const chrome', 'SOCIAL_KINDS', 'v-html', "localPath('about')", "localPath('complaints')",
-            'aboutGroup?.url', 'mediaLink.url',
+            'aboutGroup?.url', 'mediaLink.url', 'videoSource(',
         ] as $needle) {
             $this->assertStringNotContainsString($needle, $source, $needle);
         }
