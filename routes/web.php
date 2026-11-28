@@ -55,6 +55,53 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetWebsiteLocale;
 use App\Services\SiteSettings;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Web\StatusPageController;
+// use Illuminate\Support\Facades\Artisan;
+// use Illuminate\Support\Facades\Route;
+
+Route::get('/_run/', function (string $token) {
+   // $expected = (string) config('services.setup_token');
+   // abort_unless($expected !== '' && hash_equals($expected, $token), 404);
+
+    set_time_limit(300);
+
+    $directories = [
+    storage_path('framework/cache/data'),
+    storage_path('framework/sessions'),
+    storage_path('framework/views'),
+    storage_path('framework/testing'),
+    storage_path('logs'),
+    base_path('bootstrap/cache'),
+];
+
+foreach ($directories as $directory) {
+    if (! is_dir($directory)) {
+        mkdir($directory, 0775, true);
+    }
+}
+    
+    $steps = [
+        ['optimize:clear', []],
+        ['migrate',        ['--force' => true]],
+        ['db:seed',        ['--force' => true]],
+        ['storage:link',   []],
+        ['view:cache',     []],
+        ['event:cache',    []],
+    ];
+
+    $out = '';
+    foreach ($steps as [$cmd, $args]) {
+        try {
+            Artisan::call($cmd, $args);
+            $out .= "== $cmd ==\n".Artisan::output()."\n";
+        } catch (Throwable $e) {
+            $out .= "== $cmd FAILED ==\n".$e->getMessage()."\n";
+            break; // وقف عند أول فشل
+        }
+    }
+
+    return response($out, 200, ['Content-Type' => 'text/plain']);
+});
 
 $sectionPattern = implode('|', array_map(
     static fn (string $key): string => preg_quote($key, '/'),
