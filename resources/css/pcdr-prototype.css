@@ -120,11 +120,12 @@
 .pcdr-prototype .hero{position:relative;min-height:clamp(520px,78vh,720px);overflow:hidden;color:#fff;background:var(--deep)}
 .pcdr-prototype .slide{position:absolute;inset:0;display:flex;align-items:flex-end;opacity:0;visibility:hidden;transition:opacity .9s ease,visibility 0s .9s}
 .pcdr-prototype .slide.on{opacity:1;visibility:visible;transition:opacity .9s ease}
-.pcdr-prototype .slide::before{content:"";position:absolute;inset:0;background:var(--photo,none) center/cover no-repeat}
-.pcdr-prototype .slide::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(8,13,26,.74),rgba(8,13,26,.05) 64%)}
+.pcdr-prototype .slide::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(to top,rgba(8,13,26,.74),rgba(8,13,26,.05) 64%)}
 .pcdr-prototype .s1,.pcdr-prototype .s2,.pcdr-prototype .s3,.pcdr-prototype .s4,.pcdr-prototype .s5{background:var(--brand-hero)}
-.pcdr-prototype .motif{position:absolute;left:-6%;top:20%;width:min(62vw,500px);height:auto;aspect-ratio:1;z-index:1;opacity:.2;color:var(--sand)}
-.pcdr-prototype .slide .wrap{position:relative;z-index:2;padding-bottom:132px}
+.pcdr-prototype .hero__image{position:absolute;inset:0;z-index:0;inline-size:100%;block-size:100%;object-fit:cover;object-position:center}
+.pcdr-prototype .hero__image-fallback{position:absolute;inset-block-start:16px;inset-inline-start:16px;z-index:2;padding:4px 10px;border-radius:999px;background:rgba(8,13,26,.7);color:#fff;font-size:.75rem}
+.pcdr-prototype .motif{position:absolute;left:-6%;top:20%;width:min(62vw,500px);height:auto;aspect-ratio:1;z-index:2;opacity:.2;color:var(--sand)}
+.pcdr-prototype .slide .wrap{position:relative;z-index:3;padding-bottom:132px}
 .pcdr-prototype .tag{display:inline-block;font:700 13px/1.6 var(--f-head);color:#1B2B4B;background:var(--sand);padding:3px 14px;border-radius:999px}
 .pcdr-prototype .cap h1,
 .pcdr-prototype .cap h2{font:800 clamp(30px,5.6vw,58px)/1.28 var(--f-head);max-width:20ch;text-wrap:balance;margin-top:14px;color:var(--on-dark)}

@@ -307,7 +307,9 @@ final class HomepageBackendIntegrationTest extends TestCase
         $this->seed(SiteSettingsSeeder::class);
 
         $settings = WebsiteSetting::query()->get()->keyBy('key');
-        $this->assertCount(22, $settings);
+        // 22 public CMS keys plus 7 private audit-automation keys introduced
+        // by the archive lifecycle feature.
+        $this->assertCount(29, $settings);
 
         $this->assertSame(
             'جمعية العمل التشاركي في الأزمات والكوارث الخيرية – قطاع غزة',
@@ -333,6 +335,17 @@ final class HomepageBackendIntegrationTest extends TestCase
         foreach (['footer.copyright', 'footer.legal_note'] as $key) {
             $this->assertNull($settings->get($key)?->t('value', 'ar'));
             $this->assertNull($settings->get($key)?->t('value', 'en'));
+        }
+
+        foreach ([
+            'audit_automation.enabled', 'audit_automation.interval_months',
+            'audit_automation.execution_day', 'audit_automation.execution_time',
+            'audit_automation.timezone', 'audit_automation.notifications_enabled',
+            'audit_automation.lookback_months',
+        ] as $key) {
+            $setting = $settings->get($key);
+            $this->assertNotNull($setting, "{$key} must be initialized.");
+            $this->assertFalse((bool) $setting->is_public, "{$key} must remain private.");
         }
 
         $source = (string) file_get_contents(database_path('seeders/SiteSettingsSeeder.php'));

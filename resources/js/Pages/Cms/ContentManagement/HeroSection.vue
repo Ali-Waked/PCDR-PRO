@@ -22,7 +22,11 @@ const locales = ['ar', 'en']
 const editing = ref(null)
 
 const canUpdate = computed(() => props.can?.update === true)
-const slides = computed(() => props.items.filter((item) => item.isSlide === true))
+const records = computed(() => [...props.items].sort((first, second) => (
+    (Number(first.sortOrder) || 0) - (Number(second.sortOrder) || 0)
+) || ((Number(first.id) || 0) - (Number(second.id) || 0))))
+// Backend registry membership is the only source of truth for slide status.
+const slides = computed(() => records.value.filter((item) => item.isSlide === true))
 const activeLocale = computed(() => locales.includes(props.locale) ? props.locale : 'ar')
 
 const motifOptions = [
@@ -38,10 +42,10 @@ const motifOptions = [
 
 const copy = computed(() => props.locale === 'ar' ? {
     title: 'شريط الصور الرئيسي',
-    subtitle: 'إدارة شرائح البطل التي يعرضها الموقع العام.',
-    hint: 'تُحفظ كل شريحة في مصدر المحتوى المعتمد. إخفاء الشريحة يحتفظ ببياناتها.',
+    subtitle: 'إدارة جميع سجلات البطل، بما في ذلك الشرائح وعناصر العرض والسجلات القديمة.',
+    hint: 'تُحفظ كل سجل في مصدر المحتوى المعتمد. إخفاء السجل يحتفظ ببياناته ولا يحذفه.',
     add: 'إضافة شريحة',
-    edit: 'تعديل الشريحة',
+    edit: 'تعديل السجل',
     cancelEdit: 'إلغاء التعديل',
     unsaved: 'تعديلات غير محفوظة',
     save: 'حفظ الشريحة',
@@ -72,18 +76,26 @@ const copy = computed(() => props.locale === 'ar' ? {
     preview: 'معاينة الشريحة',
     previewHint: 'تعكس المعاينة القيم الحالية قبل الحفظ.',
     noImage: 'لم يتم اختيار صورة بعد',
-    records: 'الشرائح',
-    empty: 'لا توجد شرائح في هذا القسم بعد.',
+    records: 'جميع سجلات البطل',
+    allRecordsHint: 'تظهر هنا كل السجلات؛ الشرائح جزء من الإجمالي، وتظل عناصر العرض والسجلات القديمة قابلة للتحرير.',
+    slideType: 'شريحة',
+    controlType: 'عنصر عرض',
+    legacyType: 'سجل قديم',
+    statusEligible: 'ظاهرة الآن',
+    statusHidden: 'مخفي',
+    statusScheduled: 'مجدول',
+    statusExpired: 'منتهٍ',
+    empty: 'لا توجد سجلات في هذا القسم بعد.',
     mediaLabels: {
         select: 'اختيار صورة', change: 'تغيير الصورة', remove: 'إزالة',
         title: 'مكتبة الوسائط', insert: 'إدراج', empty: 'لا توجد صور', close: 'إغلاق',
     },
 } : {
     title: 'Hero slider',
-    subtitle: 'Manage the slides shown on the public homepage.',
-    hint: 'Every slide is saved to the canonical content source. Hiding a slide preserves its data.',
+    subtitle: 'Manage every hero record, including slides, presentation controls and legacy rows.',
+    hint: 'Every record is saved to the canonical content source. Hiding a record preserves its data.',
     add: 'Add slide',
-    edit: 'Edit slide',
+    edit: 'Edit record',
     cancelEdit: 'Cancel edit',
     unsaved: 'Unsaved changes',
     save: 'Save slide',
@@ -114,8 +126,16 @@ const copy = computed(() => props.locale === 'ar' ? {
     preview: 'Slide preview',
     previewHint: 'The preview reflects the current values before saving.',
     noImage: 'No image selected yet',
-    records: 'Slides',
-    empty: 'No slides in this section yet.',
+    records: 'All hero records',
+    allRecordsHint: 'Every record is listed here. Slides are part of the total, while presentation controls and legacy rows remain editable.',
+    slideType: 'Slide',
+    controlType: 'Presentation control',
+    legacyType: 'Legacy record',
+    statusEligible: 'Eligible now',
+    statusHidden: 'Hidden',
+    statusScheduled: 'Scheduled',
+    statusExpired: 'Expired',
+    empty: 'No records in this section yet.',
     mediaLabels: {
         select: 'Choose image', change: 'Change image', remove: 'Remove',
         title: 'Media library', insert: 'Insert', empty: 'No images', close: 'Close',
@@ -132,7 +152,7 @@ function emptyValues() {
         is_published: true,
         media_id: '',
         motif_key: '',
-        sort_order: props.items.length,
+        sort_order: records.value.length,
         display_start_at: '',
         display_end_at: '',
         translations: { ar: emptyTranslation(), en: emptyTranslation() },
@@ -155,7 +175,7 @@ function translation(item, code) {
     return item?.translations?.[code] ?? {}
 }
 
-function editSlide(item) {
+function editRecord(item) {
     editing.value = item.id
     setFormValues({
         item_type: 'inline',
@@ -177,7 +197,7 @@ function cancelEdit() {
     setFormValues(emptyValues())
 }
 
-function submitSlide() {
+function submitRecord() {
     const base = localPath(`cms/content/${props.section.key}`)
     const options = {
         preserveScroll: true,
@@ -195,7 +215,7 @@ function submitSlide() {
     }
 }
 
-async function destroySlide(item) {
+async function destroyRecord(item) {
     if (! canUpdate.value || ! await confirm({
         title: copy.value.deleteTitle,
         message: copy.value.deleteMessage,
@@ -209,7 +229,7 @@ async function destroySlide(item) {
     router.delete(localPath(`cms/content/${props.section.key}/${item.id}`), { preserveScroll: true })
 }
 
-async function toggleSlide(item, event) {
+async function toggleRecord(item, event) {
     const enabled = Boolean(event.target.checked)
 
     if (! enabled && ! await confirm({
@@ -226,13 +246,13 @@ async function toggleSlide(item, event) {
     router.patch(localPath(`cms/content/${props.section.key}/${item.id}/toggle`), { enabled }, { preserveScroll: true })
 }
 
-function moveSlide(index, direction) {
+function moveRecord(index, direction) {
     const target = index + direction
-    if (! canUpdate.value || target < 0 || target >= slides.value.length) {
+    if (! canUpdate.value || target < 0 || target >= records.value.length) {
         return
     }
 
-    const reordered = [...slides.value]
+    const reordered = [...records.value]
     const [moved] = reordered.splice(index, 1)
     reordered.splice(target, 0, moved)
 
@@ -254,6 +274,25 @@ function scheduleSummary(item) {
     }
 
     return start ? `${copy.value.from} ${start}` : `${copy.value.until} ${end}`
+}
+
+function recordType(item) {
+    if (item.isSlide === true) {
+        return copy.value.slideType
+    }
+
+    return ['primary', 'secondary'].includes(item.itemKey)
+        ? copy.value.controlType
+        : copy.value.legacyType
+}
+
+function recordStatus(item) {
+    return {
+        eligible: copy.value.statusEligible,
+        hidden: copy.value.statusHidden,
+        scheduled: copy.value.statusScheduled,
+        expired: copy.value.statusExpired,
+    }[item.scheduleState] || copy.value.statusHidden
 }
 
 const preview = computed(() => {
@@ -287,7 +326,7 @@ function previewStyle() {
                         {{ copy.cancelEdit }}
                     </button>
                 </header>
-                <form class="pc-form-grid hero-editor__form" @submit.prevent="submitSlide">
+                <form class="pc-form-grid hero-editor__form" @submit.prevent="submitRecord">
                     <div v-for="code in locales" :key="code" class="pc-fieldset">
                         <span class="pc-eyebrow">{{ code.toUpperCase() }}</span>
                         <label class="pc-field">
@@ -371,11 +410,12 @@ function previewStyle() {
 
             <section class="pc-card">
                 <header class="pc-card__head">
-                    <h2 class="pc-card__title">{{ copy.records }} ({{ slides.length }})</h2>
+                    <h2 class="pc-card__title">{{ copy.records }} ({{ records.length }} / {{ slides.length }})</h2>
                 </header>
-                <p v-if="!slides.length" class="pc-empty">{{ copy.empty }}</p>
+                <p class="pc-hint hero-editor__records-hint">{{ copy.allRecordsHint }}</p>
+                <p v-if="!records.length" class="pc-empty">{{ copy.empty }}</p>
                 <div v-else class="hero-editor__slides">
-                    <article v-for="(item, index) in slides" :key="item.id" class="hero-slide-card">
+                    <article v-for="(item, index) in records" :key="item.id" class="hero-slide-card">
                         <div class="hero-slide-card__media">
                             <img v-if="item.mediaUrl" :src="item.mediaUrl" :alt="item.translations?.[activeLocale]?.title || ''">
                             <span v-else>{{ copy.noImage }}</span>
@@ -383,17 +423,21 @@ function previewStyle() {
                         <div class="hero-slide-card__body">
                             <span class="pc-eyebrow">#{{ index + 1 }} · {{ item.itemKey || `#${item.id}` }}</span>
                             <h3>{{ item.translations?.[activeLocale]?.title || item.translations?.ar?.title || `#${item.id}` }}</h3>
+                            <p class="hero-slide-card__meta">
+                                <span>{{ recordType(item) }}</span>
+                                <span>{{ recordStatus(item) }}</span>
+                            </p>
                             <p v-if="item.translations?.[activeLocale]?.body" class="pc-hint">{{ item.translations[activeLocale].body }}</p>
                             <p class="pc-hint">{{ scheduleSummary(item) }}</p>
                             <div class="hero-slide-card__actions">
-                                <button class="pc-btn pc-btn--secondary pc-btn--sm" type="button" :disabled="!canUpdate" @click="editSlide(item)">{{ copy.edit }}</button>
-                                <button class="pc-btn pc-btn--ghost pc-btn--xs" type="button" :disabled="!canUpdate || index === 0" :aria-label="copy.moveUp" @click="moveSlide(index, -1)">↑</button>
-                                <button class="pc-btn pc-btn--ghost pc-btn--xs" type="button" :disabled="!canUpdate || index === slides.length - 1" :aria-label="copy.moveDown" @click="moveSlide(index, 1)">↓</button>
+                                <button class="pc-btn pc-btn--secondary pc-btn--sm" type="button" :disabled="!canUpdate" @click="editRecord(item)">{{ copy.edit }}</button>
+                                <button class="pc-btn pc-btn--ghost pc-btn--xs" type="button" :disabled="!canUpdate || index === 0" :aria-label="`${copy.moveUp} — ${item.itemKey || item.id}`" @click="moveRecord(index, -1)">↑</button>
+                                <button class="pc-btn pc-btn--ghost pc-btn--xs" type="button" :disabled="!canUpdate || index === records.length - 1" :aria-label="`${copy.moveDown} — ${item.itemKey || item.id}`" @click="moveRecord(index, 1)">↓</button>
                                 <label class="pc-toggle">
-                                    <input type="checkbox" :checked="item.enabled" :disabled="!canUpdate" @change="toggleSlide(item, $event)">
+                                    <input type="checkbox" :checked="item.enabled" :disabled="!canUpdate" @change="toggleRecord(item, $event)">
                                     <span>{{ item.enabled ? copy.visibility : copy.confirmHide }}</span>
                                 </label>
-                                <button class="pc-btn pc-btn--danger pc-btn--sm" type="button" :disabled="!canUpdate" @click="destroySlide(item)">{{ copy.remove }}</button>
+                                <button class="pc-btn pc-btn--danger pc-btn--sm" type="button" :disabled="!canUpdate" @click="destroyRecord(item)">{{ copy.remove }}</button>
                             </div>
                         </div>
                     </article>
@@ -501,6 +545,11 @@ function previewStyle() {
     font-size: 0.75rem;
 }
 
+.hero-editor__records-hint {
+    margin: 0;
+    padding-inline: 20px;
+}
+
 .hero-editor__slides {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
@@ -548,6 +597,21 @@ function previewStyle() {
     overflow-wrap: anywhere;
 }
 
+.hero-slide-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--pc-muted);
+}
+
+.hero-slide-card__meta span {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--pc-surface);
+}
+
 .hero-slide-card__body p {
     margin: 0;
     overflow-wrap: anywhere;
@@ -564,6 +628,10 @@ function previewStyle() {
     .hero-editor__preview-wrap,
     .hero-editor__slides {
         padding: 16px;
+    }
+
+    .hero-editor__records-hint {
+        padding-inline: 16px;
     }
 
     .hero-preview {

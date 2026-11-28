@@ -27,6 +27,18 @@ const copy = computed(() => locale.value === 'ar' ? {
     pages: 'الصفحات',
     sections: 'الأقسام',
     records: 'سجلات المحتوى',
+    totalRecords: 'إجمالي السجلات',
+    eligibleRecords: 'سجلات قابلة للعرض الآن',
+    visibleRecords: 'سجلات ظاهرة فعلياً',
+    hiddenRecords: 'سجلات مخفية / غير منشورة',
+    scheduledRecords: 'سجلات مجدولة',
+    expiredRecords: 'سجلات منتهية',
+    slideRecords: 'شرائح البطل',
+    eligibleShort: 'ظاهرة',
+    hiddenShort: 'مخفي',
+    scheduledShort: 'مجدول',
+    expiredShort: 'منتهٍ',
+    countNote: 'يشمل الإجمالي السجلات الظاهرة والمخفية والمجدولة والمنتهية؛ شرائح البطل جزء من هذا الإجمالي وليست بديلاً عنه.',
     hiddenSections: 'أقسام مخفية',
     search: 'ابحث باسم الصفحة أو القسم أو المسار',
     all: 'الكل',
@@ -53,6 +65,18 @@ const copy = computed(() => locale.value === 'ar' ? {
     pages: 'Pages',
     sections: 'Sections',
     records: 'Content records',
+    totalRecords: 'Total records',
+    eligibleRecords: 'Records eligible now',
+    visibleRecords: 'Records actually visible',
+    hiddenRecords: 'Hidden / unpublished records',
+    scheduledRecords: 'Scheduled records',
+    expiredRecords: 'Expired records',
+    slideRecords: 'Hero slides',
+    eligibleShort: 'Eligible',
+    hiddenShort: 'Hidden',
+    scheduledShort: 'Scheduled',
+    expiredShort: 'Expired',
+    countNote: 'The total includes eligible, hidden, scheduled and expired records. Hero slides are part of that total, not a replacement for it.',
     hiddenSections: 'Hidden sections',
     search: 'Search by page, section or path',
     all: 'All',
@@ -78,18 +102,41 @@ const allSections = computed(() => props.sections.length
     ? props.sections
     : props.pages.flatMap((page) => page.sections || []))
 
-const summary = computed(() => ({
-    pages: props.pages.length,
-    sections: allSections.value.length,
-    records: allSections.value.reduce((total, section) => total + Number(section.recordCount || 0), 0),
-    hiddenSections: allSections.value.filter((section) => ! section.enabled).length,
-}))
+const summary = computed(() => {
+    const sum = (field) => allSections.value.reduce(
+        (total, section) => total + Number(section[field] || 0),
+        0,
+    )
+
+    return {
+        pages: props.pages.length,
+        sections: allSections.value.length,
+        records: sum('recordCount'),
+        eligible: sum('eligibleCount'),
+        visible: sum('visibleCount'),
+        hidden: sum('hiddenCount'),
+        scheduled: sum('scheduledCount'),
+        expired: sum('expiredCount'),
+        slides: sum('slideCount'),
+        eligibleSlides: sum('eligibleSlideCount'),
+        hiddenSections: allSections.value.filter((section) => ! section.enabled).length,
+    }
+})
 
 const summaryCards = computed(() => [
     { key: 'pages', label: copy.value.pages, value: summary.value.pages },
     { key: 'sections', label: copy.value.sections, value: summary.value.sections },
-    { key: 'records', label: copy.value.records, value: summary.value.records },
-    { key: 'hiddenSections', label: copy.value.hiddenSections, value: summary.value.hiddenSections },
+    { key: 'records', label: copy.value.totalRecords, value: summary.value.records },
+    { key: 'eligible', label: copy.value.eligibleRecords, value: summary.value.eligible },
+    { key: 'visible', label: copy.value.visibleRecords, value: summary.value.visible },
+    { key: 'hidden', label: copy.value.hiddenRecords, value: summary.value.hidden },
+    { key: 'scheduled', label: copy.value.scheduledRecords, value: summary.value.scheduled },
+    { key: 'expired', label: copy.value.expiredRecords, value: summary.value.expired },
+    {
+        key: 'slides',
+        label: copy.value.slideRecords,
+        value: `${summary.value.slides} / ${summary.value.eligibleSlides}`,
+    },
 ])
 
 const filterOptions = computed(() => [
@@ -185,6 +232,7 @@ function moveSection(page, section, direction) {
                     <span class="pc-hint">{{ card.label }}</span>
                     <strong>{{ card.value }}</strong>
                 </article>
+                <p class="pc-hint cms-summary__note">{{ copy.countNote }}</p>
             </section>
 
             <section class="pc-card">
@@ -244,6 +292,15 @@ function moveSection(page, section, direction) {
                         <div class="cms-section-row__records">
                             <span class="cms-cell-label">{{ copy.records }}</span>
                             <span>{{ section.recordCount }}</span>
+                            <span class="cms-breakdown" :aria-label="copy.records">
+                                <span>{{ copy.eligibleShort }} {{ section.eligibleCount }}</span>
+                                <span>{{ copy.hiddenShort }} {{ section.hiddenCount }}</span>
+                                <span>{{ copy.scheduledShort }} {{ section.scheduledCount }}</span>
+                                <span>{{ copy.expiredShort }} {{ section.expiredCount }}</span>
+                            </span>
+                            <span v-if="section.slideCount" class="cms-slide-count">
+                                {{ copy.slideRecords }} {{ section.slideCount }} / {{ section.eligibleSlideCount }}
+                            </span>
                         </div>
                         <div class="cms-section-row__visibility">
                             <span class="cms-cell-label">{{ copy.sectionVisibility }}</span>
@@ -297,8 +354,13 @@ function moveSection(page, section, direction) {
 <style scoped>
 .cms-summary {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 12px;
+}
+
+.cms-summary__note {
+    grid-column: 1 / -1;
+    margin: 0;
 }
 
 .cms-summary__card {
@@ -384,6 +446,24 @@ function moveSection(page, section, direction) {
 .cms-cell-label {
     display: none;
     color: var(--pc-muted);
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.cms-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    color: var(--pc-muted);
+    font-size: 0.72rem;
+}
+
+.cms-breakdown span {
+    white-space: nowrap;
+}
+
+.cms-slide-count {
+    color: var(--pc-accent);
     font-size: 0.72rem;
     font-weight: 650;
 }

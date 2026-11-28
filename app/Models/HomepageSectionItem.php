@@ -83,10 +83,14 @@ class HomepageSectionItem extends Model
             });
     }
 
-    public function isEligibleNow(): bool
+    /**
+     * Classify a record once so management counts and public eligibility cannot
+     * disagree about what "hidden", "scheduled", "expired" and "eligible" mean.
+     */
+    public function scheduleState(): string
     {
         if (! $this->is_published) {
-            return false;
+            return 'hidden';
         }
 
         $now = CarbonImmutable::now($this->scheduleTimezone());
@@ -94,10 +98,19 @@ class HomepageSectionItem extends Model
         $end = $this->scheduleBoundary($this->display_end_at, $now);
 
         if ($start !== null && $start->greaterThan($now)) {
-            return false;
+            return 'scheduled';
         }
 
-        return $end === null || $end->greaterThanOrEqualTo($now);
+        if ($end !== null && $end->lessThan($now)) {
+            return 'expired';
+        }
+
+        return 'eligible';
+    }
+
+    public function isEligibleNow(): bool
+    {
+        return $this->scheduleState() === 'eligible';
     }
 
     /** Stored boundaries are full-day strings in the configured timezone. */

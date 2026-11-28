@@ -16,12 +16,14 @@ const labels = computed(() => (locale.value === 'ar' ? {
     play: 'تشغيل العرض',
     selectSlide: 'اختيار الشريحة',
     slide: 'الشريحة',
+    imageUnavailable: 'الصورة غير متاحة',
 } : {
     carousel: 'Featured programmes',
     pause: 'Pause slideshow',
     play: 'Play slideshow',
     selectSlide: 'Choose a slide',
     slide: 'Slide',
+    imageUnavailable: 'Image unavailable',
 }))
 
 // The backend decides slide membership from the structure registry. Legacy
@@ -34,10 +36,17 @@ const slides = computed(() => content.items('hero').filter((item) => item.slide 
     body: content.text(item, 'body'),
     motifKey: content.text(item, 'motifKey') || 'm-sun',
     media: content.mediaUrl(item),
+    alt: content.mediaAlt(item) || content.text(item, 'title'),
 })))
 
-function photoStyle(slide) {
-    return slide.media ? { '--photo': `url("${slide.media.replace(/"/g, '%22')}")` } : null
+const failedImages = ref({})
+
+function hasImage(slide) {
+    return Boolean(slide.media) && failedImages.value[slide.key] !== true
+}
+
+function imageFailed(slide) {
+    failedImages.value[slide.key] = true
 }
 
 const current = ref(0)
@@ -47,6 +56,7 @@ let timer = null
 let touchStart = null
 
 watch(slides, (value) => {
+    failedImages.value = {}
     if (current.value >= value.length) {
         current.value = 0
     }
@@ -137,10 +147,18 @@ onBeforeUnmount(stopTimer)
             :key="slide.key || `slide-${index}`"
             class="slide"
             :class="[{ on: current === index }, `s${(index % 5) + 1}`]"
-            :style="photoStyle(slide)"
             aria-roledescription="slide"
             :aria-hidden="current === index ? 'false' : 'true'"
         >
+            <img
+                v-if="hasImage(slide)"
+                class="hero__image"
+                :src="slide.media"
+                :alt="slide.alt"
+                decoding="async"
+                @error="imageFailed(slide)"
+            >
+            <span v-else-if="slide.media" class="hero__image-fallback">{{ labels.imageUnavailable }}</span>
             <svg class="motif" aria-hidden="true"><use :href="`#${slide.motifKey}`" /></svg>
             <div class="wrap cap">
                 <span v-if="slide.label" class="tag">{{ slide.label }}</span>

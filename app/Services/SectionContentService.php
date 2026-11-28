@@ -363,6 +363,7 @@ final class SectionContentService
             'featured' => (bool) $item->is_featured,
             'motifKey' => $item->motif_key,
             'enabled' => (bool) $item->is_published,
+            'scheduleState' => $item->scheduleState(),
             'displayStartAt' => $item->display_start_at?->toISOString(),
             'displayEndAt' => $item->display_end_at?->toISOString(),
             'isSlide' => $item->isHeroSlide(),

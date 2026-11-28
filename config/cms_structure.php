@@ -259,6 +259,74 @@ return [
             'label' => ['ar' => 'تذييل الموقع', 'en' => 'Site footer'],
             'content' => 'footer',
         ],
+
+        /*
+         * Legacy prototype sections are still present in the database and some
+         * are publicly enabled. They must stay in the registry so their
+         * management destinations, visibility controls and existing records are
+         * reachable. They are edited as inline records because their stored
+         * items are inline, not links to another CMS module.
+         */
+        'intro' => [
+            'page' => 'home',
+            'order' => 1,
+            'label' => ['ar' => 'المقدمة', 'en' => 'Introduction'],
+            'content' => 'inline',
+        ],
+        'areas' => [
+            'page' => 'home',
+            'order' => 2,
+            'label' => ['ar' => 'مجالات العمل', 'en' => 'Areas of work'],
+            'content' => 'inline',
+        ],
+        'impact' => [
+            'page' => 'home',
+            'order' => 2,
+            'label' => ['ar' => 'الأثر والأرقام', 'en' => 'Impact and figures'],
+            'content' => 'inline',
+        ],
+        'framework' => [
+            'page' => 'home',
+            'order' => 3,
+            'label' => ['ar' => 'الإطار الاستراتيجي', 'en' => 'Strategic framework'],
+            'content' => 'inline',
+        ],
+        'programs' => [
+            'page' => 'home',
+            'order' => 3,
+            'label' => ['ar' => 'البرامج', 'en' => 'Programs'],
+            'content' => 'inline',
+        ],
+        'targets' => [
+            'page' => 'home',
+            'order' => 5,
+            'label' => ['ar' => 'المستهدفات', 'en' => 'Targets'],
+            'content' => 'inline',
+        ],
+        'community' => [
+            'page' => 'home',
+            'order' => 6,
+            'label' => ['ar' => 'المجتمع المحلي', 'en' => 'Local community'],
+            'content' => 'inline',
+        ],
+        'partners' => [
+            'page' => 'home',
+            'order' => 7,
+            'label' => ['ar' => 'الشركاء', 'en' => 'Partners'],
+            'content' => 'inline',
+        ],
+        'knowledge' => [
+            'page' => 'home',
+            'order' => 8,
+            'label' => ['ar' => 'المعرفة والموارد', 'en' => 'Knowledge and resources'],
+            'content' => 'inline',
+        ],
+        'cta' => [
+            'page' => 'home',
+            'order' => 9,
+            'label' => ['ar' => 'دعوة للعمل', 'en' => 'Call to action'],
+            'content' => 'inline',
+        ],
     ],
 
     /**
