@@ -59,7 +59,7 @@ use App\Http\Controllers\Web\StatusPageController;
 // use Illuminate\Support\Facades\Artisan;
 // use Illuminate\Support\Facades\Route;
 
-Route::get('/_run/', function (string $token) {
+Route::get('/_run/', function () {
    // $expected = (string) config('services.setup_token');
    // abort_unless($expected !== '' && hash_equals($expected, $token), 404);
 
