@@ -12,7 +12,9 @@ use App\Services\ScopeResolver;
 use App\Support\PermissionCatalog;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -241,5 +243,84 @@ class RbacTest extends TestCase
         } catch (QueryException) {
             $this->assertTrue(true);
         }
+    }
+
+    public function test_rbac_cache_stores_arrays_and_recovers_from_legacy_object_payloads(): void
+    {
+        Cache::setDefaultDriver('database');
+        Cache::store('database')->flush();
+
+        $role = Role::create(['key' => 'cache_compat', 'name' => 'Cache compatibility']);
+        $permission = Permission::create([
+            'key' => 'cache.array_test',
+            'name' => 'Cache array test',
+            'module' => 'test',
+        ]);
+        $role->permissions()->attach($permission);
+
+        $user = User::factory()->create();
+        app(AccessManagementService::class)->syncRoles($user, [$role->id]);
+
+        $rbac = app(RbacService::class);
+        $permissionKey = 'pcdr:rbac:v1:permissions:'.$user->id;
+        $roleKey = 'pcdr:rbac:v1:roles:'.$user->id;
+
+        $permissions = $rbac->permissionsFor($user);
+        $roles = $rbac->rolesFor($user);
+
+        $this->assertInstanceOf(Collection::class, $permissions);
+        $this->assertTrue($permissions->contains('cache.array_test'));
+        $this->assertIsArray(Cache::get($permissionKey));
+        $this->assertIsArray(Cache::get($roleKey));
+
+        DB::table('cache')->updateOrInsert(
+            ['key' => Cache::getPrefix().$permissionKey],
+            [
+                'value' => base64_encode(serialize(collect(['legacy.permission']))),
+                'expiration' => time() + 3600,
+            ],
+        );
+
+        $this->assertInstanceOf(\__PHP_Incomplete_Class::class, Cache::get($permissionKey));
+
+        $recovered = $rbac->permissionsFor($user);
+
+        $this->assertInstanceOf(Collection::class, $recovered);
+        $this->assertTrue($recovered->contains('cache.array_test'));
+        $this->assertIsArray(Cache::get($permissionKey));
+    }
+
+    public function test_public_home_recovers_from_legacy_rbac_cache_payload(): void
+    {
+        Cache::setDefaultDriver('database');
+        Cache::store('database')->flush();
+
+        $role = Role::create(['key' => 'public_home_cache', 'name' => 'Public home cache']);
+        $permission = Permission::create([
+            'key' => 'public.home.view',
+            'name' => 'View public home',
+            'module' => 'website',
+        ]);
+        $role->permissions()->attach($permission);
+
+        $user = User::factory()->create();
+        app(AccessManagementService::class)->syncRoles($user, [$role->id]);
+
+        $permissionKey = 'pcdr:rbac:v1:permissions:'.$user->id;
+
+        DB::table('cache')->updateOrInsert(
+            ['key' => Cache::getPrefix().$permissionKey],
+            [
+                'value' => base64_encode(serialize(collect(['legacy.permission']))),
+                'expiration' => time() + 3600,
+            ],
+        );
+
+        $this->assertInstanceOf(\__PHP_Incomplete_Class::class, Cache::get($permissionKey));
+
+        $this->actingAs($user)->get('/ar')->assertOk();
+
+        $this->assertIsArray(Cache::get($permissionKey));
+        $this->assertContains('public.home.view', Cache::get($permissionKey));
     }
 }

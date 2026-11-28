@@ -30,7 +30,7 @@ final class RbacService
 
         $key = $this->key('permissions', $user);
 
-        return Cache::rememberForever($key, function () use ($user): Collection {
+        return collect($this->rememberArray($key, function () use ($user): array {
             return $user->roles()
                 ->whereNull('roles.deleted_at')
                 ->with('permissions')
@@ -38,8 +38,9 @@ final class RbacService
                 ->flatMap(fn (Role $role) => $role->permissions->where('is_retired', false)->pluck('key'))
                 ->reject(fn (string $permission): bool => $this->isAuthorityPermission($permission))
                 ->unique()
-                ->values();
-        });
+                ->values()
+                ->all();
+        }));
     }
 
     /**
@@ -75,7 +76,10 @@ final class RbacService
 
         $key = $this->key('roles', $user);
 
-        return Cache::rememberForever($key, fn () => $user->roles()->pluck('roles.key')->unique()->values());
+        return collect($this->rememberArray(
+            $key,
+            fn (): array => $user->roles()->pluck('roles.key')->unique()->values()->all(),
+        ));
     }
 
     /** @return Collection<int, RoleScope> */
@@ -237,6 +241,30 @@ final class RbacService
         foreach (['permissions', 'roles'] as $type) {
             Cache::forget("pcdr:rbac:v{$version}:{$type}:{$user->id}");
         }
+    }
+
+    /**
+     * Cache plain arrays so the payload survives Laravel's class-restricted
+     * cache unserialization. Legacy object payloads are discarded and rebuilt.
+     *
+     * @param  callable(): list<string>  $loader
+     * @return list<string>
+     */
+    private function rememberArray(string $key, callable $loader): array
+    {
+        $cached = Cache::get($key);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        if ($cached !== null) {
+            Cache::forget($key);
+        }
+
+        $value = Cache::rememberForever($key, $loader);
+
+        return is_array($value) ? $value : $loader();
     }
 
     private function key(string $type, User $user): string
